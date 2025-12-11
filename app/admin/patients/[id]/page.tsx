@@ -6,13 +6,15 @@ import { useEffect, useState } from "react"
 import { Card, CardContent } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
-import { ArrowLeft, User, FileText, Activity, Calendar, TrendingUp, Pill } from "lucide-react"
+import { ArrowLeft, User, FileText, Activity, Calendar, TrendingUp, Pill, Utensils } from "lucide-react"
 import { PatientInfoTab } from "@/components/patient-info-tab"
 import { PatientMedicationsTab } from "@/components/patient-medications-tab"
 import { PatientAppointmentsTab } from "@/components/patient-appointments-tab"
 import { PatientPrescriptionsTab } from "@/components/patient-prescriptions-tab"
 import { PatientEvolutionTab } from "@/components/patient-evolution-tab"
 import { PatientMetricsTab } from "@/components/patient-metrics-tab"
+import { PatientDietTab } from "@/components/patient-diet-tab"
+import { PatientSupplementsTab } from "@/components/patient-supplements-tab"
 
 export default function PatientDetailsPage() {
   const params = useParams()
@@ -96,7 +98,7 @@ export default function PatientDetailsPage() {
 
       {/* Tabs */}
       <Tabs defaultValue="info" className="space-y-6">
-        <TabsList className="grid w-full grid-cols-2 lg:grid-cols-6">
+        <TabsList className="grid w-full grid-cols-2 lg:grid-cols-8">
           <TabsTrigger value="info" className="gap-2">
             <User className="h-4 w-4" />
             <span className="hidden sm:inline">Informações</span>
@@ -112,6 +114,14 @@ export default function PatientDetailsPage() {
           <TabsTrigger value="prescriptions" className="gap-2">
             <FileText className="h-4 w-4" />
             <span className="hidden sm:inline">Receitas</span>
+          </TabsTrigger>
+          <TabsTrigger value="diet" className="gap-2">
+            <Utensils className="h-4 w-4" />
+            <span className="hidden sm:inline">Dieta</span>
+          </TabsTrigger>
+          <TabsTrigger value="supplements" className="gap-2">
+            <Pill className="h-4 w-4" />
+            <span className="hidden sm:inline">Suplementos</span>
           </TabsTrigger>
           <TabsTrigger value="metrics" className="gap-2">
             <Activity className="h-4 w-4" />
@@ -137,6 +147,14 @@ export default function PatientDetailsPage() {
 
         <TabsContent value="prescriptions">
           <PatientPrescriptionsTab patientId={patientId} />
+        </TabsContent>
+
+        <TabsContent value="diet">
+          <PatientDietTab patientId={patientId} />
+        </TabsContent>
+
+        <TabsContent value="supplements">
+          <PatientSupplementsTab patientId={patientId} />
         </TabsContent>
 
         <TabsContent value="metrics">

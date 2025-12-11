@@ -5,7 +5,7 @@ import type React from "react"
 import { createClient } from "@/lib/supabase/client"
 import { useRouter } from "next/navigation"
 import { useEffect, useState } from "react"
-import { Heart, LogOut, Home, Users, TrendingUp, AlertCircle, Settings } from "lucide-react"
+import { Heart, LogOut, Home, Users, TrendingUp, AlertCircle, Settings, Utensils, Pill } from "lucide-react"
 import Link from "next/link"
 
 export default function AdminLayout({ children }: { children: React.ReactNode }) {
@@ -93,6 +93,8 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
           <nav className="flex-1 space-y-2 p-6">
             <NavLink href="/admin" icon={Home} label="Painel" />
             <NavLink href="/admin/patients" icon={Users} label="Pacientes" />
+            <NavLink href="/admin/recipes" icon={Utensils} label="Receitas (Landing)" />
+            <NavLink href="/admin/supplements" icon={Pill} label="Suplementos (Landing)" />
             <NavLink href="/admin/health-metrics" icon={TrendingUp} label="Métricas de Saúde" />
             <NavLink href="/admin/alerts" icon={AlertCircle} label="Alertas de Saúde" />
             <NavLink href="/admin/settings" icon={Settings} label="Configurações" />
@@ -104,8 +106,8 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
           <nav className="flex items-center justify-around p-3">
             <MobileNavLink href="/admin" icon={Home} />
             <MobileNavLink href="/admin/patients" icon={Users} />
-            <MobileNavLink href="/admin/health-metrics" icon={TrendingUp} />
-            <MobileNavLink href="/admin/alerts" icon={AlertCircle} />
+            <MobileNavLink href="/admin/recipes" icon={Utensils} />
+            <MobileNavLink href="/admin/supplements" icon={Pill} />
             <MobileNavLink href="/admin/settings" icon={Settings} />
           </nav>
         </div>
