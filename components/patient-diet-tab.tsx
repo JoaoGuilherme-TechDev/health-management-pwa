@@ -24,7 +24,7 @@ interface PatientDietTabProps {
   patientId: string
 }
 
-export function PatientDietTab({ patientId }: PatientDietTabProps) {
+export default function PatientDietTab({ patientId }: PatientDietTabProps) {
   const [dietRecipes, setDietRecipes] = useState<any[]>([])
   const [loading, setLoading] = useState(true)
   const [open, setOpen] = useState(false)

@@ -24,7 +24,7 @@ interface PatientSupplementsTabProps {
   patientId: string
 }
 
-export function PatientSupplementsTab({ patientId }: PatientSupplementsTabProps) {
+export default function PatientSupplementsTab({ patientId }: PatientSupplementsTabProps) {
   const [supplements, setSupplements] = useState<any[]>([])
   const [loading, setLoading] = useState(true)
   const [open, setOpen] = useState(false)
