@@ -38,52 +38,52 @@ export default function AdminDashboard() {
   }, [])
 
   if (loading) {
-    return <div className="text-center py-12">Loading dashboard...</div>
+    return <div className="text-center py-12">Carregando painel...</div>
   }
 
   return (
     <div className="space-y-8">
       {/* Header */}
       <div>
-        <h1 className="text-3xl font-bold text-foreground">Admin Dashboard</h1>
-        <p className="text-muted-foreground mt-2">Monitor system activity and manage healthcare operations</p>
+        <h1 className="text-3xl font-bold text-foreground">Painel Administrativo</h1>
+        <p className="text-muted-foreground mt-2">Monitore a atividade do sistema e gerencie operações de saúde</p>
       </div>
 
       <div className="grid md:grid-cols-2 gap-6">
-        <StatCard title="Total Patients" value={stats.totalPatients} icon={Users} />
-        <StatCard title="Active Medications" value={stats.totalMedications} icon={Activity} />
+        <StatCard title="Total de Pacientes" value={stats.totalPatients} icon={Users} />
+        <StatCard title="Medicamentos Ativos" value={stats.totalMedications} icon={Activity} />
       </div>
 
       {/* System Overview */}
       <Card>
         <CardHeader>
-          <CardTitle>System Overview</CardTitle>
-          <CardDescription>Key metrics and system status</CardDescription>
+          <CardTitle>Visão Geral do Sistema</CardTitle>
+          <CardDescription>Métricas principais e status do sistema</CardDescription>
         </CardHeader>
         <CardContent>
           <div className="grid md:grid-cols-2 gap-6">
             <div className="space-y-3">
-              <h3 className="font-semibold text-foreground">Recent Activity</h3>
+              <h3 className="font-semibold text-foreground">Atividade Recente</h3>
               <div className="space-y-2">
                 <div className="flex justify-between items-center p-3 rounded-lg bg-muted/50">
-                  <span className="text-sm text-muted-foreground">Last 24 hours</span>
-                  <span className="font-semibold text-foreground">Active</span>
+                  <span className="text-sm text-muted-foreground">Últimas 24 horas</span>
+                  <span className="font-semibold text-foreground">Ativo</span>
                 </div>
                 <div className="flex justify-between items-center p-3 rounded-lg bg-muted/50">
-                  <span className="text-sm text-muted-foreground">Data sync status</span>
-                  <span className="font-semibold text-green-600 dark:text-green-400">Synced</span>
+                  <span className="text-sm text-muted-foreground">Status de sincronização</span>
+                  <span className="font-semibold text-green-600 dark:text-green-400">Sincronizado</span>
                 </div>
               </div>
             </div>
             <div className="space-y-3">
-              <h3 className="font-semibold text-foreground">Quick Stats</h3>
+              <h3 className="font-semibold text-foreground">Estatísticas Rápidas</h3>
               <div className="space-y-2">
                 <div className="flex justify-between items-center p-3 rounded-lg bg-muted/50">
-                  <span className="text-sm text-muted-foreground">Total Patients</span>
+                  <span className="text-sm text-muted-foreground">Total de Pacientes</span>
                   <span className="font-semibold text-foreground">{stats.totalPatients}</span>
                 </div>
                 <div className="flex justify-between items-center p-3 rounded-lg bg-muted/50">
-                  <span className="text-sm text-muted-foreground">Medications per patient</span>
+                  <span className="text-sm text-muted-foreground">Medicamentos por paciente</span>
                   <span className="font-semibold text-foreground">
                     {stats.totalPatients > 0 ? (stats.totalMedications / stats.totalPatients).toFixed(1) : 0}
                   </span>
@@ -96,8 +96,8 @@ export default function AdminDashboard() {
 
       <Card>
         <CardHeader>
-          <CardTitle>Management Actions</CardTitle>
-          <CardDescription>Quick access to common admin functions</CardDescription>
+          <CardTitle>Ações de Gerenciamento</CardTitle>
+          <CardDescription>Acesso rápido às funções administrativas comuns</CardDescription>
         </CardHeader>
         <CardContent>
           <div className="grid sm:grid-cols-2 gap-4">
@@ -106,16 +106,16 @@ export default function AdminDashboard() {
               className="p-4 rounded-lg border border-border hover:border-primary transition-colors cursor-pointer"
             >
               <Users className="h-6 w-6 text-primary mb-2" />
-              <h3 className="font-semibold text-foreground mb-1">Manage Patients</h3>
-              <p className="text-sm text-muted-foreground">View and manage all patient accounts</p>
+              <h3 className="font-semibold text-foreground mb-1">Gerenciar Pacientes</h3>
+              <p className="text-sm text-muted-foreground">Visualizar e gerenciar todas as contas de pacientes</p>
             </a>
             <a
               href="/admin/settings"
               className="p-4 rounded-lg border border-border hover:border-primary transition-colors cursor-pointer"
             >
               <Users className="h-6 w-6 text-primary mb-2" />
-              <h3 className="font-semibold text-foreground mb-1">System Settings</h3>
-              <p className="text-sm text-muted-foreground">Configure admin preferences</p>
+              <h3 className="font-semibold text-foreground mb-1">Configurações do Sistema</h3>
+              <p className="text-sm text-muted-foreground">Configurar preferências administrativas</p>
             </a>
           </div>
         </CardContent>
