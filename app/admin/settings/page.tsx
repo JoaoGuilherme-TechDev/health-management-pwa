@@ -149,7 +149,6 @@ export default function AdminSettingsPage() {
           </div>
         </CardContent>
       </Card>
-      {/* </CHANGE> */}
 
       <Card>
         <CardHeader>
