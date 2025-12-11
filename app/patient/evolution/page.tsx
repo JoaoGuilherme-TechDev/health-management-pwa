@@ -58,6 +58,12 @@ export default function PatientEvolutionPage() {
                 <CardTitle className="text-lg">
                   Medição de {new Date(record.measured_at).toLocaleDateString("pt-BR")}
                 </CardTitle>
+                {record.doctor_name && (
+                  <div className="mt-2 inline-flex items-center gap-1.5 px-2.5 py-1 bg-primary/10 text-primary rounded-full text-xs font-medium">
+                    <span>Dr(a). {record.doctor_name}</span>
+                    {record.doctor_crm && <span>• CRM {record.doctor_crm}</span>}
+                  </div>
+                )}
               </CardHeader>
               <CardContent>
                 <div className="grid grid-cols-2 md:grid-cols-4 gap-4">

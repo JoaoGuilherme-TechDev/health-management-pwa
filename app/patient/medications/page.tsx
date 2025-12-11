@@ -11,6 +11,8 @@ interface Medication {
   dosage: string
   frequency: string
   prescribing_doctor: string
+  doctor_name: string | null
+  doctor_crm: string | null
   reason: string
   start_date: string
   end_date: string | null
@@ -75,8 +77,11 @@ export default function MedicationsPage() {
                     <p className="text-sm text-muted-foreground mt-1">
                       {med.dosage} • {med.frequency}
                     </p>
-                    {med.prescribing_doctor && (
-                      <p className="text-sm text-muted-foreground mt-2">Prescrito por: {med.prescribing_doctor}</p>
+                    {(med.doctor_name || med.prescribing_doctor) && (
+                      <div className="mt-2 inline-flex items-center gap-1.5 px-2.5 py-1 bg-primary/10 text-primary rounded-full text-xs font-medium">
+                        <span>Dr(a). {med.doctor_name || med.prescribing_doctor}</span>
+                        {med.doctor_crm && <span>• CRM {med.doctor_crm}</span>}
+                      </div>
                     )}
                     {med.reason && <p className="text-sm text-muted-foreground mt-1">Motivo: {med.reason}</p>}
                     <div className="flex gap-4 mt-3 text-xs">

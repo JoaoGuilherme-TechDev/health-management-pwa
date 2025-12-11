@@ -17,6 +17,8 @@ interface Appointment {
   status: string
   location: string | null
   notes: string | null
+  doctor_name: string | null
+  doctor_crm: string | null
 }
 
 export default function AppointmentsPage() {
@@ -106,6 +108,12 @@ export default function AppointmentsPage() {
                   <div>
                     <CardTitle className="text-xl">{appointment.title}</CardTitle>
                     <CardDescription className="mt-1">{appointment.appointment_type}</CardDescription>
+                    {appointment.doctor_name && (
+                      <div className="mt-2 inline-flex items-center gap-1.5 px-2.5 py-1 bg-primary/10 text-primary rounded-full text-xs font-medium">
+                        <span>Dr(a). {appointment.doctor_name}</span>
+                        {appointment.doctor_crm && <span>• CRM {appointment.doctor_crm}</span>}
+                      </div>
+                    )}
                   </div>
                   <Badge className={getStatusColor(appointment.status)}>{getStatusText(appointment.status)}</Badge>
                 </div>

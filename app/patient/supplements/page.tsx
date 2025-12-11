@@ -57,6 +57,12 @@ export default function PatientSupplementsPage() {
             <Card key={supp.id}>
               <CardHeader>
                 <CardTitle className="text-lg">{supp.supplement_name}</CardTitle>
+                {supp.doctor_name && (
+                  <div className="mt-2 inline-flex items-center gap-1.5 px-2.5 py-1 bg-primary/10 text-primary rounded-full text-xs font-medium">
+                    <span>Dr(a). {supp.doctor_name}</span>
+                    {supp.doctor_crm && <span>• CRM {supp.doctor_crm}</span>}
+                  </div>
+                )}
               </CardHeader>
               <CardContent className="space-y-3">
                 <div>

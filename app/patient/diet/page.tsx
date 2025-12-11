@@ -63,11 +63,19 @@ export default function PatientDietPage() {
                   />
                 )}
                 <CardTitle>{recipe.title}</CardTitle>
-                {recipe.meal_type && (
-                  <span className="inline-block px-2 py-1 text-xs rounded bg-primary/10 text-primary mt-2 w-fit">
-                    {recipe.meal_type}
-                  </span>
-                )}
+                <div className="flex items-center gap-2 mt-2 flex-wrap">
+                  {recipe.meal_type && (
+                    <span className="inline-block px-2 py-1 text-xs rounded bg-primary/10 text-primary w-fit">
+                      {recipe.meal_type}
+                    </span>
+                  )}
+                  {recipe.doctor_name && (
+                    <span className="inline-flex items-center gap-1.5 px-2.5 py-1 bg-muted text-muted-foreground rounded-full text-xs font-medium">
+                      <span>Dr(a). {recipe.doctor_name}</span>
+                      {recipe.doctor_crm && <span>• CRM {recipe.doctor_crm}</span>}
+                    </span>
+                  )}
+                </div>
               </CardHeader>
               <CardContent className="space-y-4">
                 {recipe.description && <p className="text-sm text-muted-foreground">{recipe.description}</p>}
