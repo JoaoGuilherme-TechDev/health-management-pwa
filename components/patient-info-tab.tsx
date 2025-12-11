@@ -41,8 +41,6 @@ export function PatientInfoTab({ patient, onUpdate }: { patient: any; onUpdate: 
       allergies: formData.allergies,
       insurance_provider: formData.insurance_provider,
       insurance_id: formData.insurance_id,
-      diet_plan: formData.diet_plan,
-      supplement_plan: formData.supplement_plan,
     }
 
     console.log("[v0] Dados a serem atualizados:", updateData)
@@ -262,33 +260,6 @@ export function PatientInfoTab({ patient, onUpdate }: { patient: any; onUpdate: 
                 value={formData.insurance_id || ""}
                 onChange={(e) => setFormData({ ...formData, insurance_id: e.target.value })}
                 disabled={!isEditing}
-              />
-            </div>
-          </div>
-        </div>
-
-        {/* Planos Personalizados */}
-        <div>
-          <h3 className="text-lg font-semibold text-foreground mb-4">Planos Personalizados</h3>
-          <div className="space-y-4">
-            <div>
-              <Label>Plano Alimentar</Label>
-              <Textarea
-                value={formData.diet_plan || ""}
-                onChange={(e) => setFormData({ ...formData, diet_plan: e.target.value })}
-                disabled={!isEditing}
-                rows={4}
-                placeholder="Resumo do plano alimentar do paciente..."
-              />
-            </div>
-            <div>
-              <Label>Plano de Suplementação</Label>
-              <Textarea
-                value={formData.supplement_plan || ""}
-                onChange={(e) => setFormData({ ...formData, supplement_plan: e.target.value })}
-                disabled={!isEditing}
-                rows={4}
-                placeholder="Resumo dos suplementos recomendados..."
               />
             </div>
           </div>
