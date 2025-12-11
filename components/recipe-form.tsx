@@ -31,9 +31,11 @@ export default function RecipeForm({ recipe, onSuccess, onCancel }: RecipeFormPr
     const timestamp = Date.now()
     const path = `recipes/${timestamp}-${file.name}`
     const { data, error } = await supabase.storage.from("recipes").upload(path, file)
-    if (!error && data) {
-      const { data: urlData } = supabase.storage.from("recipes").getPublicUrl(path)
-      setFormData({ ...formData, image_url: urlData.publicUrl })
+    if (!error) {
+      const {
+        data: { publicUrl },
+      } = supabase.storage.from("recipes").getPublicUrl(path)
+      setFormData({ ...formData, image_url: publicUrl })
     }
   }
 

@@ -29,9 +29,11 @@ export default function SupplementForm({ supplement, onSuccess, onCancel }: Supp
     const timestamp = Date.now()
     const path = `supplements/${timestamp}-${file.name}`
     const { data, error } = await supabase.storage.from("supplements").upload(path, file)
-    if (!error && data) {
-      const { data: urlData } = supabase.storage.from("supplements").getPublicUrl(path)
-      setFormData({ ...formData, image_url: urlData.publicUrl })
+    if (!error) {
+      const {
+        data: { publicUrl },
+      } = supabase.storage.from("supplements").getPublicUrl(path)
+      setFormData({ ...formData, image_url: publicUrl })
     }
   }
 
