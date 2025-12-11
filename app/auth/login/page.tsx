@@ -33,6 +33,8 @@ export default function LoginPage() {
 
       console.log("[v0] Usuário logado:", data.user.id)
 
+      await new Promise((resolve) => setTimeout(resolve, 500))
+
       const { data: profile, error: profileError } = await supabase
         .from("profiles")
         .select("role")
@@ -51,15 +53,14 @@ export default function LoginPage() {
 
       if (userRole === "admin") {
         console.log("[v0] Redirecionando para /admin")
-        router.push("/admin")
+        window.location.href = "/admin"
       } else {
         console.log("[v0] Redirecionando para /patient")
-        router.push("/patient")
+        window.location.href = "/patient"
       }
     } catch (error: unknown) {
       console.error("[v0] Erro no login:", error)
       setError(error instanceof Error ? error.message : "Ocorreu um erro")
-    } finally {
       setIsLoading(false)
     }
   }

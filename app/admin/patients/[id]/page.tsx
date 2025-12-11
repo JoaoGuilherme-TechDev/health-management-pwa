@@ -98,38 +98,38 @@ export default function PatientDetailsPage() {
 
       {/* Tabs */}
       <Tabs defaultValue="info" className="space-y-6">
-        <TabsList className="grid w-full grid-cols-2 lg:grid-cols-8">
-          <TabsTrigger value="info" className="gap-2">
+        <TabsList className="grid w-full grid-cols-4 lg:grid-cols-8 gap-1">
+          <TabsTrigger value="info" className="flex-col gap-1 py-2">
             <User className="h-4 w-4" />
-            <span className="hidden sm:inline">Informações</span>
+            <span className="text-xs">Info</span>
           </TabsTrigger>
-          <TabsTrigger value="medications" className="gap-2">
+          <TabsTrigger value="medications" className="flex-col gap-1 py-2">
             <Pill className="h-4 w-4" />
-            <span className="hidden sm:inline">Medicamentos</span>
+            <span className="text-xs">Meds</span>
           </TabsTrigger>
-          <TabsTrigger value="appointments" className="gap-2">
+          <TabsTrigger value="appointments" className="flex-col gap-1 py-2">
             <Calendar className="h-4 w-4" />
-            <span className="hidden sm:inline">Consultas</span>
+            <span className="text-xs">Consultas</span>
           </TabsTrigger>
-          <TabsTrigger value="prescriptions" className="gap-2">
+          <TabsTrigger value="prescriptions" className="flex-col gap-1 py-2">
             <FileText className="h-4 w-4" />
-            <span className="hidden sm:inline">Receitas</span>
+            <span className="text-xs">Receitas</span>
           </TabsTrigger>
-          <TabsTrigger value="diet" className="gap-2">
+          <TabsTrigger value="diet" className="flex-col gap-1 py-2">
             <Utensils className="h-4 w-4" />
-            <span className="hidden sm:inline">Dieta</span>
+            <span className="text-xs">Dieta</span>
           </TabsTrigger>
-          <TabsTrigger value="supplements" className="gap-2">
+          <TabsTrigger value="supplements" className="flex-col gap-1 py-2">
             <Pill className="h-4 w-4" />
-            <span className="hidden sm:inline">Suplementos</span>
+            <span className="text-xs">Suplem</span>
           </TabsTrigger>
-          <TabsTrigger value="metrics" className="gap-2">
+          <TabsTrigger value="metrics" className="flex-col gap-1 py-2">
             <Activity className="h-4 w-4" />
-            <span className="hidden sm:inline">Métricas</span>
+            <span className="text-xs">Métricas</span>
           </TabsTrigger>
-          <TabsTrigger value="evolution" className="gap-2">
+          <TabsTrigger value="evolution" className="flex-col gap-1 py-2">
             <TrendingUp className="h-4 w-4" />
-            <span className="hidden sm:inline">Evolução</span>
+            <span className="text-xs">Evolução</span>
           </TabsTrigger>
         </TabsList>
 
