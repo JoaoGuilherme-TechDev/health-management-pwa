@@ -6,13 +6,12 @@ import { useEffect, useState } from "react"
 import { Card, CardContent } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
-import { ArrowLeft, User, FileText, Activity, Calendar, TrendingUp, Pill, Utensils } from "lucide-react"
+import { ArrowLeft, User, FileText, Activity, Calendar, Pill, Utensils } from "lucide-react"
 import { PatientInfoTab } from "@/components/patient-info-tab"
 import { PatientMedicationsTab } from "@/components/patient-medications-tab"
 import { PatientAppointmentsTab } from "@/components/patient-appointments-tab"
 import { PatientPrescriptionsTab } from "@/components/patient-prescriptions-tab"
 import { PatientEvolutionTab } from "@/components/patient-evolution-tab"
-import { PatientMetricsTab } from "@/components/patient-metrics-tab"
 import { PatientDietTab } from "@/components/patient-diet-tab"
 import { PatientSupplementsTab } from "@/components/patient-supplements-tab"
 
@@ -99,7 +98,7 @@ export default function PatientDetailsPage() {
       <Tabs defaultValue="info" className="space-y-4 sm:space-y-6">
         <div className="relative">
           <div className="overflow-x-auto no-scrollbar mobile-scroll -mx-4 px-4 sm:mx-0 sm:px-0">
-            <TabsList className="inline-flex w-auto min-w-full sm:grid sm:grid-cols-8 gap-1 h-auto p-1">
+            <TabsList className="inline-flex w-auto min-w-full sm:grid sm:grid-cols-7 gap-1 h-auto p-1">
               <TabsTrigger
                 value="info"
                 className="flex-shrink-0 flex items-center justify-center gap-2 px-4 py-3 min-w-[90px] data-[state=active]:bg-primary data-[state=active]:text-primary-foreground"
@@ -143,17 +142,10 @@ export default function PatientDetailsPage() {
                 <span className="text-xs font-medium">Suplem.</span>
               </TabsTrigger>
               <TabsTrigger
-                value="metrics"
-                className="flex-shrink-0 flex items-center justify-center gap-2 px-4 py-3 min-w-[90px] data-[state=active]:bg-primary data-[state=active]:text-primary-foreground"
-              >
-                <Activity className="h-4 w-4 shrink-0" />
-                <span className="text-xs font-medium">Métricas</span>
-              </TabsTrigger>
-              <TabsTrigger
                 value="evolution"
                 className="flex-shrink-0 flex items-center justify-center gap-2 px-4 py-3 min-w-[90px] data-[state=active]:bg-primary data-[state=active]:text-primary-foreground"
               >
-                <TrendingUp className="h-4 w-4 shrink-0" />
+                <Activity className="h-4 w-4 shrink-0" />
                 <span className="text-xs font-medium">Evolução</span>
               </TabsTrigger>
             </TabsList>
@@ -182,10 +174,6 @@ export default function PatientDetailsPage() {
 
         <TabsContent value="supplements">
           <PatientSupplementsTab patientId={patientId} />
-        </TabsContent>
-
-        <TabsContent value="metrics">
-          <PatientMetricsTab patientId={patientId} />
         </TabsContent>
 
         <TabsContent value="evolution">

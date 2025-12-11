@@ -104,8 +104,8 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
             <MobileNavLink href="/admin" icon={Home} label="Painel" />
             <MobileNavLink href="/admin/patients" icon={Users} label="Pacientes" />
             <MobileNavLink href="/admin/recipes" icon={Utensils} label="Receitas" />
-            <MobileNavLink href="/admin/supplements" icon={Pill} label="Suplem" />
-            <MobileNavLink href="/admin/settings" icon={Settings} label="Config" />
+            <MobileNavLink href="/admin/supplements" icon={Pill} label="Suplementos" />
+            <MobileNavLink href="/admin/settings" icon={Settings} label="Configurações" />
           </nav>
         </div>
 

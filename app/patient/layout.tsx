@@ -5,18 +5,7 @@ import type React from "react"
 import { createClient } from "@/lib/supabase/client"
 import { useRouter } from "next/navigation"
 import { useEffect, useState } from "react"
-import {
-  Heart,
-  LogOut,
-  Home,
-  Pill,
-  TrendingUp,
-  Calendar,
-  Bell,
-  Settings,
-  UtensilsCrossed,
-  Activity,
-} from "lucide-react"
+import { Heart, LogOut, Home, Pill, Calendar, Bell, Settings, UtensilsCrossed, Activity } from "lucide-react"
 import Link from "next/link"
 
 export default function PatientLayout({ children }: { children: React.ReactNode }) {
@@ -98,7 +87,6 @@ export default function PatientLayout({ children }: { children: React.ReactNode 
       </nav>
 
       <div className="flex">
-        {/* Sidebar - Desktop only */}
         <aside className="hidden md:flex w-64 border-r border-border bg-muted/30 flex-col">
           <nav className="flex-1 space-y-2 p-6">
             <NavLink href="/patient" icon={Home} label="Painel" />
@@ -106,7 +94,6 @@ export default function PatientLayout({ children }: { children: React.ReactNode 
             <NavLink href="/patient/diet" icon={UtensilsCrossed} label="Dieta" />
             <NavLink href="/patient/supplements" icon={Pill} label="Suplementos" />
             <NavLink href="/patient/evolution" icon={Activity} label="Evolução Física" />
-            <NavLink href="/patient/health-metrics" icon={TrendingUp} label="Métricas de Saúde" />
             <NavLink href="/patient/appointments" icon={Calendar} label="Consultas" />
             <NavLink href="/patient/notifications" icon={Bell} label="Notificações" />
             <NavLink href="/patient/settings" icon={Settings} label="Configurações" />
@@ -120,7 +107,6 @@ export default function PatientLayout({ children }: { children: React.ReactNode 
             <MobileNavLink href="/patient/diet" icon={UtensilsCrossed} label="Dieta" />
             <MobileNavLink href="/patient/supplements" icon={Pill} label="Suplem" />
             <MobileNavLink href="/patient/evolution" icon={Activity} label="Evolução" />
-            <MobileNavLink href="/patient/health-metrics" icon={TrendingUp} label="Métricas" />
             <MobileNavLink href="/patient/appointments" icon={Calendar} label="Consultas" />
             <MobileNavLink href="/patient/notifications" icon={Bell} label="Avisos" />
             <MobileNavLink href="/patient/settings" icon={Settings} label="Config" />

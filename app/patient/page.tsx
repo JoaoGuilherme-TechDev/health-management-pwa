@@ -4,7 +4,7 @@ import { createClient } from "@/lib/supabase/client"
 import { useEffect, useState } from "react"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
-import { Pill, Calendar, TrendingUp, Bell } from "lucide-react"
+import { Pill, Calendar, Bell } from "lucide-react"
 import Link from "next/link"
 
 interface Profile {
@@ -28,20 +28,17 @@ export default function PatientDashboard() {
     const loadData = async () => {
       const supabase = createClient()
 
-      // Get current user
       const {
         data: { user },
       } = await supabase.auth.getUser()
 
       if (user) {
-        // Get profile
         const { data: profileData } = await supabase.from("profiles").select("*").eq("id", user.id).single()
 
         if (profileData) {
           setProfile(profileData)
         }
 
-        // Get stats
         const { count: medCount } = await supabase
           .from("medications")
           .select("*", { count: "exact" })
@@ -98,7 +95,6 @@ export default function PatientDashboard() {
         <StatCard title="Notificações" value={stats.unreadNotifications} icon={Bell} href="/patient/notifications" />
       </div>
 
-      {/* Quick Actions */}
       <Card>
         <CardHeader>
           <CardTitle>Visão Geral da Saúde</CardTitle>
@@ -110,12 +106,6 @@ export default function PatientDashboard() {
               <Link href="/patient/medications">
                 <Pill className="h-4 w-4 mr-2" />
                 Ver Medicamentos
-              </Link>
-            </Button>
-            <Button asChild variant="outline" className="justify-start bg-transparent">
-              <Link href="/patient/health-metrics">
-                <TrendingUp className="h-4 w-4 mr-2" />
-                Ver Métricas de Saúde
               </Link>
             </Button>
             <Button asChild variant="outline" className="justify-start bg-transparent">
