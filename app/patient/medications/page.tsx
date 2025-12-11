@@ -14,7 +14,6 @@ interface Medication {
   reason: string
   start_date: string
   end_date: string | null
-  is_active: boolean
 }
 
 export default function MedicationsPage() {
@@ -90,15 +89,6 @@ export default function MedicationsPage() {
                         </span>
                       )}
                     </div>
-                  </div>
-                  <div
-                    className={`px-3 py-1 rounded-full text-xs font-medium ${
-                      med.is_active
-                        ? "bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-200"
-                        : "bg-gray-100 text-gray-800 dark:bg-gray-900 dark:text-gray-200"
-                    }`}
-                  >
-                    {med.is_active ? "Ativo" : "Inativo"}
                   </div>
                 </div>
               </CardContent>

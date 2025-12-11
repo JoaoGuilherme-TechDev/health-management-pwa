@@ -9,7 +9,6 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Textarea } from "@/components/ui/textarea"
-import { Badge } from "@/components/ui/badge"
 import {
   Dialog,
   DialogContent,
@@ -110,12 +109,6 @@ export function PatientSupplementsTab({ patientId }: PatientSupplementsTabProps)
     } else {
       alert("Erro ao adicionar suplemento: " + error.message)
     }
-  }
-
-  const handleToggleActive = async (id: string, currentStatus: boolean) => {
-    const supabase = createClient()
-    await supabase.from("patient_supplements").update({ is_active: !currentStatus }).eq("id", id)
-    loadSupplements()
   }
 
   const handleDelete = async (id: string) => {
@@ -270,25 +263,13 @@ export function PatientSupplementsTab({ patientId }: PatientSupplementsTabProps)
               <CardHeader>
                 <div className="flex items-start justify-between">
                   <div className="flex-1">
-                    <div className="flex items-center gap-2">
-                      <CardTitle className="text-lg">{supplement.supplement_name}</CardTitle>
-                      <Badge variant={supplement.is_active ? "default" : "secondary"}>
-                        {supplement.is_active ? "Ativo" : "Inativo"}
-                      </Badge>
-                    </div>
+                    <CardTitle className="text-lg">{supplement.supplement_name}</CardTitle>
                     <p className="text-sm text-muted-foreground mt-1">
                       {supplement.dosage} • {supplement.frequency}
                       {supplement.timing && ` • ${supplement.timing}`}
                     </p>
                   </div>
                   <div className="flex gap-2">
-                    <Button
-                      variant="outline"
-                      size="sm"
-                      onClick={() => handleToggleActive(supplement.id, supplement.is_active)}
-                    >
-                      {supplement.is_active ? "Desativar" : "Ativar"}
-                    </Button>
                     <Button variant="ghost" size="sm" onClick={() => handleDelete(supplement.id)}>
                       <Trash2 className="h-4 w-4 text-destructive" />
                     </Button>
