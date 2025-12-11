@@ -124,4 +124,26 @@
   body {
     @apply bg-background text-foreground;
   }
+
+  /* Mobile-first scrollable carousel utilities */
+  .no-scrollbar::-webkit-scrollbar {
+    display: none;
+  }
+  .no-scrollbar {
+    -ms-overflow-style: none;
+    scrollbar-width: none;
+  }
+
+  /* Mobile-optimized touch scrolling */
+  .mobile-scroll {
+    -webkit-overflow-scrolling: touch;
+    scroll-behavior: smooth;
+  }
+
+  /* Prevent horizontal scroll on body */
+  html,
+  body {
+    overflow-x: hidden;
+    width: 100%;
+  }
 }

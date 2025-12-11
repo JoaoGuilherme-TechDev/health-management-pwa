@@ -70,25 +70,25 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
 
   return (
     <div className="min-h-screen bg-background">
-      {/* Top Navigation */}
+      {/* Top Navigation - Mobile optimized */}
       <nav className="sticky top-0 z-50 border-b border-border bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60">
-        <div className="mx-auto px-4 sm:px-6 lg:px-8 py-4 flex items-center justify-between">
+        <div className="mx-auto px-3 sm:px-6 lg:px-8 py-3 sm:py-4 flex items-center justify-between">
           <Link href="/admin" className="flex items-center gap-2">
-            <Heart className="h-6 w-6 text-primary" />
-            <span className="text-xl font-bold text-foreground">HealthCare+ Admin</span>
+            <Heart className="h-5 w-5 sm:h-6 sm:w-6 text-primary" />
+            <span className="text-base sm:text-xl font-bold text-foreground">HealthCare+ Admin</span>
           </Link>
           <button
             onClick={handleLogout}
-            className="flex items-center gap-2 text-sm font-medium text-muted-foreground hover:text-foreground transition-colors"
+            className="flex items-center gap-2 text-xs sm:text-sm font-medium text-muted-foreground hover:text-foreground transition-colors"
           >
-            <LogOut className="h-4 w-4" />
-            Sair
+            <LogOut className="h-3 w-3 sm:h-4 sm:w-4" />
+            <span className="hidden sm:inline">Sair</span>
           </button>
         </div>
       </nav>
 
       <div className="flex">
-        {/* Sidebar */}
+        {/* Sidebar - Desktop only */}
         <aside className="hidden md:flex w-64 border-r border-border bg-muted/30 flex-col">
           <nav className="flex-1 space-y-2 p-6">
             <NavLink href="/admin" icon={Home} label="Painel" />
@@ -101,19 +101,20 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
           </nav>
         </aside>
 
-        {/* Mobile Navigation */}
-        <div className="md:hidden fixed bottom-0 left-0 right-0 border-t border-border bg-background/95 backdrop-blur">
-          <nav className="flex items-center justify-around p-3">
-            <MobileNavLink href="/admin" icon={Home} />
-            <MobileNavLink href="/admin/patients" icon={Users} />
-            <MobileNavLink href="/admin/recipes" icon={Utensils} />
-            <MobileNavLink href="/admin/supplements" icon={Pill} />
-            <MobileNavLink href="/admin/settings" icon={Settings} />
+        <div className="md:hidden fixed bottom-0 left-0 right-0 z-40 border-t border-border bg-background/95 backdrop-blur shadow-lg">
+          <nav className="flex items-center overflow-x-auto no-scrollbar mobile-scroll px-2 py-2">
+            <MobileNavLink href="/admin" icon={Home} label="Painel" />
+            <MobileNavLink href="/admin/patients" icon={Users} label="Pacientes" />
+            <MobileNavLink href="/admin/recipes" icon={Utensils} label="Receitas" />
+            <MobileNavLink href="/admin/supplements" icon={Pill} label="Suplem" />
+            <MobileNavLink href="/admin/health-metrics" icon={TrendingUp} label="Métricas" />
+            <MobileNavLink href="/admin/alerts" icon={AlertCircle} label="Alertas" />
+            <MobileNavLink href="/admin/settings" icon={Settings} label="Config" />
           </nav>
         </div>
 
-        {/* Main Content */}
-        <main className="flex-1 p-4 sm:p-6 lg:p-8 pb-24 md:pb-6">{children}</main>
+        {/* Main Content - Mobile optimized padding */}
+        <main className="flex-1 p-3 sm:p-6 lg:p-8 pb-20 md:pb-6">{children}</main>
       </div>
     </div>
   )
@@ -131,13 +132,14 @@ function NavLink({ href, icon: Icon, label }: { href: string; icon: any; label: 
   )
 }
 
-function MobileNavLink({ href, icon: Icon }: { href: string; icon: any }) {
+function MobileNavLink({ href, icon: Icon, label }: { href: string; icon: any; label: string }) {
   return (
     <Link
       href={href}
-      className="flex flex-col items-center gap-1 px-3 py-2 text-muted-foreground hover:text-foreground transition-colors"
+      className="flex-shrink-0 flex flex-col items-center justify-center gap-1 px-3 py-2 min-w-[70px] text-muted-foreground hover:text-foreground transition-colors active:bg-muted/50 rounded-lg"
     >
       <Icon className="h-5 w-5" />
+      <span className="text-[10px] font-medium text-center leading-tight">{label}</span>
     </Link>
   )
 }
