@@ -140,11 +140,12 @@ DROP POLICY IF EXISTS physical_evolution_update ON public.physical_evolution;
 DROP POLICY IF EXISTS physical_evolution_delete ON public.physical_evolution;
 DROP POLICY IF EXISTS physical_evolution_select ON public.physical_evolution;
 
+-- Fixed column name from patient_id to user_id
 -- Allow SELECT for patient or admin
 CREATE POLICY physical_evolution_select ON public.physical_evolution
   FOR SELECT
   USING (
-    auth.uid() = patient_id OR
+    auth.uid() = user_id OR
     (SELECT role FROM public.profiles WHERE id = auth.uid()) = 'admin'
   );
 
