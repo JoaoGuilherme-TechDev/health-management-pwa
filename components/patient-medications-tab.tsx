@@ -21,7 +21,6 @@ export function PatientMedicationsTab({ patientId }: { patientId: string }) {
     frequency: "",
     start_date: "",
     end_date: "",
-    prescribing_doctor: "",
     reason: "",
     side_effects: "",
   })
@@ -105,7 +104,6 @@ export function PatientMedicationsTab({ patientId }: { patientId: string }) {
       frequency: "",
       start_date: "",
       end_date: "",
-      prescribing_doctor: "",
       reason: "",
       side_effects: "",
     })
@@ -214,13 +212,6 @@ export function PatientMedicationsTab({ patientId }: { patientId: string }) {
                   value={formData.frequency}
                   onChange={(e) => setFormData({ ...formData, frequency: e.target.value })}
                   placeholder="Ex: 2x ao dia"
-                />
-              </div>
-              <div>
-                <Label>Médico Prescritor</Label>
-                <Input
-                  value={formData.prescribing_doctor}
-                  onChange={(e) => setFormData({ ...formData, prescribing_doctor: e.target.value })}
                 />
               </div>
               <div>
