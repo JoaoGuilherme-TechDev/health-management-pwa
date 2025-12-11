@@ -10,6 +10,7 @@ export default function Home() {
   const [selectedRecipe, setSelectedRecipe] = useState<number | null>(null)
   const [recipes, setRecipes] = useState<any[]>([])
   const [supplements, setSupplements] = useState<any[]>([])
+  const [doctorInfo, setDoctorInfo] = useState<any>(null)
   const [loading, setLoading] = useState(true)
 
   useEffect(() => {
@@ -19,7 +20,14 @@ export default function Home() {
   const loadContent = async () => {
     const supabase = createClient()
 
-    // Fetch recipes and supplements from database instead of hardcoded data
+    const { data: adminProfile } = await supabase
+      .from("profiles")
+      .select("doctor_full_name, doctor_crm, doctor_specialization")
+      .eq("role", "admin")
+      .single()
+
+    setDoctorInfo(adminProfile)
+
     const [recipesData, supplementsData] = await Promise.all([
       supabase.from("recipes").select("*").order("created_at", { ascending: false }),
       supabase.from("supplements").select("*").order("created_at", { ascending: false }),
@@ -61,6 +69,16 @@ export default function Home() {
             <p className="text-lg text-muted-foreground max-w-2xl mx-auto">
               Refeições nutritivas desenvolvidas para apoiar o crescimento muscular e recuperação
             </p>
+            {doctorInfo && (
+              <div className="mt-6 inline-block px-6 py-3 rounded-lg border border-primary/20 bg-primary/5">
+                <p className="text-sm font-medium text-foreground">
+                  Receitas elaboradas por: <span className="font-bold">{doctorInfo.doctor_full_name}</span>
+                </p>
+                <p className="text-xs text-muted-foreground mt-1">
+                  {doctorInfo.doctor_crm} {doctorInfo.doctor_specialization && `• ${doctorInfo.doctor_specialization}`}
+                </p>
+              </div>
+            )}
           </div>
 
           <div className="grid md:grid-cols-2 gap-8">
@@ -100,6 +118,16 @@ export default function Home() {
             <p className="text-lg text-muted-foreground max-w-2xl mx-auto">
               Suplementos essenciais para melhorar seu desempenho fitness e saúde
             </p>
+            {doctorInfo && (
+              <div className="mt-6 inline-block px-6 py-3 rounded-lg border border-primary/20 bg-background">
+                <p className="text-sm font-medium text-foreground">
+                  Recomendações de: <span className="font-bold">{doctorInfo.doctor_full_name}</span>
+                </p>
+                <p className="text-xs text-muted-foreground mt-1">
+                  {doctorInfo.doctor_crm} {doctorInfo.doctor_specialization && `• ${doctorInfo.doctor_specialization}`}
+                </p>
+              </div>
+            )}
           </div>
 
           <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-6">

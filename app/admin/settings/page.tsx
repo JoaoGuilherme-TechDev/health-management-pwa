@@ -3,67 +3,184 @@
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { Label } from "@/components/ui/label"
-import { Switch } from "@/components/ui/switch"
+import { Input } from "@/components/ui/input"
+import { Textarea } from "@/components/ui/textarea"
+import { createClient } from "@/lib/supabase/client"
+import { useEffect, useState } from "react"
+import { useRouter } from "next/navigation"
 
 export default function AdminSettingsPage() {
+  const router = useRouter()
+  const [loading, setLoading] = useState(true)
+  const [saving, setSaving] = useState(false)
+  const [profile, setProfile] = useState<any>(null)
+  const [formData, setFormData] = useState({
+    doctor_full_name: "",
+    doctor_crm: "",
+    doctor_specialization: "",
+    doctor_registration_state: "",
+    professional_address: "",
+    professional_phone: "",
+  })
+
+  useEffect(() => {
+    loadProfile()
+  }, [])
+
+  const loadProfile = async () => {
+    const supabase = createClient()
+    const {
+      data: { user },
+    } = await supabase.auth.getUser()
+
+    if (!user) {
+      router.push("/auth/login")
+      return
+    }
+
+    const { data } = await supabase.from("profiles").select("*").eq("id", user.id).single()
+
+    if (data) {
+      setProfile(data)
+      setFormData({
+        doctor_full_name: data.doctor_full_name || "",
+        doctor_crm: data.doctor_crm || "",
+        doctor_specialization: data.doctor_specialization || "",
+        doctor_registration_state: data.doctor_registration_state || "",
+        professional_address: data.professional_address || "",
+        professional_phone: data.professional_phone || "",
+      })
+    }
+    setLoading(false)
+  }
+
+  const handleSave = async () => {
+    setSaving(true)
+    const supabase = createClient()
+    const {
+      data: { user },
+    } = await supabase.auth.getUser()
+
+    if (!user) return
+
+    const { error } = await supabase.from("profiles").update(formData).eq("id", user.id)
+
+    if (error) {
+      alert("Erro ao salvar: " + error.message)
+    } else {
+      alert("Informações salvas com sucesso!")
+      loadProfile()
+    }
+    setSaving(false)
+  }
+
+  if (loading) return <div>Carregando...</div>
+
   return (
     <div className="space-y-6">
       <div>
-        <h1 className="text-3xl font-bold text-foreground">Admin Settings</h1>
-        <p className="text-muted-foreground mt-1">Configure system preferences and features</p>
+        <h1 className="text-3xl font-bold text-foreground">Configurações do Médico</h1>
+        <p className="text-muted-foreground mt-1">Gerencie suas informações profissionais e legais</p>
       </div>
 
       <Card>
         <CardHeader>
-          <CardTitle>Notifications</CardTitle>
-          <CardDescription>Configure system notification settings</CardDescription>
+          <CardTitle>Informações Profissionais</CardTitle>
+          <CardDescription>Dados obrigatórios para exercício da medicina no Brasil</CardDescription>
         </CardHeader>
-        <CardContent className="space-y-6">
-          <div className="flex items-center justify-between">
-            <Label htmlFor="alert-notifications" className="font-normal">
-              <span className="font-semibold text-foreground">Health Alert Notifications</span>
-              <p className="text-sm text-muted-foreground mt-1">Receive notifications for critical patient alerts</p>
-            </Label>
-            <Switch id="alert-notifications" defaultChecked />
+        <CardContent className="space-y-4">
+          <div className="grid md:grid-cols-2 gap-4">
+            <div>
+              <Label htmlFor="doctor_full_name">Nome Completo *</Label>
+              <Input
+                id="doctor_full_name"
+                value={formData.doctor_full_name}
+                onChange={(e) => setFormData({ ...formData, doctor_full_name: e.target.value })}
+                placeholder="Dr. João Silva Santos"
+              />
+            </div>
+            <div>
+              <Label htmlFor="doctor_crm">CRM (Registro Profissional) *</Label>
+              <Input
+                id="doctor_crm"
+                value={formData.doctor_crm}
+                onChange={(e) => setFormData({ ...formData, doctor_crm: e.target.value })}
+                placeholder="CRM/SP 123456"
+              />
+            </div>
+            <div>
+              <Label htmlFor="doctor_specialization">Especialização</Label>
+              <Input
+                id="doctor_specialization"
+                value={formData.doctor_specialization}
+                onChange={(e) => setFormData({ ...formData, doctor_specialization: e.target.value })}
+                placeholder="Nutrição Esportiva"
+              />
+            </div>
+            <div>
+              <Label htmlFor="doctor_registration_state">Estado de Registro do CRM *</Label>
+              <Input
+                id="doctor_registration_state"
+                value={formData.doctor_registration_state}
+                onChange={(e) => setFormData({ ...formData, doctor_registration_state: e.target.value })}
+                placeholder="SP"
+                maxLength={2}
+              />
+            </div>
+            <div>
+              <Label htmlFor="professional_phone">Telefone Profissional</Label>
+              <Input
+                id="professional_phone"
+                value={formData.professional_phone}
+                onChange={(e) => setFormData({ ...formData, professional_phone: e.target.value })}
+                placeholder="(11) 98765-4321"
+              />
+            </div>
           </div>
-          <div className="flex items-center justify-between">
-            <Label htmlFor="daily-report" className="font-normal">
-              <span className="font-semibold text-foreground">Daily System Report</span>
-              <p className="text-sm text-muted-foreground mt-1">Get daily summaries of system activity</p>
-            </Label>
-            <Switch id="daily-report" defaultChecked />
+          <div>
+            <Label htmlFor="professional_address">Endereço do Consultório</Label>
+            <Textarea
+              id="professional_address"
+              value={formData.professional_address}
+              onChange={(e) => setFormData({ ...formData, professional_address: e.target.value })}
+              placeholder="Rua Exemplo, 123 - Bairro - Cidade/Estado"
+              rows={3}
+            />
           </div>
         </CardContent>
       </Card>
+      {/* </CHANGE> */}
 
       <Card>
         <CardHeader>
-          <CardTitle>System Information</CardTitle>
-          <CardDescription>Current system configuration</CardDescription>
+          <CardTitle>Informações do Sistema</CardTitle>
+          <CardDescription>Status atual do sistema</CardDescription>
         </CardHeader>
         <CardContent className="space-y-4">
           <div className="grid sm:grid-cols-2 gap-4">
             <div className="p-4 rounded-lg border border-border bg-muted/30">
-              <p className="text-sm text-muted-foreground mb-1">System Version</p>
+              <p className="text-sm text-muted-foreground mb-1">Versão do Sistema</p>
               <p className="font-medium text-foreground">1.0.0</p>
             </div>
             <div className="p-4 rounded-lg border border-border bg-muted/30">
-              <p className="text-sm text-muted-foreground mb-1">Last Updated</p>
-              <p className="font-medium text-foreground">{new Date().toLocaleDateString()}</p>
+              <p className="text-sm text-muted-foreground mb-1">Última Atualização</p>
+              <p className="font-medium text-foreground">{new Date().toLocaleDateString("pt-BR")}</p>
             </div>
             <div className="p-4 rounded-lg border border-border bg-muted/30">
-              <p className="text-sm text-muted-foreground mb-1">Database Status</p>
-              <p className="font-medium text-green-600 dark:text-green-400">Connected</p>
+              <p className="text-sm text-muted-foreground mb-1">Status do Banco</p>
+              <p className="font-medium text-green-600 dark:text-green-400">Conectado</p>
             </div>
             <div className="p-4 rounded-lg border border-border bg-muted/30">
-              <p className="text-sm text-muted-foreground mb-1">API Status</p>
-              <p className="font-medium text-green-600 dark:text-green-400">Operational</p>
+              <p className="text-sm text-muted-foreground mb-1">Status da API</p>
+              <p className="font-medium text-green-600 dark:text-green-400">Operacional</p>
             </div>
           </div>
         </CardContent>
       </Card>
 
-      <Button variant="outline">Save Settings</Button>
+      <Button onClick={handleSave} disabled={saving} className="w-full sm:w-auto">
+        {saving ? "Salvando..." : "Salvar Configurações"}
+      </Button>
     </div>
   )
 }

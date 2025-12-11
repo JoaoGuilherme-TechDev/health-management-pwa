@@ -46,8 +46,22 @@ export function PatientMedicationsTab({ patientId }: { patientId: string }) {
     console.log("[v0] Iniciando adição de medicamento...")
     const supabase = createClient()
 
+    const {
+      data: { user },
+    } = await supabase.auth.getUser()
+    const { data: adminProfile } = await supabase
+      .from("profiles")
+      .select("doctor_crm, first_name, last_name")
+      .eq("id", user?.id)
+      .single()
+
+    const doctorName = adminProfile ? `${adminProfile.first_name} ${adminProfile.last_name}` : ""
+    const doctorCrm = adminProfile?.doctor_crm || ""
+
     const dataToInsert = {
       user_id: patientId,
+      doctor_crm: doctorCrm,
+      doctor_name: doctorName,
       ...formData,
     }
 
@@ -127,9 +141,10 @@ export function PatientMedicationsTab({ patientId }: { patientId: string }) {
                           <span className="font-medium">Motivo:</span> {med.reason}
                         </p>
                       )}
-                      {med.prescribing_doctor && (
-                        <p className="text-sm text-muted-foreground">
-                          <span className="font-medium">Médico:</span> {med.prescribing_doctor}
+                      {(med.doctor_name || med.doctor_crm) && (
+                        <p className="text-sm text-muted-foreground mt-2">
+                          <span className="font-medium">Prescrito por:</span> {med.doctor_name}
+                          {med.doctor_crm && ` • ${med.doctor_crm}`}
                         </p>
                       )}
                       <p className="text-xs text-muted-foreground mt-2">
