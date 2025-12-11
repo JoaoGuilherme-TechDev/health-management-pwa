@@ -95,6 +95,24 @@ export function PatientMedicationsTab({ patientId }: { patientId: string }) {
     }
 
     console.log("[v0] Medicamento adicionado com sucesso:", data)
+
+    // Send push notification to patient
+    try {
+      await fetch("/api/notifications/push", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          user_id: patientId,
+          title: "Novo Medicamento Prescrito",
+          message: `${doctorInfo.name} prescreveu ${formData.name} - ${formData.dosage}`,
+          notification_type: "medication_added",
+          url: "/patient/medications",
+        }),
+      })
+    } catch (notifError) {
+      console.error("[v0] Erro ao enviar notificação:", notifError)
+    }
+
     alert("Medicamento adicionado com sucesso!")
 
     setShowDialog(false)

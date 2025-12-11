@@ -34,8 +34,6 @@ export default function LoginPage() {
 
       console.log("[v0] Usuário logado:", data.user.id)
 
-      await new Promise((resolve) => setTimeout(resolve, 500))
-
       const { data: profile, error: profileError } = await supabase
         .from("profiles")
         .select("role")

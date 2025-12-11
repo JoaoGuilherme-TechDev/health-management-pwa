@@ -94,6 +94,23 @@ export function PatientAppointmentsTab({ patientId }: { patientId: string }) {
     }
 
     console.log("[v0] Consulta agendada com sucesso:", data)
+
+    try {
+      await fetch("/api/notifications/push", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          user_id: patientId,
+          title: "Nova Consulta Agendada",
+          message: `${doctorInfo.name} agendou consulta: ${formData.title} em ${new Date(formData.scheduled_at).toLocaleDateString("pt-BR")}`,
+          notification_type: "appointment_scheduled",
+          url: "/patient/appointments",
+        }),
+      })
+    } catch (notifError) {
+      console.error("[v0] Erro ao enviar notificação:", notifError)
+    }
+
     alert("Consulta agendada com sucesso!")
 
     setShowDialog(false)

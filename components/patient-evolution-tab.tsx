@@ -59,6 +59,22 @@ export function PatientEvolutionTab({ patientId }: { patientId: string }) {
       notes: formData.notes,
     })
 
+    try {
+      await fetch("/api/notifications/push", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          user_id: patientId,
+          title: "Nova Medição de Bioimpedância",
+          message: `Nova avaliação física registrada${formData.weight ? ` - Peso: ${formData.weight}kg` : ""}`,
+          notification_type: "evolution_added",
+          url: "/patient/evolution",
+        }),
+      })
+    } catch (notifError) {
+      console.error("[v0] Erro ao enviar notificação:", notifError)
+    }
+
     setShowDialog(false)
     setFormData({
       weight: "",

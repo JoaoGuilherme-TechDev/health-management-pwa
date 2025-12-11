@@ -90,6 +90,22 @@ export function PatientMetricsTab({ patientId }: { patientId: string }) {
       return
     }
 
+    try {
+      await fetch("/api/notifications/push", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          user_id: patientId,
+          title: "Nova Métrica de Saúde",
+          message: `Nova medição registrada: ${getMetricLabel(formData.metric_type)} - ${formData.value} ${formData.unit}`,
+          notification_type: "metric_added",
+          url: "/patient/health-metrics",
+        }),
+      })
+    } catch (notifError) {
+      console.error("[v0] Erro ao enviar notificação:", notifError)
+    }
+
     setShowDialog(false)
     setFormData({
       metric_type: "",
