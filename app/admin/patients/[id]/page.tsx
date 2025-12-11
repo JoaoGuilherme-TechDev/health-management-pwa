@@ -97,65 +97,67 @@ export default function PatientDetailsPage() {
       </Card>
 
       <Tabs defaultValue="info" className="space-y-4 sm:space-y-6">
-        <div className="relative -mx-4 px-4 sm:mx-0 sm:px-0">
-          <TabsList className="inline-flex w-auto min-w-full sm:grid sm:grid-cols-8 gap-1 overflow-x-auto no-scrollbar pb-2 sm:pb-0">
-            <TabsTrigger
-              value="info"
-              className="flex-shrink-0 flex items-center gap-2 px-3 sm:px-4 py-2 sm:flex-col sm:gap-1"
-            >
-              <User className="h-4 w-4 shrink-0" />
-              <span className="text-xs whitespace-nowrap">Info</span>
-            </TabsTrigger>
-            <TabsTrigger
-              value="medications"
-              className="flex-shrink-0 flex items-center gap-2 px-3 sm:px-4 py-2 sm:flex-col sm:gap-1"
-            >
-              <Pill className="h-4 w-4 shrink-0" />
-              <span className="text-xs whitespace-nowrap">Medicamentos</span>
-            </TabsTrigger>
-            <TabsTrigger
-              value="appointments"
-              className="flex-shrink-0 flex items-center gap-2 px-3 sm:px-4 py-2 sm:flex-col sm:gap-1"
-            >
-              <Calendar className="h-4 w-4 shrink-0" />
-              <span className="text-xs whitespace-nowrap">Consultas</span>
-            </TabsTrigger>
-            <TabsTrigger
-              value="prescriptions"
-              className="flex-shrink-0 flex items-center gap-2 px-3 sm:px-4 py-2 sm:flex-col sm:gap-1"
-            >
-              <FileText className="h-4 w-4 shrink-0" />
-              <span className="text-xs whitespace-nowrap">Receitas</span>
-            </TabsTrigger>
-            <TabsTrigger
-              value="diet"
-              className="flex-shrink-0 flex items-center gap-2 px-3 sm:px-4 py-2 sm:flex-col sm:gap-1"
-            >
-              <Utensils className="h-4 w-4 shrink-0" />
-              <span className="text-xs whitespace-nowrap">Dieta</span>
-            </TabsTrigger>
-            <TabsTrigger
-              value="supplements"
-              className="flex-shrink-0 flex items-center gap-2 px-3 sm:px-4 py-2 sm:flex-col sm:gap-1"
-            >
-              <Pill className="h-4 w-4 shrink-0" />
-              <span className="text-xs whitespace-nowrap">Suplementos</span>
-            </TabsTrigger>
-            <TabsTrigger
-              value="metrics"
-              className="flex-shrink-0 flex items-center gap-2 px-3 sm:px-4 py-2 sm:flex-col sm:gap-1"
-            >
-              <Activity className="h-4 w-4 shrink-0" />
-              <span className="text-xs whitespace-nowrap">Métricas</span>
-            </TabsTrigger>
-            <TabsTrigger
-              value="evolution"
-              className="flex-shrink-0 flex items-center gap-2 px-3 sm:px-4 py-2 sm:flex-col sm:gap-1"
-            >
-              <TrendingUp className="h-4 w-4 shrink-0" />
-              <span className="text-xs whitespace-nowrap">Evolução</span>
-            </TabsTrigger>
-          </TabsList>
+        <div className="relative">
+          <div className="overflow-x-auto no-scrollbar mobile-scroll -mx-4 px-4 sm:mx-0 sm:px-0">
+            <TabsList className="inline-flex w-auto min-w-full sm:grid sm:grid-cols-8 gap-1 h-auto p-1">
+              <TabsTrigger
+                value="info"
+                className="flex-shrink-0 flex items-center justify-center gap-2 px-4 py-3 min-w-[90px] data-[state=active]:bg-primary data-[state=active]:text-primary-foreground"
+              >
+                <User className="h-4 w-4 shrink-0" />
+                <span className="text-xs font-medium">Info</span>
+              </TabsTrigger>
+              <TabsTrigger
+                value="medications"
+                className="flex-shrink-0 flex items-center justify-center gap-2 px-4 py-3 min-w-[90px] data-[state=active]:bg-primary data-[state=active]:text-primary-foreground"
+              >
+                <Pill className="h-4 w-4 shrink-0" />
+                <span className="text-xs font-medium">Remédios</span>
+              </TabsTrigger>
+              <TabsTrigger
+                value="appointments"
+                className="flex-shrink-0 flex items-center justify-center gap-2 px-4 py-3 min-w-[90px] data-[state=active]:bg-primary data-[state=active]:text-primary-foreground"
+              >
+                <Calendar className="h-4 w-4 shrink-0" />
+                <span className="text-xs font-medium">Consultas</span>
+              </TabsTrigger>
+              <TabsTrigger
+                value="prescriptions"
+                className="flex-shrink-0 flex items-center justify-center gap-2 px-4 py-3 min-w-[90px] data-[state=active]:bg-primary data-[state=active]:text-primary-foreground"
+              >
+                <FileText className="h-4 w-4 shrink-0" />
+                <span className="text-xs font-medium">Receitas</span>
+              </TabsTrigger>
+              <TabsTrigger
+                value="diet"
+                className="flex-shrink-0 flex items-center justify-center gap-2 px-4 py-3 min-w-[90px] data-[state=active]:bg-primary data-[state=active]:text-primary-foreground"
+              >
+                <Utensils className="h-4 w-4 shrink-0" />
+                <span className="text-xs font-medium">Dieta</span>
+              </TabsTrigger>
+              <TabsTrigger
+                value="supplements"
+                className="flex-shrink-0 flex items-center justify-center gap-2 px-4 py-3 min-w-[90px] data-[state=active]:bg-primary data-[state=active]:text-primary-foreground"
+              >
+                <Pill className="h-4 w-4 shrink-0" />
+                <span className="text-xs font-medium">Suplem.</span>
+              </TabsTrigger>
+              <TabsTrigger
+                value="metrics"
+                className="flex-shrink-0 flex items-center justify-center gap-2 px-4 py-3 min-w-[90px] data-[state=active]:bg-primary data-[state=active]:text-primary-foreground"
+              >
+                <Activity className="h-4 w-4 shrink-0" />
+                <span className="text-xs font-medium">Métricas</span>
+              </TabsTrigger>
+              <TabsTrigger
+                value="evolution"
+                className="flex-shrink-0 flex items-center justify-center gap-2 px-4 py-3 min-w-[90px] data-[state=active]:bg-primary data-[state=active]:text-primary-foreground"
+              >
+                <TrendingUp className="h-4 w-4 shrink-0" />
+                <span className="text-xs font-medium">Evolução</span>
+              </TabsTrigger>
+            </TabsList>
+          </div>
         </div>
 
         <TabsContent value="info">

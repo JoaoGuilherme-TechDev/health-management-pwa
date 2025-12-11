@@ -101,8 +101,8 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
           </nav>
         </aside>
 
-        <div className="md:hidden fixed bottom-0 left-0 right-0 z-40 border-t border-border bg-background/95 backdrop-blur shadow-lg">
-          <nav className="flex items-center overflow-x-auto no-scrollbar mobile-scroll px-2 py-2">
+        <div className="md:hidden fixed bottom-0 left-0 right-0 z-50 border-t border-border bg-background/98 backdrop-blur-md shadow-lg safe-area-bottom">
+          <nav className="flex items-center justify-between overflow-x-auto no-scrollbar mobile-scroll px-2 py-2">
             <MobileNavLink href="/admin" icon={Home} label="Painel" />
             <MobileNavLink href="/admin/patients" icon={Users} label="Pacientes" />
             <MobileNavLink href="/admin/recipes" icon={Utensils} label="Receitas" />
@@ -113,8 +113,8 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
           </nav>
         </div>
 
-        {/* Main Content - Mobile optimized padding */}
-        <main className="flex-1 p-3 sm:p-6 lg:p-8 pb-20 md:pb-6">{children}</main>
+        {/* Main Content - Mobile optimized padding with safe area */}
+        <main className="flex-1 p-3 sm:p-6 lg:p-8 pb-24 md:pb-6 max-w-full overflow-x-hidden">{children}</main>
       </div>
     </div>
   )
@@ -136,10 +136,10 @@ function MobileNavLink({ href, icon: Icon, label }: { href: string; icon: any; l
   return (
     <Link
       href={href}
-      className="flex-shrink-0 flex flex-col items-center justify-center gap-1 px-3 py-2 min-w-[70px] text-muted-foreground hover:text-foreground transition-colors active:bg-muted/50 rounded-lg"
+      className="flex-shrink-0 flex flex-col items-center justify-center gap-1 px-3 py-2.5 min-w-[64px] text-muted-foreground hover:text-foreground transition-colors active:bg-accent/20 rounded-lg touch-manipulation"
     >
-      <Icon className="h-5 w-5" />
-      <span className="text-[10px] font-medium text-center leading-tight">{label}</span>
+      <Icon className="h-5 w-5 shrink-0" />
+      <span className="text-[10px] font-medium text-center leading-tight whitespace-nowrap">{label}</span>
     </Link>
   )
 }
