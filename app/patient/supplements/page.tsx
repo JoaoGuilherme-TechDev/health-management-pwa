@@ -21,9 +21,9 @@ export default function PatientSupplementsPage() {
           .from("patient_supplements")
           .select("*")
           .eq("patient_id", user.id)
-          .eq("is_active", true)
           .order("created_at", { ascending: false })
 
+        console.log("[v0] Supplements data:", data)
         setSupplements(data || [])
       }
       setLoading(false)

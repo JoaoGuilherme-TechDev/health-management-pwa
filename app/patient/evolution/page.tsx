@@ -23,6 +23,7 @@ export default function PatientEvolutionPage() {
           .eq("user_id", user.id)
           .order("measured_at", { ascending: false })
 
+        console.log("[v0] Evolution data:", data)
         setEvolution(data || [])
       }
       setLoading(false)

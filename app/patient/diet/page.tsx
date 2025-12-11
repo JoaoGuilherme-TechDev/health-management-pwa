@@ -23,6 +23,7 @@ export default function PatientDietPage() {
           .eq("patient_id", user.id)
           .order("created_at", { ascending: false })
 
+        console.log("[v0] Diet recipes data:", data)
         setDietRecipes(data || [])
       }
       setLoading(false)
