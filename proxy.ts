@@ -25,11 +25,34 @@ export default async function proxy(request: NextRequest) {
     },
   )
 
+  // Don't call getUser() if we're already on auth pages to avoid redirect loops
+  if (
+    request.nextUrl.pathname.startsWith("/auth") ||
+    request.nextUrl.pathname.startsWith("/_next") ||
+    request.nextUrl.pathname.startsWith("/api")
+  ) {
+    return supabaseResponse
+  }
+
+  // Try to get user, but handle session errors gracefully
   const {
     data: { user },
+    error,
   } = await supabase.auth.getUser()
 
-  if (user && (request.nextUrl.pathname.startsWith("/patient") || request.nextUrl.pathname.startsWith("/admin"))) {
+  // If session error (expired/invalid), redirect to login
+  if (error || !user) {
+    if (request.nextUrl.pathname.startsWith("/patient") || request.nextUrl.pathname.startsWith("/admin")) {
+      const url = request.nextUrl.clone()
+      url.pathname = "/auth/login"
+      url.searchParams.set("redirectTo", request.nextUrl.pathname)
+      return NextResponse.redirect(url)
+    }
+    return supabaseResponse
+  }
+
+  // User is authenticated, check role-based access
+  if (request.nextUrl.pathname.startsWith("/patient") || request.nextUrl.pathname.startsWith("/admin")) {
     const { data: profile } = await supabase.from("profiles").select("role").eq("id", user.id).single()
 
     const userRole = profile?.role || "patient"
@@ -47,18 +70,6 @@ export default async function proxy(request: NextRequest) {
       url.pathname = "/patient"
       return NextResponse.redirect(url)
     }
-  }
-
-  if (request.nextUrl.pathname.startsWith("/patient") && !user) {
-    const url = request.nextUrl.clone()
-    url.pathname = "/auth/login"
-    return NextResponse.redirect(url)
-  }
-
-  if (request.nextUrl.pathname.startsWith("/admin") && !user) {
-    const url = request.nextUrl.clone()
-    url.pathname = "/auth/login"
-    return NextResponse.redirect(url)
   }
 
   return supabaseResponse
