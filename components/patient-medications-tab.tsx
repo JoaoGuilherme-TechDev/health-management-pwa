@@ -129,8 +129,20 @@ export function PatientMedicationsTab({ patientId }: { patientId: string }) {
   }
 
   const handleDelete = async (id: string) => {
+    if (!confirm("Tem certeza que deseja remover este medicamento? Esta ação não pode ser desfeita.")) {
+      return
+    }
+
     const supabase = createClient()
-    await supabase.from("medications").update({ is_active: false }).eq("id", id)
+    const { error } = await supabase.from("medications").delete().eq("id", id)
+
+    if (error) {
+      console.error("[v0] Erro ao deletar medicamento:", error)
+      alert("Erro ao remover medicamento")
+      return
+    }
+
+    alert("Medicamento removido com sucesso!")
     loadMedications()
   }
 

@@ -1,5 +1,16 @@
 import { NextResponse } from "next/server"
 import { createClient } from "@/lib/supabase/server"
+import webpush from "web-push"
+
+// Generate VAPID keys with: npx web-push generate-vapid-keys
+const vapidKeys = {
+  publicKey: process.env.NEXT_PUBLIC_VAPID_PUBLIC_KEY || "",
+  privateKey: process.env.VAPID_PRIVATE_KEY || "",
+}
+
+if (vapidKeys.publicKey && vapidKeys.privateKey) {
+  webpush.setVapidDetails("mailto:admin@healthcare.com", vapidKeys.publicKey, vapidKeys.privateKey)
+}
 
 export async function POST(request: Request) {
   try {
@@ -21,19 +32,45 @@ export async function POST(request: Request) {
 
     if (dbError) {
       console.error("[v0] Error creating notification:", dbError)
-      return NextResponse.json({ error: "Failed to create notification" }, { status: 500 })
+      return NextResponse.json({ error: dbError.message }, { status: 400 })
     }
 
-    // For now, we create in-app notification that user will see
-    // To enable real push notifications, you need to:
-    // 1. Set up VAPID keys
-    // 2. Subscribe user's browser to push notifications
-    // 3. Store subscription in database
-    // 4. Use web-push library to send notifications
+    try {
+      // Get user's push subscriptions from database
+      const { data: subscriptions } = await supabase
+        .from("push_subscriptions")
+        .select("subscription")
+        .eq("user_id", user_id)
+
+      if (subscriptions && subscriptions.length > 0) {
+        const payload = JSON.stringify({
+          title,
+          message,
+          url: url || "/patient",
+          type: notification_type,
+        })
+
+        // Send push notification to all user's devices
+        for (const sub of subscriptions) {
+          try {
+            await webpush.sendNotification(sub.subscription, payload)
+          } catch (pushError: any) {
+            console.error("[v0] Failed to send push to device:", pushError)
+            // Remove invalid subscription
+            if (pushError.statusCode === 410 || pushError.statusCode === 404) {
+              await supabase.from("push_subscriptions").delete().eq("subscription", sub.subscription)
+            }
+          }
+        }
+      }
+    } catch (pushError) {
+      console.error("[v0] Push notification error:", pushError)
+      // Don't fail the request if push fails
+    }
 
     return NextResponse.json({
       success: true,
-      message: "Notification created successfully",
+      message: "Notification sent successfully",
     })
   } catch (error) {
     console.error("[v0] Push notification error:", error)

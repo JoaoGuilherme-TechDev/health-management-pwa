@@ -117,8 +117,20 @@ export function PatientMetricsTab({ patientId }: { patientId: string }) {
   }
 
   const handleDelete = async (id: string) => {
+    if (!confirm("Tem certeza que deseja remover esta métrica? Esta ação não pode ser desfeita.")) {
+      return
+    }
+
     const supabase = createClient()
-    await supabase.from("health_metrics").delete().eq("id", id)
+    const { error } = await supabase.from("health_metrics").delete().eq("id", id)
+
+    if (error) {
+      console.error("[v0] Erro ao deletar métrica:", error)
+      alert("Erro ao remover métrica")
+      return
+    }
+
+    alert("Métrica removida com sucesso!")
     loadMetrics()
   }
 

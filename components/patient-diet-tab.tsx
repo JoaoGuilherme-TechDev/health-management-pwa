@@ -119,11 +119,21 @@ export function PatientDietTab({ patientId }: PatientDietTabProps) {
   }
 
   const handleDelete = async (id: string) => {
-    if (confirm("Tem certeza que deseja excluir esta receita?")) {
-      const supabase = createClient()
-      await supabase.from("patient_diet_recipes").delete().eq("id", id)
-      loadDietRecipes()
+    if (!confirm("Tem certeza que deseja excluir esta receita? Esta ação não pode ser desfeita.")) {
+      return
     }
+
+    const supabase = createClient()
+    const { error } = await supabase.from("patient_diet_recipes").delete().eq("id", id)
+
+    if (error) {
+      console.error("[v0] Erro ao deletar receita:", error)
+      alert("Erro ao excluir receita")
+      return
+    }
+
+    alert("Receita excluída com sucesso!")
+    loadDietRecipes()
   }
 
   const getMealTypeLabel = (type: string) => {

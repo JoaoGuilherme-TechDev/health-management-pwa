@@ -126,8 +126,20 @@ export function PatientAppointmentsTab({ patientId }: { patientId: string }) {
   }
 
   const handleDelete = async (id: string) => {
+    if (!confirm("Tem certeza que deseja remover esta consulta? Esta ação não pode ser desfeita.")) {
+      return
+    }
+
     const supabase = createClient()
-    await supabase.from("appointments").delete().eq("id", id)
+    const { error } = await supabase.from("appointments").delete().eq("id", id)
+
+    if (error) {
+      console.error("[v0] Erro ao deletar consulta:", error)
+      alert("Erro ao remover consulta")
+      return
+    }
+
+    alert("Consulta removida com sucesso!")
     loadAppointments()
   }
 

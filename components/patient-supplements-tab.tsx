@@ -119,11 +119,21 @@ export function PatientSupplementsTab({ patientId }: PatientSupplementsTabProps)
   }
 
   const handleDelete = async (id: string) => {
-    if (confirm("Tem certeza que deseja excluir este suplemento?")) {
-      const supabase = createClient()
-      await supabase.from("patient_supplements").delete().eq("id", id)
-      loadSupplements()
+    if (!confirm("Tem certeza que deseja excluir este suplemento? Esta ação não pode ser desfeita.")) {
+      return
     }
+
+    const supabase = createClient()
+    const { error } = await supabase.from("patient_supplements").delete().eq("id", id)
+
+    if (error) {
+      console.error("[v0] Erro ao deletar suplemento:", error)
+      alert("Erro ao excluir suplemento")
+      return
+    }
+
+    alert("Suplemento excluído com sucesso!")
+    loadSupplements()
   }
 
   if (loading) {

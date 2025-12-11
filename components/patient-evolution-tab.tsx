@@ -92,8 +92,20 @@ export function PatientEvolutionTab({ patientId }: { patientId: string }) {
   }
 
   const handleDelete = async (id: string) => {
+    if (!confirm("Tem certeza que deseja remover esta medição? Esta ação não pode ser desfeita.")) {
+      return
+    }
+
     const supabase = createClient()
-    await supabase.from("physical_evolution").delete().eq("id", id)
+    const { error } = await supabase.from("physical_evolution").delete().eq("id", id)
+
+    if (error) {
+      console.error("[v0] Erro ao deletar medição:", error)
+      alert("Erro ao remover medição")
+      return
+    }
+
+    alert("Medição removida com sucesso!")
     loadEvolution()
   }
 
