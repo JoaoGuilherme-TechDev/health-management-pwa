@@ -36,7 +36,6 @@ export function PatientMedicationsTab({ patientId }: { patientId: string }) {
       .from("medications")
       .select("*")
       .eq("user_id", patientId)
-      .eq("is_active", true)
       .order("created_at", { ascending: false })
 
     setMedications(data || [])
