@@ -93,8 +93,8 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
           <nav className="flex-1 space-y-2 p-6">
             <NavLink href="/admin" icon={Home} label="Painel" />
             <NavLink href="/admin/patients" icon={Users} label="Pacientes" />
-            <NavLink href="/admin/recipes" icon={Utensils} label="Receitas (Landing)" />
-            <NavLink href="/admin/supplements" icon={Pill} label="Suplementos (Landing)" />
+            <NavLink href="/admin/recipes" icon={Utensils} label="Recomendações Receitas" />
+            <NavLink href="/admin/supplements" icon={Pill} label="Recomendações Suplementos" />
             <NavLink href="/admin/settings" icon={Settings} label="Configurações" />
           </nav>
         </aside>
