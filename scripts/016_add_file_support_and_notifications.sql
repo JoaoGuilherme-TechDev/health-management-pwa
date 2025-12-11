@@ -81,18 +81,23 @@ CREATE TRIGGER appointment_notification_trigger
   EXECUTE FUNCTION create_appointment_notifications();
 
 -- Update RLS policies to allow reading diet and supplement plans
--- Patients can read their own data
-CREATE POLICY IF NOT EXISTS "patient_diet_recipes_select_own"
-  ON patient_diet_recipes FOR SELECT
-  USING (
-    patient_id = auth.uid()
-  );
+-- Drop existing policies if they exist
+DROP POLICY IF EXISTS "patient_diet_recipes_select_own" ON patient_diet_recipes;
+DROP POLICY IF EXISTS "patient_supplements_select_own" ON patient_supplements;
+DROP POLICY IF EXISTS "patient_physical_evolution_select_own" ON physical_evolution;
 
-CREATE POLICY IF NOT EXISTS "patient_supplements_select_own"
+-- Create new policies
+-- Patients can read their own diet recipes
+CREATE POLICY "patient_diet_recipes_select_own"
+  ON patient_diet_recipes FOR SELECT
+  USING (patient_id = auth.uid());
+
+-- Patients can read their own supplements
+CREATE POLICY "patient_supplements_select_own"
   ON patient_supplements FOR SELECT
-  USING (
-    patient_id = auth.uid()
-  );
+  USING (patient_id = auth.uid());
 
 -- Patients can read their own physical evolution
--- (This policy already exists from earlier script but adding for completeness)
+CREATE POLICY "patient_physical_evolution_select_own"
+  ON physical_evolution FOR SELECT
+  USING (user_id = auth.uid());
