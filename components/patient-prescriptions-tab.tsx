@@ -1,0 +1,202 @@
+"use client"
+
+import { useEffect, useState } from "react"
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
+import { Button } from "@/components/ui/button"
+import { Input } from "@/components/ui/input"
+import { Label } from "@/components/ui/label"
+import { Textarea } from "@/components/ui/textarea"
+import { createClient } from "@/lib/supabase/client"
+import { Plus, FileText, Trash2 } from "lucide-react"
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog"
+
+export function PatientPrescriptionsTab({ patientId }: { patientId: string }) {
+  const [prescriptions, setPrescriptions] = useState<any[]>([])
+  const [loading, setLoading] = useState(true)
+  const [showDialog, setShowDialog] = useState(false)
+  const [formData, setFormData] = useState({
+    title: "",
+    description: "",
+    valid_until: "",
+    notes: "",
+  })
+
+  useEffect(() => {
+    loadPrescriptions()
+  }, [patientId])
+
+  const loadPrescriptions = async () => {
+    const supabase = createClient()
+    const { data } = await supabase
+      .from("medical_prescriptions")
+      .select("*")
+      .eq("patient_id", patientId)
+      .order("created_at", { ascending: false })
+
+    setPrescriptions(data || [])
+    setLoading(false)
+  }
+
+  const handleAdd = async () => {
+    console.log("[v0] Iniciando adição de receita...")
+    const supabase = createClient()
+    const {
+      data: { user },
+    } = await supabase.auth.getUser()
+
+    console.log("[v0] Usuário atual (admin):", user?.id)
+
+    const dataToInsert = {
+      patient_id: patientId,
+      doctor_id: user?.id,
+      ...formData,
+    }
+
+    console.log("[v0] Dados a inserir:", dataToInsert)
+
+    const { data, error } = await supabase.from("medical_prescriptions").insert(dataToInsert).select()
+
+    console.log("[v0] Resposta da inserção:", { data, error })
+
+    if (error) {
+      console.error("[v0] Erro ao adicionar receita:", error)
+      alert(`Erro ao adicionar receita: ${error.message}`)
+      return
+    }
+
+    if (!data || data.length === 0) {
+      console.error("[v0] Nenhum dado foi inserido")
+      alert("Erro: Nenhuma receita foi adicionada. Verifique as permissões.")
+      return
+    }
+
+    console.log("[v0] Receita adicionada com sucesso:", data)
+    alert("Receita adicionada com sucesso!")
+
+    setShowDialog(false)
+    setFormData({
+      title: "",
+      description: "",
+      valid_until: "",
+      notes: "",
+    })
+    loadPrescriptions()
+  }
+
+  const handleDelete = async (id: string) => {
+    const supabase = createClient()
+    await supabase.from("medical_prescriptions").delete().eq("id", id)
+    loadPrescriptions()
+  }
+
+  if (loading) return <div>Carregando receitas...</div>
+
+  return (
+    <div className="space-y-6">
+      <Card>
+        <CardHeader>
+          <div className="flex items-center justify-between">
+            <CardTitle>Receitas Médicas e Dietas</CardTitle>
+            <Button onClick={() => setShowDialog(true)} className="gap-2">
+              <Plus className="h-4 w-4" />
+              Adicionar Receita
+            </Button>
+          </div>
+        </CardHeader>
+        <CardContent>
+          {prescriptions.length === 0 ? (
+            <div className="text-center py-8 text-muted-foreground">
+              <FileText className="h-12 w-12 mx-auto mb-4 opacity-50" />
+              <p>Nenhuma receita cadastrada ainda</p>
+            </div>
+          ) : (
+            <div className="space-y-4">
+              {prescriptions.map((pres) => (
+                <div key={pres.id} className="p-4 rounded-lg border border-border bg-card">
+                  <div className="flex items-start justify-between">
+                    <div className="flex-1">
+                      <h4 className="font-semibold text-foreground text-lg">{pres.title}</h4>
+                      {pres.description && <p className="text-sm text-muted-foreground mt-2">{pres.description}</p>}
+                      {pres.valid_until && (
+                        <p className="text-sm text-muted-foreground mt-2">
+                          Válido até: {new Date(pres.valid_until).toLocaleDateString("pt-BR")}
+                        </p>
+                      )}
+                      {pres.notes && (
+                        <p className="text-sm text-muted-foreground mt-2">
+                          <span className="font-medium">Observações:</span> {pres.notes}
+                        </p>
+                      )}
+                      <p className="text-xs text-muted-foreground mt-3">
+                        Criado em: {new Date(pres.created_at).toLocaleDateString("pt-BR")}
+                      </p>
+                    </div>
+                    <Button
+                      variant="ghost"
+                      size="icon"
+                      onClick={() => handleDelete(pres.id)}
+                      className="text-destructive"
+                    >
+                      <Trash2 className="h-4 w-4" />
+                    </Button>
+                  </div>
+                </div>
+              ))}
+            </div>
+          )}
+        </CardContent>
+      </Card>
+
+      <Dialog open={showDialog} onOpenChange={setShowDialog}>
+        <DialogContent className="max-w-2xl">
+          <DialogHeader>
+            <DialogTitle>Adicionar Receita Médica / Dieta</DialogTitle>
+          </DialogHeader>
+          <div className="space-y-4">
+            <div>
+              <Label>Título *</Label>
+              <Input
+                value={formData.title}
+                onChange={(e) => setFormData({ ...formData, title: e.target.value })}
+                placeholder="Ex: Receita Médica - Janeiro 2024"
+              />
+            </div>
+            <div>
+              <Label>Descrição / Conteúdo *</Label>
+              <Textarea
+                value={formData.description}
+                onChange={(e) => setFormData({ ...formData, description: e.target.value })}
+                rows={8}
+                placeholder="Descreva a receita médica ou plano alimentar detalhadamente..."
+              />
+            </div>
+            <div>
+              <Label>Válido Até</Label>
+              <Input
+                type="date"
+                value={formData.valid_until}
+                onChange={(e) => setFormData({ ...formData, valid_until: e.target.value })}
+              />
+            </div>
+            <div>
+              <Label>Observações</Label>
+              <Textarea
+                value={formData.notes}
+                onChange={(e) => setFormData({ ...formData, notes: e.target.value })}
+                rows={3}
+              />
+            </div>
+            <div className="flex gap-2 justify-end">
+              <Button variant="outline" onClick={() => setShowDialog(false)}>
+                Cancelar
+              </Button>
+              <Button onClick={handleAdd} disabled={!formData.title || !formData.description}>
+                Adicionar
+              </Button>
+            </div>
+          </div>
+        </DialogContent>
+      </Dialog>
+    </div>
+  )
+}

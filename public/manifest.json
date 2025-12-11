@@ -1,0 +1,80 @@
+{
+  "name": "HealthCare+ - Health Management System",
+  "short_name": "HealthCare+",
+  "description": "Manage medications, track health metrics, and stay connected with your healthcare providers",
+  "start_url": "/",
+  "scope": "/",
+  "display": "standalone",
+  "orientation": "portrait-primary",
+  "theme_color": "#000000",
+  "background_color": "#ffffff",
+  "screenshots": [
+    {
+      "src": "/icon.svg",
+      "sizes": "192x192",
+      "type": "image/svg+xml",
+      "form_factor": "narrow"
+    },
+    {
+      "src": "/icon.svg",
+      "sizes": "512x512",
+      "type": "image/svg+xml",
+      "form_factor": "wide"
+    }
+  ],
+  "icons": [
+    {
+      "src": "/icon.svg",
+      "sizes": "any",
+      "type": "image/svg+xml"
+    },
+    {
+      "src": "/icon-light-32x32.png",
+      "sizes": "32x32",
+      "type": "image/png",
+      "purpose": "any"
+    },
+    {
+      "src": "/apple-icon.png",
+      "sizes": "180x180",
+      "type": "image/png"
+    }
+  ],
+  "categories": ["medical", "health", "productivity"],
+  "shortcuts": [
+    {
+      "name": "View Medications",
+      "short_name": "Medications",
+      "description": "View and manage your medications",
+      "url": "/patient/medications?utm_source=shortcut",
+      "icons": [
+        {
+          "src": "/icon.svg",
+          "type": "image/svg+xml"
+        }
+      ]
+    },
+    {
+      "name": "Check Appointments",
+      "short_name": "Appointments",
+      "description": "View your upcoming appointments",
+      "url": "/patient/appointments?utm_source=shortcut",
+      "icons": [
+        {
+          "src": "/icon.svg",
+          "type": "image/svg+xml"
+        }
+      ]
+    }
+  ],
+  "share_target": {
+    "action": "/share",
+    "method": "POST",
+    "enctype": "application/x-www-form-urlencoded",
+    "params": {
+      "title": "title",
+      "text": "text",
+      "url": "url"
+    }
+  }
+}
