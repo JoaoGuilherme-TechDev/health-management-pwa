@@ -20,7 +20,7 @@ NEXT_PUBLIC_SUPABASE_ANON_KEY=sua_chave_publica
 SUPABASE_SERVICE_ROLE_KEY=sua_chave_service_role
 
 # Supabase Auth
-NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY=sua_chave_publicavel
+NEXT_PUBLIC_SUPABASE_PUBLISHABLE_[KEY]=sua_chave_publicavel
 SUPABASE_ANON_KEY=sua_chave_anonima
 SUPABASE_JWT_SECRET=seu_jwt_secret
 SUPABASE_SECRET_KEY=sua_chave_secreta
@@ -187,6 +187,3 @@ Lembre-se de:
 - Monitorar performance e erros
 - Manter dependências atualizadas
 - Revisar segurança periodicamente
-\`\`\`
-
-\`\`\`json file="" isHidden
