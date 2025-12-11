@@ -3,16 +3,15 @@ import type { Metadata } from "next"
 import { Geist, Geist_Mono } from "next/font/google"
 import { Analytics } from "@vercel/analytics/next"
 import "./globals.css"
-import Script from "next/script"
+import Script from "next/script" // Add this line to import Script
 
 const _geist = Geist({ subsets: ["latin"] })
 const _geistMono = Geist_Mono({ subsets: ["latin"] })
 
 export const metadata: Metadata = {
-  title: "HealthCare+ - Gerenciamento de Saúde",
-  description: "Sistema completo de gerenciamento de saúde para pacientes e profissionais médicos.",
+  title: "HealthCare+ - Fitness Recipes & Supplements",
+  description: "Discover healthy fitness recipes and supplement recommendations to support your wellness goals.",
   generator: "v0.app",
-  manifest: "/manifest.json",
   icons: {
     icon: [
       {
@@ -37,10 +36,6 @@ export const viewport = {
     { media: "(prefers-color-scheme: light)", color: "#ffffff" },
     { media: "(prefers-color-scheme: dark)", color: "#000000" },
   ],
-  width: "device-width",
-  initialScale: 1,
-  maximumScale: 5,
-  userScalable: true,
 }
 
 export default function RootLayout({
@@ -49,7 +44,7 @@ export default function RootLayout({
   children: React.ReactNode
 }>) {
   return (
-    <html lang="pt-BR">
+    <html lang="en">
       <head>
         <link rel="manifest" href="/manifest.json" />
         <meta name="apple-mobile-web-app-capable" content="yes" />
