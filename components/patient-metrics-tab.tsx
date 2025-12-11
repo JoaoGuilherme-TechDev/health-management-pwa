@@ -15,6 +15,7 @@ export function PatientMetricsTab({ patientId }: { patientId: string }) {
   const [metrics, setMetrics] = useState<any[]>([])
   const [loading, setLoading] = useState(true)
   const [showDialog, setShowDialog] = useState(false)
+  const [doctorInfo, setDoctorInfo] = useState({ name: "", crm: "" })
   const [formData, setFormData] = useState({
     metric_type: "",
     value: "",
@@ -34,7 +35,30 @@ export function PatientMetricsTab({ patientId }: { patientId: string }) {
 
   useEffect(() => {
     loadMetrics()
+    loadDoctorInfo()
   }, [patientId])
+
+  const loadDoctorInfo = async () => {
+    const supabase = createClient()
+    const {
+      data: { user },
+    } = await supabase.auth.getUser()
+    if (user) {
+      const { data: profile } = await supabase
+        .from("profiles")
+        .select("doctor_crm, doctor_full_name, first_name, last_name")
+        .eq("id", user.id)
+        .single()
+
+      if (profile) {
+        const doctorName = profile.doctor_full_name || `${profile.first_name} ${profile.last_name}`
+        setDoctorInfo({
+          name: doctorName,
+          crm: profile.doctor_crm || "",
+        })
+      }
+    }
+  }
 
   const loadMetrics = async () => {
     const supabase = createClient()
@@ -50,10 +74,21 @@ export function PatientMetricsTab({ patientId }: { patientId: string }) {
 
   const handleAdd = async () => {
     const supabase = createClient()
-    await supabase.from("health_metrics").insert({
-      user_id: patientId,
-      ...formData,
-    })
+    const { data, error } = await supabase
+      .from("health_metrics")
+      .insert({
+        user_id: patientId,
+        doctor_name: doctorInfo.name,
+        doctor_crm: doctorInfo.crm,
+        ...formData,
+      })
+      .select()
+
+    if (error) {
+      console.error("[v0] Erro ao adicionar métrica:", error)
+      alert(`Erro ao adicionar métrica: ${error.message}`)
+      return
+    }
 
     setShowDialog(false)
     setFormData({
@@ -106,6 +141,12 @@ export function PatientMetricsTab({ patientId }: { patientId: string }) {
                         {metric.value} {metric.unit}
                       </p>
                       {metric.notes && <p className="text-sm text-muted-foreground mt-2">{metric.notes}</p>}
+                      {(metric.doctor_name || metric.doctor_crm) && (
+                        <p className="text-sm text-muted-foreground mt-2">
+                          <span className="font-medium">Registrado por:</span> {metric.doctor_name}
+                          {metric.doctor_crm && ` • CRM: ${metric.doctor_crm}`}
+                        </p>
+                      )}
                       <p className="text-xs text-muted-foreground mt-3">
                         {new Date(metric.recorded_at).toLocaleString("pt-BR")}
                       </p>
@@ -132,6 +173,15 @@ export function PatientMetricsTab({ patientId }: { patientId: string }) {
             <DialogTitle>Adicionar Métrica de Saúde</DialogTitle>
           </DialogHeader>
           <div className="space-y-4">
+            {doctorInfo.crm && (
+              <div className="p-3 rounded-lg bg-muted">
+                <p className="text-sm">
+                  <span className="font-medium">Médico:</span> {doctorInfo.name}
+                  <br />
+                  <span className="font-medium">CRM:</span> {doctorInfo.crm}
+                </p>
+              </div>
+            )}
             <div>
               <Label>Tipo de Métrica *</Label>
               <Select

@@ -14,6 +14,7 @@ export function PatientAppointmentsTab({ patientId }: { patientId: string }) {
   const [appointments, setAppointments] = useState<any[]>([])
   const [loading, setLoading] = useState(true)
   const [showDialog, setShowDialog] = useState(false)
+  const [doctorInfo, setDoctorInfo] = useState({ name: "", crm: "" })
   const [formData, setFormData] = useState({
     title: "",
     appointment_type: "",
@@ -25,6 +26,7 @@ export function PatientAppointmentsTab({ patientId }: { patientId: string }) {
 
   useEffect(() => {
     loadAppointments()
+    loadDoctorInfo()
   }, [patientId])
 
   const loadAppointments = async () => {
@@ -39,6 +41,28 @@ export function PatientAppointmentsTab({ patientId }: { patientId: string }) {
     setLoading(false)
   }
 
+  const loadDoctorInfo = async () => {
+    const supabase = createClient()
+    const {
+      data: { user },
+    } = await supabase.auth.getUser()
+    if (user) {
+      const { data: profile } = await supabase
+        .from("profiles")
+        .select("doctor_crm, doctor_full_name, first_name, last_name")
+        .eq("id", user.id)
+        .single()
+
+      if (profile) {
+        const doctorName = profile.doctor_full_name || `${profile.first_name} ${profile.last_name}`
+        setDoctorInfo({
+          name: doctorName,
+          crm: profile.doctor_crm || "",
+        })
+      }
+    }
+  }
+
   const handleAdd = async () => {
     console.log("[v0] Iniciando agendamento de consulta...")
     const supabase = createClient()
@@ -46,6 +70,8 @@ export function PatientAppointmentsTab({ patientId }: { patientId: string }) {
     const dataToInsert = {
       patient_id: patientId,
       status: "scheduled",
+      doctor_name: doctorInfo.name,
+      doctor_crm: doctorInfo.crm,
       ...formData,
     }
 
@@ -162,6 +188,15 @@ export function PatientAppointmentsTab({ patientId }: { patientId: string }) {
             <DialogTitle>Agendar Consulta</DialogTitle>
           </DialogHeader>
           <div className="space-y-4">
+            {doctorInfo.crm && (
+              <div className="p-3 rounded-lg bg-muted">
+                <p className="text-sm">
+                  <span className="font-medium">Médico Responsável:</span> {doctorInfo.name}
+                  <br />
+                  <span className="font-medium">CRM:</span> {doctorInfo.crm}
+                </p>
+              </div>
+            )}
             <div className="grid md:grid-cols-2 gap-4">
               <div>
                 <Label>Título *</Label>

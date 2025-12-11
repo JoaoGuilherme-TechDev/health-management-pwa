@@ -14,6 +14,7 @@ export function PatientMedicationsTab({ patientId }: { patientId: string }) {
   const [medications, setMedications] = useState<any[]>([])
   const [loading, setLoading] = useState(true)
   const [showDialog, setShowDialog] = useState(false)
+  const [doctorInfo, setDoctorInfo] = useState({ name: "", crm: "" })
   const [formData, setFormData] = useState({
     name: "",
     dosage: "",
@@ -27,6 +28,7 @@ export function PatientMedicationsTab({ patientId }: { patientId: string }) {
 
   useEffect(() => {
     loadMedications()
+    loadDoctorInfo()
   }, [patientId])
 
   const loadMedications = async () => {
@@ -42,26 +44,36 @@ export function PatientMedicationsTab({ patientId }: { patientId: string }) {
     setLoading(false)
   }
 
+  const loadDoctorInfo = async () => {
+    const supabase = createClient()
+    const {
+      data: { user },
+    } = await supabase.auth.getUser()
+    if (user) {
+      const { data: profile } = await supabase
+        .from("profiles")
+        .select("doctor_crm, doctor_full_name, first_name, last_name")
+        .eq("id", user.id)
+        .single()
+
+      if (profile) {
+        const doctorName = profile.doctor_full_name || `${profile.first_name} ${profile.last_name}`
+        setDoctorInfo({
+          name: doctorName,
+          crm: profile.doctor_crm || "",
+        })
+      }
+    }
+  }
+
   const handleAdd = async () => {
     console.log("[v0] Iniciando adição de medicamento...")
     const supabase = createClient()
 
-    const {
-      data: { user },
-    } = await supabase.auth.getUser()
-    const { data: adminProfile } = await supabase
-      .from("profiles")
-      .select("doctor_crm, first_name, last_name")
-      .eq("id", user?.id)
-      .single()
-
-    const doctorName = adminProfile ? `${adminProfile.first_name} ${adminProfile.last_name}` : ""
-    const doctorCrm = adminProfile?.doctor_crm || ""
-
     const dataToInsert = {
       user_id: patientId,
-      doctor_crm: doctorCrm,
-      doctor_name: doctorName,
+      doctor_crm: doctorInfo.crm,
+      doctor_name: doctorInfo.name,
       ...formData,
     }
 
@@ -174,6 +186,15 @@ export function PatientMedicationsTab({ patientId }: { patientId: string }) {
             <DialogTitle>Adicionar Medicamento</DialogTitle>
           </DialogHeader>
           <div className="space-y-4">
+            {doctorInfo.crm && (
+              <div className="p-3 rounded-lg bg-muted">
+                <p className="text-sm">
+                  <span className="font-medium">Médico Prescritor:</span> {doctorInfo.name}
+                  <br />
+                  <span className="font-medium">CRM:</span> {doctorInfo.crm}
+                </p>
+              </div>
+            )}
             <div className="grid md:grid-cols-2 gap-4">
               <div>
                 <Label>Nome do Medicamento *</Label>
