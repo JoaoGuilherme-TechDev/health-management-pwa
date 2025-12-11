@@ -45,15 +45,21 @@ export function PatientPrescriptionsTab({ patientId }: { patientId: string }) {
     const timestamp = Date.now()
     const path = `prescriptions/${patientId}/${timestamp}-${file.name}`
 
-    const { data, error } = await supabase.storage.from("prescriptions").upload(path, file)
+    try {
+      const { data, error } = await supabase.storage.from("prescriptions").upload(path, file)
 
-    if (!error) {
-      const {
-        data: { publicUrl },
-      } = supabase.storage.from("prescriptions").getPublicUrl(path)
-      setFormData({ ...formData, prescription_file_url: publicUrl })
-    } else {
-      alert(`Erro ao fazer upload: ${error.message}`)
+      if (error) {
+        console.error("[v0] Erro no upload:", error)
+        alert(`Erro ao fazer upload: ${error.message}`)
+      } else if (data) {
+        const { data: urlData } = supabase.storage.from("prescriptions").getPublicUrl(path)
+        if (urlData?.publicUrl) {
+          setFormData({ ...formData, prescription_file_url: urlData.publicUrl })
+        }
+      }
+    } catch (err) {
+      console.error("[v0] Exceção no upload:", err)
+      alert("Erro inesperado ao fazer upload do arquivo")
     }
     setUploading(false)
   }
