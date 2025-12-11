@@ -7,18 +7,20 @@ import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Textarea } from "@/components/ui/textarea"
 import { createClient } from "@/lib/supabase/client"
-import { Plus, FileText, Trash2 } from "lucide-react"
+import { Plus, FileText, Trash2, ExternalLink } from "lucide-react"
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog"
 
 export function PatientPrescriptionsTab({ patientId }: { patientId: string }) {
   const [prescriptions, setPrescriptions] = useState<any[]>([])
   const [loading, setLoading] = useState(true)
   const [showDialog, setShowDialog] = useState(false)
+  const [uploading, setUploading] = useState(false)
   const [formData, setFormData] = useState({
     title: "",
     description: "",
     valid_until: "",
     notes: "",
+    prescription_file_url: "",
   })
 
   useEffect(() => {
@@ -35,6 +37,25 @@ export function PatientPrescriptionsTab({ patientId }: { patientId: string }) {
 
     setPrescriptions(data || [])
     setLoading(false)
+  }
+
+  const handleFileUpload = async (file: File) => {
+    setUploading(true)
+    const supabase = createClient()
+    const timestamp = Date.now()
+    const path = `prescriptions/${patientId}/${timestamp}-${file.name}`
+
+    const { data, error } = await supabase.storage.from("prescriptions").upload(path, file)
+
+    if (!error) {
+      const {
+        data: { publicUrl },
+      } = supabase.storage.from("prescriptions").getPublicUrl(path)
+      setFormData({ ...formData, prescription_file_url: publicUrl })
+    } else {
+      alert(`Erro ao fazer upload: ${error.message}`)
+    }
+    setUploading(false)
   }
 
   const handleAdd = async () => {
@@ -79,6 +100,7 @@ export function PatientPrescriptionsTab({ patientId }: { patientId: string }) {
       description: "",
       valid_until: "",
       notes: "",
+      prescription_file_url: "",
     })
     loadPrescriptions()
   }
@@ -117,6 +139,17 @@ export function PatientPrescriptionsTab({ patientId }: { patientId: string }) {
                     <div className="flex-1">
                       <h4 className="font-semibold text-foreground text-lg">{pres.title}</h4>
                       {pres.description && <p className="text-sm text-muted-foreground mt-2">{pres.description}</p>}
+                      {pres.prescription_file_url && (
+                        <a
+                          href={pres.prescription_file_url}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className="inline-flex items-center gap-2 text-sm text-primary hover:underline mt-2"
+                        >
+                          <ExternalLink className="h-4 w-4" />
+                          Ver Documento Anexado
+                        </a>
+                      )}
                       {pres.valid_until && (
                         <p className="text-sm text-muted-foreground mt-2">
                           Válido até: {new Date(pres.valid_until).toLocaleDateString("pt-BR")}
@@ -161,13 +194,41 @@ export function PatientPrescriptionsTab({ patientId }: { patientId: string }) {
                 placeholder="Ex: Receita Médica - Janeiro 2024"
               />
             </div>
+
             <div>
-              <Label>Descrição / Conteúdo *</Label>
+              <Label>Upload de Receita Médica (PDF, PNG, JPG) *</Label>
+              <div className="flex gap-4 items-center">
+                {formData.prescription_file_url && (
+                  <a
+                    href={formData.prescription_file_url}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="text-sm text-primary hover:underline"
+                  >
+                    Documento anexado
+                  </a>
+                )}
+                <Input
+                  type="file"
+                  accept=".pdf,.png,.jpg,.jpeg"
+                  onChange={(e) => e.target.files && handleFileUpload(e.target.files[0])}
+                  disabled={uploading}
+                  className="flex-1"
+                />
+                {uploading && <span className="text-sm text-muted-foreground">Enviando...</span>}
+              </div>
+              <p className="text-xs text-muted-foreground mt-1">
+                Obrigatório: Para fins legais, anexe a receita médica digitalizada assinada pelo médico.
+              </p>
+            </div>
+
+            <div>
+              <Label>Descrição / Observações</Label>
               <Textarea
                 value={formData.description}
                 onChange={(e) => setFormData({ ...formData, description: e.target.value })}
-                rows={8}
-                placeholder="Descreva a receita médica ou plano alimentar detalhadamente..."
+                rows={4}
+                placeholder="Informações adicionais sobre a receita..."
               />
             </div>
             <div>
@@ -179,7 +240,7 @@ export function PatientPrescriptionsTab({ patientId }: { patientId: string }) {
               />
             </div>
             <div>
-              <Label>Observações</Label>
+              <Label>Notas</Label>
               <Textarea
                 value={formData.notes}
                 onChange={(e) => setFormData({ ...formData, notes: e.target.value })}
@@ -190,7 +251,7 @@ export function PatientPrescriptionsTab({ patientId }: { patientId: string }) {
               <Button variant="outline" onClick={() => setShowDialog(false)}>
                 Cancelar
               </Button>
-              <Button onClick={handleAdd} disabled={!formData.title || !formData.description}>
+              <Button onClick={handleAdd} disabled={!formData.title || !formData.prescription_file_url || uploading}>
                 Adicionar
               </Button>
             </div>

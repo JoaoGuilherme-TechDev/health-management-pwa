@@ -5,7 +5,18 @@ import type React from "react"
 import { createClient } from "@/lib/supabase/client"
 import { useRouter } from "next/navigation"
 import { useEffect, useState } from "react"
-import { Heart, LogOut, Home, Pill, TrendingUp, Calendar, Bell, Settings } from "lucide-react"
+import {
+  Heart,
+  LogOut,
+  Home,
+  Pill,
+  TrendingUp,
+  Calendar,
+  Bell,
+  Settings,
+  UtensilsCrossed,
+  Activity,
+} from "lucide-react"
 import Link from "next/link"
 
 export default function PatientLayout({ children }: { children: React.ReactNode }) {
@@ -92,6 +103,9 @@ export default function PatientLayout({ children }: { children: React.ReactNode 
           <nav className="flex-1 space-y-2 p-6">
             <NavLink href="/patient" icon={Home} label="Painel" />
             <NavLink href="/patient/medications" icon={Pill} label="Medicamentos" />
+            <NavLink href="/patient/diet" icon={UtensilsCrossed} label="Dieta" />
+            <NavLink href="/patient/supplements" icon={Pill} label="Suplementos" />
+            <NavLink href="/patient/evolution" icon={Activity} label="Evolução Física" />
             <NavLink href="/patient/health-metrics" icon={TrendingUp} label="Métricas de Saúde" />
             <NavLink href="/patient/appointments" icon={Calendar} label="Consultas" />
             <NavLink href="/patient/notifications" icon={Bell} label="Notificações" />
@@ -104,7 +118,7 @@ export default function PatientLayout({ children }: { children: React.ReactNode 
           <nav className="flex items-center justify-around p-3">
             <MobileNavLink href="/patient" icon={Home} />
             <MobileNavLink href="/patient/medications" icon={Pill} />
-            <MobileNavLink href="/patient/health-metrics" icon={TrendingUp} />
+            <MobileNavLink href="/patient/diet" icon={UtensilsCrossed} />
             <MobileNavLink href="/patient/appointments" icon={Calendar} />
             <MobileNavLink href="/patient/notifications" icon={Bell} />
           </nav>
