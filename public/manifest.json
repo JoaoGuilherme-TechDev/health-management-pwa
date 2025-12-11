@@ -1,13 +1,14 @@
 {
-  "name": "HealthCare+ - Health Management System",
+  "name": "HealthCare+ - Sistema de Gerenciamento de Saúde",
   "short_name": "HealthCare+",
-  "description": "Manage medications, track health metrics, and stay connected with your healthcare providers",
+  "description": "Gerencie medicamentos, acompanhe métricas de saúde e mantenha contato com seus profissionais de saúde",
   "start_url": "/",
   "scope": "/",
   "display": "standalone",
   "orientation": "portrait-primary",
-  "theme_color": "#000000",
-  "background_color": "#ffffff",
+  "theme_color": "#2d9c96",
+  "background_color": "#f5faf9",
+  "lang": "pt-BR",
   "screenshots": [
     {
       "src": "/icon.svg",
@@ -26,7 +27,8 @@
     {
       "src": "/icon.svg",
       "sizes": "any",
-      "type": "image/svg+xml"
+      "type": "image/svg+xml",
+      "purpose": "any maskable"
     },
     {
       "src": "/icon-light-32x32.png",
@@ -43,9 +45,9 @@
   "categories": ["medical", "health", "productivity"],
   "shortcuts": [
     {
-      "name": "View Medications",
-      "short_name": "Medications",
-      "description": "View and manage your medications",
+      "name": "Ver Medicamentos",
+      "short_name": "Remédios",
+      "description": "Visualize e gerencie seus medicamentos",
       "url": "/patient/medications?utm_source=shortcut",
       "icons": [
         {
@@ -55,9 +57,9 @@
       ]
     },
     {
-      "name": "Check Appointments",
-      "short_name": "Appointments",
-      "description": "View your upcoming appointments",
+      "name": "Consultas",
+      "short_name": "Consultas",
+      "description": "Veja suas próximas consultas",
       "url": "/patient/appointments?utm_source=shortcut",
       "icons": [
         {
@@ -76,5 +78,7 @@
       "text": "text",
       "url": "url"
     }
-  }
+  },
+  "prefer_related_applications": false,
+  "related_applications": []
 }
