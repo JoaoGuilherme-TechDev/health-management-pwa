@@ -28,6 +28,28 @@ export function PatientMedicationsTab({ patientId }: { patientId: string }) {
   useEffect(() => {
     loadMedications()
     loadDoctorInfo()
+
+    const supabase = createClient()
+    const channel = supabase
+      .channel(`medications-${patientId}`)
+      .on(
+        "postgres_changes",
+        {
+          event: "*",
+          schema: "public",
+          table: "medications",
+          filter: `user_id=eq.${patientId}`,
+        },
+        () => {
+          console.log("[v0] Medicamento atualizado, recarregando...")
+          loadMedications()
+        },
+      )
+      .subscribe()
+
+    return () => {
+      supabase.removeChannel(channel)
+    }
   }, [patientId])
 
   const loadMedications = async () => {
@@ -65,7 +87,6 @@ export function PatientMedicationsTab({ patientId }: { patientId: string }) {
   }
 
   const handleAdd = async () => {
-    console.log("[v0] Iniciando adição de medicamento...")
     const supabase = createClient()
 
     const dataToInsert = {
@@ -75,11 +96,7 @@ export function PatientMedicationsTab({ patientId }: { patientId: string }) {
       ...formData,
     }
 
-    console.log("[v0] Dados a inserir:", dataToInsert)
-
     const { data, error } = await supabase.from("medications").insert(dataToInsert).select()
-
-    console.log("[v0] Resposta da inserção:", { data, error })
 
     if (error) {
       console.error("[v0] Erro ao adicionar medicamento:", error)
@@ -87,15 +104,6 @@ export function PatientMedicationsTab({ patientId }: { patientId: string }) {
       return
     }
 
-    if (!data || data.length === 0) {
-      console.error("[v0] Nenhum dado foi inserido")
-      alert("Erro: Nenhum medicamento foi adicionado. Verifique as permissões.")
-      return
-    }
-
-    console.log("[v0] Medicamento adicionado com sucesso:", data)
-
-    // Send push notification to patient
     try {
       await fetch("/api/notifications/push", {
         method: "POST",
@@ -113,7 +121,6 @@ export function PatientMedicationsTab({ patientId }: { patientId: string }) {
     }
 
     alert("Medicamento adicionado com sucesso!")
-
     setShowDialog(false)
     setFormData({
       name: "",
@@ -124,7 +131,7 @@ export function PatientMedicationsTab({ patientId }: { patientId: string }) {
       reason: "",
       side_effects: "",
     })
-    loadMedications()
+    // Não precisa chamar loadMedications() - realtime vai fazer isso automaticamente
   }
 
   const handleDelete = async (id: string) => {
@@ -142,7 +149,7 @@ export function PatientMedicationsTab({ patientId }: { patientId: string }) {
     }
 
     alert("Medicamento removido com sucesso!")
-    loadMedications()
+    // Não precisa chamar loadMedications() - realtime vai fazer isso automaticamente
   }
 
   if (loading) return <div>Carregando medicamentos...</div>

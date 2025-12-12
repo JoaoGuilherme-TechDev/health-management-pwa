@@ -4,24 +4,21 @@ const urlsToCache = [
   "/offline",
   "/patient",
   "/patient/medications",
-  "/patient/health-metrics",
   "/patient/appointments",
   "/patient/notifications",
 ]
 
-// Install service worker
 self.addEventListener("install", (event) => {
   event.waitUntil(
     caches.open(CACHE_NAME).then((cache) => {
       return cache.addAll(urlsToCache).catch((error) => {
-        console.log("Cache addAll error:", error)
+        console.log("Erro ao adicionar ao cache:", error)
       })
     }),
   )
   self.skipWaiting()
 })
 
-// Activate service worker
 self.addEventListener("activate", (event) => {
   event.waitUntil(
     caches.keys().then((cacheNames) => {
@@ -37,17 +34,14 @@ self.addEventListener("activate", (event) => {
   self.clients.claim()
 })
 
-// Fetch event - Network first strategy for API calls, Cache first for assets
 self.addEventListener("fetch", (event) => {
   const { request } = event
   const url = new URL(request.url)
 
-  // Skip non-GET requests
   if (request.method !== "GET") {
     return
   }
 
-  // API calls - network first
   if (url.pathname.startsWith("/api")) {
     event.respondWith(
       fetch(request)
@@ -65,7 +59,6 @@ self.addEventListener("fetch", (event) => {
     return
   }
 
-  // Static assets - cache first
   event.respondWith(
     caches
       .match(request)
@@ -88,32 +81,34 @@ self.addEventListener("fetch", (event) => {
         })
       })
       .catch(() => {
-        return new Response("Offline - Resource not available", {
+        return new Response("Offline - Recurso não disponível", {
           status: 503,
-          statusText: "Service Unavailable",
+          statusText: "Serviço Indisponível",
         })
       }),
   )
 })
 
-// Handle push notifications
 self.addEventListener("push", (event) => {
+  console.log("[Service Worker] Notificação push recebida")
+
   const data = event.data ? event.data.json() : {}
   const title = data.title || "HealthCare+"
   const options = {
-    body: data.message || "You have a new notification",
+    body: data.message || "Você tem uma nova notificação",
     icon: "/icon.svg",
     badge: "/icon-light-32x32.png",
     tag: data.type || "notification",
     requireInteraction: data.requireInteraction || false,
+    vibrate: [200, 100, 200],
     actions: [
       {
         action: "open",
-        title: "View",
+        title: "Visualizar",
       },
       {
         action: "close",
-        title: "Dismiss",
+        title: "Dispensar",
       },
     ],
     data: {
@@ -122,11 +117,20 @@ self.addEventListener("push", (event) => {
     },
   }
 
-  event.waitUntil(self.registration.showNotification(title, options))
+  event.waitUntil(
+    self.registration
+      .showNotification(title, options)
+      .then(() => {
+        console.log("[Service Worker] Notificação exibida com sucesso")
+      })
+      .catch((error) => {
+        console.error("[Service Worker] Erro ao exibir notificação:", error)
+      }),
+  )
 })
 
-// Handle notification clicks
 self.addEventListener("notificationclick", (event) => {
+  console.log("[Service Worker] Notificação clicada")
   event.notification.close()
 
   if (event.action === "close") {
@@ -149,12 +153,10 @@ self.addEventListener("notificationclick", (event) => {
   )
 })
 
-// Handle notification close
 self.addEventListener("notificationclose", (event) => {
-  console.log("Notification closed:", event.notification.tag)
+  console.log("Notificação fechada:", event.notification.tag)
 })
 
-// Background sync for offline medication logging
 self.addEventListener("sync", (event) => {
   if (event.tag === "sync-medications") {
     event.waitUntil(syncMedications())
@@ -177,11 +179,11 @@ async function syncMedications() {
         })
         await removePendingMedication(db, med.id)
       } catch (error) {
-        console.error("Failed to sync medication:", error)
+        console.error("Falha ao sincronizar medicamento:", error)
       }
     }
   } catch (error) {
-    console.error("Sync failed:", error)
+    console.error("Sincronização falhou:", error)
   }
 }
 

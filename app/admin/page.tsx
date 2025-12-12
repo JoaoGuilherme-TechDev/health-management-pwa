@@ -13,29 +13,48 @@ export default function AdminDashboard() {
   const [loading, setLoading] = useState(true)
 
   useEffect(() => {
-    const loadStats = async () => {
-      const supabase = createClient()
-
-      const { count: patientCount } = await supabase
-        .from("profiles")
-        .select("*", { count: "exact" })
-        .eq("role", "patient")
-
-      const { count: medCount } = await supabase
-        .from("medications")
-        .select("*", { count: "exact" })
-        .eq("is_active", true)
-
-      setStats({
-        totalPatients: patientCount || 0,
-        totalMedications: medCount || 0,
-      })
-
-      setLoading(false)
-    }
-
     loadStats()
+
+    const supabase = createClient()
+    const profilesChannel = supabase
+      .channel("admin-dashboard-profiles")
+      .on("postgres_changes", { event: "*", schema: "public", table: "profiles" }, () => {
+        console.log("[v0] Perfis atualizados, recarregando stats...")
+        loadStats()
+      })
+      .subscribe()
+
+    const medsChannel = supabase
+      .channel("admin-dashboard-medications")
+      .on("postgres_changes", { event: "*", schema: "public", table: "medications" }, () => {
+        console.log("[v0] Medicamentos atualizados, recarregando stats...")
+        loadStats()
+      })
+      .subscribe()
+
+    return () => {
+      supabase.removeChannel(profilesChannel)
+      supabase.removeChannel(medsChannel)
+    }
   }, [])
+
+  const loadStats = async () => {
+    const supabase = createClient()
+
+    const { count: patientCount } = await supabase
+      .from("profiles")
+      .select("*", { count: "exact" })
+      .eq("role", "patient")
+
+    const { count: medCount } = await supabase.from("medications").select("*", { count: "exact" })
+
+    setStats({
+      totalPatients: patientCount || 0,
+      totalMedications: medCount || 0,
+    })
+
+    setLoading(false)
+  }
 
   if (loading) {
     return <div className="text-center py-12">Carregando painel...</div>
@@ -51,7 +70,7 @@ export default function AdminDashboard() {
 
       <div className="grid md:grid-cols-2 gap-6">
         <StatCard title="Total de Pacientes" value={stats.totalPatients} icon={Users} />
-        <StatCard title="Medicamentos Ativos" value={stats.totalMedications} icon={Activity} />
+        <StatCard title="Total de Medicamentos" value={stats.totalMedications} icon={Activity} />
       </div>
 
       {/* System Overview */}

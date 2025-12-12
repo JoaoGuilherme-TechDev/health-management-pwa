@@ -27,6 +27,28 @@ export function PatientAppointmentsTab({ patientId }: { patientId: string }) {
   useEffect(() => {
     loadAppointments()
     loadDoctorInfo()
+
+    const supabase = createClient()
+    const channel = supabase
+      .channel(`appointments-${patientId}`)
+      .on(
+        "postgres_changes",
+        {
+          event: "*",
+          schema: "public",
+          table: "appointments",
+          filter: `patient_id=eq.${patientId}`,
+        },
+        () => {
+          console.log("[v0] Consulta atualizada, recarregando...")
+          loadAppointments()
+        },
+      )
+      .subscribe()
+
+    return () => {
+      supabase.removeChannel(channel)
+    }
   }, [patientId])
 
   const loadAppointments = async () => {
