@@ -39,21 +39,44 @@ export default function AdminDashboard() {
   }, [])
 
   const loadStats = async () => {
+    console.log("[v0] Iniciando carregamento de estatísticas...")
     const supabase = createClient()
 
-    const { count: patientCount } = await supabase
-      .from("profiles")
-      .select("*", { count: "exact" })
-      .eq("role", "patient")
+    try {
+      console.log("[v0] Buscando contagem de pacientes...")
+      const { count: patientCount, error: patientError } = await supabase
+        .from("profiles")
+        .select("*", { count: "exact", head: true })
+        .eq("role", "patient")
 
-    const { count: medCount } = await supabase.from("medications").select("*", { count: "exact" })
+      if (patientError) {
+        console.error("[v0] Erro ao buscar pacientes:", patientError)
+      } else {
+        console.log("[v0] Pacientes encontrados:", patientCount)
+      }
 
-    setStats({
-      totalPatients: patientCount || 0,
-      totalMedications: medCount || 0,
-    })
+      console.log("[v0] Buscando contagem de medicamentos...")
+      const { count: medCount, error: medError } = await supabase
+        .from("medications")
+        .select("*", { count: "exact", head: true })
 
-    setLoading(false)
+      if (medError) {
+        console.error("[v0] Erro ao buscar medicamentos:", medError)
+      } else {
+        console.log("[v0] Medicamentos encontrados:", medCount)
+      }
+
+      setStats({
+        totalPatients: patientCount || 0,
+        totalMedications: medCount || 0,
+      })
+
+      console.log("[v0] Estatísticas carregadas com sucesso:", { patientCount, medCount })
+    } catch (error) {
+      console.error("[v0] Exceção ao carregar estatísticas:", error)
+    } finally {
+      setLoading(false)
+    }
   }
 
   if (loading) {

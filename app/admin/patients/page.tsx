@@ -36,9 +36,11 @@ export default function PatientsPage() {
   const [deleting, setDeleting] = useState(false)
 
   const loadPatients = async () => {
+    console.log("[v0] Iniciando carregamento de pacientes...")
     try {
       const supabase = createClient()
 
+      console.log("[v0] Buscando pacientes no banco...")
       const { data, error } = await supabase
         .from("profiles")
         .select("*")
@@ -47,8 +49,11 @@ export default function PatientsPage() {
 
       if (error) {
         console.error("[v0] Erro ao carregar pacientes:", error)
+        console.error("[v0] Detalhes do erro:", JSON.stringify(error, null, 2))
         setPatients([])
       } else {
+        console.log("[v0] Pacientes carregados com sucesso:", data?.length || 0)
+        console.log("[v0] Dados dos pacientes:", data)
         setPatients(data || [])
       }
     } catch (err) {

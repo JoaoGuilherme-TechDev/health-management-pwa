@@ -28,15 +28,24 @@ export default function PatientDetailsPage() {
   }, [patientId])
 
   const loadPatient = async () => {
+    console.log("[v0] Carregando dados do paciente:", patientId)
     const supabase = createClient()
-    const { data, error } = await supabase.from("profiles").select("*").eq("id", patientId).single()
 
-    if (error) {
-      console.error("[v0] Erro ao carregar paciente:", error)
-    } else {
-      setPatient(data)
+    try {
+      const { data, error } = await supabase.from("profiles").select("*").eq("id", patientId).single()
+
+      if (error) {
+        console.error("[v0] Erro ao carregar paciente:", error)
+        console.error("[v0] Detalhes do erro:", JSON.stringify(error, null, 2))
+      } else {
+        console.log("[v0] Paciente carregado com sucesso:", data)
+        setPatient(data)
+      }
+    } catch (err) {
+      console.error("[v0] Exceção ao carregar paciente:", err)
+    } finally {
+      setLoading(false)
     }
-    setLoading(false)
   }
 
   if (loading) {
