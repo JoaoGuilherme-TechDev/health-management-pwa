@@ -94,6 +94,7 @@ export default function NotificationsPage() {
     if (error) {
       console.error("[v0] Erro ao marcar como lida:", error)
     }
+    loadNotifications()
   }
 
   const handleDelete = async (id: string) => {
