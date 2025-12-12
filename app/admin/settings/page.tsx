@@ -8,7 +8,7 @@ import { Textarea } from "@/components/ui/textarea"
 import { createClient } from "@/lib/supabase/client"
 import { useEffect, useState } from "react"
 import { useRouter } from "next/navigation"
-import { LogOut } from "lucide-react"z
+import { LogOut } from "lucide-react"
 
 export default function AdminSettingsPage() {
   const router = useRouter()
