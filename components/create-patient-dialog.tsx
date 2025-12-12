@@ -26,7 +26,6 @@ export function CreatePatientDialog({ open, onOpenChange, onPatientCreated }: Cr
   })
 
   const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault()
     setError(null)
     setLoading(true)
 
