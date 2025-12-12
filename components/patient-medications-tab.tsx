@@ -119,6 +119,7 @@ export function PatientMedicationsTab({ patientId }: { patientId: string }) {
       user_id: patientId,
       doctor_crm: doctorInfo.crm,
       doctor_name: doctorInfo.name,
+      frequency: "Horários personalizados", // Campo legado, mantido para compatibilidade
       ...formData,
     }
 
