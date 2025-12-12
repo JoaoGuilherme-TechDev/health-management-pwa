@@ -94,8 +94,8 @@ export async function POST(request: Request) {
       // Criar notificação in-app
       const { error: notifError } = await supabase.from("notifications").insert({
         user_id: medication.user_id,
-        title: "Hora do Medicamento",
-        message: `Hora de tomar ${medication.name} - ${medication.dosage}`,
+        title: "Hora do Remédio",
+        message: `Está na hora do seu remédio: ${medication.name} - ${medication.dosage}`,
         notification_type: "medication_reminder",
         action_url: "/patient/medications",
       })
@@ -113,10 +113,11 @@ export async function POST(request: Request) {
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({
             user_id: medication.user_id,
-            title: "Hora do Medicamento",
-            message: `Hora de tomar ${medication.name} - ${medication.dosage}`,
+            title: "⏰ Hora do Remédio",
+            message: `Está na hora do seu remédio: ${medication.name} - ${medication.dosage}`,
             notification_type: "medication_reminder",
             url: "/patient/medications",
+            requireInteraction: true, // Notificação persistente que não desaparece automaticamente
           }),
         })
       } catch (pushError) {

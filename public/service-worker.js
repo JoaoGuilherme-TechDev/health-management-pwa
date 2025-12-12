@@ -94,13 +94,18 @@ self.addEventListener("push", (event) => {
 
   const data = event.data ? event.data.json() : {}
   const title = data.title || "HealthCare+"
+
+  const isMedicationReminder = data.type === "medication_reminder"
+
   const options = {
     body: data.message || "Você tem uma nova notificação",
     icon: "/icon.svg",
     badge: "/icon-light-32x32.png",
-    tag: data.type || "notification",
-    requireInteraction: data.requireInteraction || false,
-    vibrate: [200, 100, 200],
+    tag: isMedicationReminder ? `medication-${Date.now()}` : data.type || "notification",
+    requireInteraction: isMedicationReminder ? true : data.requireInteraction || false, // Notificação persistente para medicamentos
+    vibrate: isMedicationReminder ? [500, 200, 500, 200, 500] : [200, 100, 200], // Vibração mais intensa para medicamentos
+    silent: false, // Garantir que o som toque
+    renotify: true, // Permitir re-notificar mesmo com a mesma tag
     actions: [
       {
         action: "open",
@@ -114,6 +119,7 @@ self.addEventListener("push", (event) => {
     data: {
       url: data.url || "/patient",
       type: data.type,
+      timestamp: Date.now(),
     },
   }
 
@@ -122,6 +128,18 @@ self.addEventListener("push", (event) => {
       .showNotification(title, options)
       .then(() => {
         console.log("[Service Worker] Notificação exibida com sucesso")
+
+        if (isMedicationReminder) {
+          // Tentar reproduzir som via clients
+          self.clients.matchAll({ type: "window", includeUncontrolled: true }).then((clientList) => {
+            clientList.forEach((client) => {
+              client.postMessage({
+                type: "PLAY_ALARM",
+                medication: data.message,
+              })
+            })
+          })
+        }
       })
       .catch((error) => {
         console.error("[Service Worker] Erro ao exibir notificação:", error)

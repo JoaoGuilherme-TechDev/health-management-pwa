@@ -146,31 +146,6 @@ export function PatientMedicationsTab({ patientId }: { patientId: string }) {
         alert("Medicamento adicionado, mas houve erro ao configurar os horários")
         return
       }
-
-      try {
-        const scheduleText = schedules.join(", ")
-        await supabase.from("notifications").insert({
-          user_id: patientId,
-          title: "Novo Medicamento Prescrito",
-          message: `${doctorInfo.name} prescreveu ${formData.name} - ${formData.dosage}. Horários: ${scheduleText}`,
-          notification_type: "medication_added",
-          action_url: "/patient/medications",
-        })
-
-        await fetch("/api/notifications/push", {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({
-            user_id: patientId,
-            title: "Novo Medicamento Prescrito",
-            message: `${doctorInfo.name} prescreveu ${formData.name} - ${formData.dosage}`,
-            notification_type: "medication_added",
-            url: "/patient/medications",
-          }),
-        })
-      } catch (notifError) {
-        console.error("[v0] Erro ao enviar notificação:", notifError)
-      }
     }
 
     alert("Medicamento e horários adicionados com sucesso!")
