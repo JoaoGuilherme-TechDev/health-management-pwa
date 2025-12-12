@@ -108,18 +108,27 @@ export async function POST(request: Request) {
 
       // Enviar push notification
       try {
-        await fetch(`${process.env.NEXT_PUBLIC_SITE_URL || "http://localhost:3000"}/api/notifications/push`, {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({
-            user_id: medication.user_id,
-            title: "⏰ Hora do Remédio",
-            message: `Está na hora do seu remédio: ${medication.name} - ${medication.dosage}`,
-            notification_type: "medication_reminder",
-            url: "/patient/medications",
-            requireInteraction: true, // Notificação persistente que não desaparece automaticamente
-          }),
-        })
+        const pushResponse = await fetch(
+          `${process.env.NEXT_PUBLIC_SITE_URL || "http://localhost:3000"}/api/notifications/push`,
+          {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({
+              user_id: medication.user_id,
+              title: "⏰ Hora do Remédio",
+              message: `Está na hora do seu remédio: ${medication.name} - ${medication.dosage}`,
+              notification_type: "medication_reminder",
+              url: "/patient/medications",
+              requireInteraction: true, // Garantir que a notificação seja persistente
+            }),
+          },
+        )
+
+        if (!pushResponse.ok) {
+          console.error(`[v0] Erro ao enviar push notification: ${pushResponse.status}`)
+        } else {
+          console.log(`[v0] Push notification enviada com sucesso para ${medication.name}`)
+        }
       } catch (pushError) {
         console.error(`[v0] Erro ao enviar push notification:`, pushError)
       }

@@ -14,7 +14,7 @@ if (vapidKeys.publicKey && vapidKeys.privateKey) {
 
 export async function POST(request: Request) {
   try {
-    const { user_id, title, message, notification_type, url } = await request.json()
+    const { user_id, title, message, notification_type, url, requireInteraction } = await request.json()
 
     if (!user_id || !title || !message) {
       return NextResponse.json({ error: "Missing required fields" }, { status: 400 })
@@ -48,12 +48,14 @@ export async function POST(request: Request) {
           message,
           url: url || "/patient",
           type: notification_type,
+          requireInteraction: requireInteraction || false,
         })
 
         // Send push notification to all user's devices
-        for (const sub of subscriptions) {
+        const pushPromises = subscriptions.map(async (sub) => {
           try {
             await webpush.sendNotification(sub.subscription, payload)
+            console.log("[v0] Push notification enviada com sucesso")
           } catch (pushError: any) {
             console.error("[v0] Failed to send push to device:", pushError)
             // Remove invalid subscription
@@ -61,7 +63,11 @@ export async function POST(request: Request) {
               await supabase.from("push_subscriptions").delete().eq("subscription", sub.subscription)
             }
           }
-        }
+        })
+
+        await Promise.all(pushPromises)
+      } else {
+        console.log("[v0] Nenhuma subscription encontrada para o usuário")
       }
     } catch (pushError) {
       console.error("[v0] Push notification error:", pushError)
