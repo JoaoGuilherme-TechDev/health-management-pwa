@@ -86,14 +86,23 @@ export default function NotificationsPage() {
 
   const handleMarkAsRead = async (id: string) => {
     const supabase = createClient()
-    await supabase.from("notifications").update({ is_read: true, read_at: new Date().toISOString() }).eq("id", id)
-    // Não precisa chamar loadNotifications() - realtime vai fazer isso
+    const { error } = await supabase
+      .from("notifications")
+      .update({ is_read: true, read_at: new Date().toISOString() })
+      .eq("id", id)
+
+    if (error) {
+      console.error("[v0] Erro ao marcar como lida:", error)
+    }
   }
 
   const handleDelete = async (id: string) => {
     const supabase = createClient()
-    await supabase.from("notifications").delete().eq("id", id)
-    // Não precisa atualizar state - realtime vai fazer isso
+    const { error } = await supabase.from("notifications").delete().eq("id", id)
+
+    if (error) {
+      console.error("[v0] Erro ao deletar notificação:", error)
+    }
   }
 
   const handleMarkAllAsRead = async () => {
@@ -145,15 +154,15 @@ export default function NotificationsPage() {
             <Card key={notif.id} className={`transition-colors ${notif.is_read ? "opacity-60" : "border-primary"}`}>
               <CardContent className="pt-6">
                 <div className="flex items-start justify-between gap-4">
-                  <div className="flex-1">
+                  <div className="flex-1 min-w-0">
                     <div className="flex items-center gap-2">
-                      <h3 className="font-semibold text-foreground">{notif.title}</h3>
+                      <h3 className="font-semibold text-foreground truncate">{notif.title}</h3>
                       {!notif.is_read && <span className="h-2 w-2 rounded-full bg-primary flex-shrink-0"></span>}
                     </div>
                     <p className="text-sm text-muted-foreground mt-1">{notif.message}</p>
-                    <div className="flex items-center gap-3 mt-3">
+                    <div className="flex items-center gap-3 mt-3 flex-wrap">
                       <span
-                        className={`text-xs px-2 py-1 rounded-full ${
+                        className={`text-xs px-2 py-1 rounded-full whitespace-nowrap ${
                           notif.notification_type === "medication_reminder" ||
                           notif.notification_type === "medication_added"
                             ? "bg-blue-100 text-blue-800 dark:bg-blue-900 dark:text-blue-200"
@@ -167,30 +176,32 @@ export default function NotificationsPage() {
                       >
                         {translateNotificationType(notif.notification_type)}
                       </span>
-                      <span className="text-xs text-muted-foreground">
+                      <span className="text-xs text-muted-foreground whitespace-nowrap">
                         {new Date(notif.created_at).toLocaleDateString("pt-BR")} às{" "}
                         {new Date(notif.created_at).toLocaleTimeString("pt-BR", { hour: "2-digit", minute: "2-digit" })}
                       </span>
                     </div>
                   </div>
-                  <div className="flex items-center gap-2 flex-shrink-0">
+                  <div className="flex items-center gap-1 flex-shrink-0">
                     {!notif.is_read && (
                       <Button
                         variant="ghost"
-                        size="sm"
+                        size="icon"
                         onClick={() => handleMarkAsRead(notif.id)}
                         title="Marcar como lida"
+                        className="h-9 w-9 text-green-600 hover:text-green-700 hover:bg-green-100 dark:text-green-400 dark:hover:bg-green-900"
                       >
-                        <CheckCircle className="h-4 w-4" />
+                        <CheckCircle className="h-5 w-5" />
                       </Button>
                     )}
                     <Button
                       variant="ghost"
-                      size="sm"
+                      size="icon"
                       onClick={() => handleDelete(notif.id)}
                       title="Excluir notificação"
+                      className="h-9 w-9 text-red-600 hover:text-red-700 hover:bg-red-100 dark:text-red-400 dark:hover:bg-red-900"
                     >
-                      <Trash2 className="h-4 w-4" />
+                      <Trash2 className="h-5 w-5" />
                     </Button>
                   </div>
                 </div>
