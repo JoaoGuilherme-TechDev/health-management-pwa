@@ -76,20 +76,19 @@ export async function POST() {
             .single()
 
           if (profile?.phone) {
-            await fetch(`${process.env.NEXT_PUBLIC_SITE_URL || "http://localhost:3000"}/api/notifications/twilio`, {
+            await fetch(`${process.env.NEXT_PUBLIC_SITE_URL || "http://localhost:3000"}/api/notifications/zapi`, {
               method: "POST",
               headers: { "Content-Type": "application/json" },
               body: JSON.stringify({
                 userId: appointment.patient_id,
-                message: `📅 Lembrete: Consulta em ${hoursUntil} horas - ${appointment.title} às ${timeStr}`,
+                message: `📅 *Lembrete de Consulta*\n\nVocê tem uma consulta em ${hoursUntil} horas:\n\n*${appointment.title}*\nHorário: ${timeStr}\n\nNão esqueça!`,
                 phoneNumber: profile.phone,
-                type: "sms",
               }),
             })
-            console.log(`[v0] SMS enviado para consulta: ${appointment.title}`)
+            console.log(`[v0] WhatsApp enviado via Z-API para consulta: ${appointment.title}`)
           }
-        } catch (twilioError) {
-          console.error("[v0] Erro ao enviar SMS via Twilio:", twilioError)
+        } catch (zapiError) {
+          console.error("[v0] Erro ao enviar WhatsApp via Z-API:", zapiError)
         }
 
         remindersCreated++

@@ -132,26 +132,27 @@ export async function POST(request: Request) {
         const { data: profile } = await supabase.from("profiles").select("phone").eq("id", medication.user_id).single()
 
         if (profile?.phone) {
-          const twilioResponse = await fetch(
-            `${process.env.NEXT_PUBLIC_SITE_URL || "http://localhost:3000"}/api/notifications/twilio`,
+          const zapiResponse = await fetch(
+            `${process.env.NEXT_PUBLIC_SITE_URL || "http://localhost:3000"}/api/notifications/zapi`,
             {
               method: "POST",
               headers: { "Content-Type": "application/json" },
               body: JSON.stringify({
                 userId: medication.user_id,
-                message: `⏰ Hora do Remédio: ${medication.name} - ${medication.dosage}`,
+                message: `⏰ *Hora do Remédio*\n\n${medication.name} - ${medication.dosage}\n\nNão esqueça de tomar seu medicamento!`,
                 phoneNumber: profile.phone,
-                type: "sms",
               }),
             },
           )
 
-          if (twilioResponse.ok) {
-            console.log(`[v0] SMS enviado com sucesso para ${medication.name}`)
+          if (zapiResponse.ok) {
+            console.log(`[v0] WhatsApp enviado com sucesso via Z-API para ${medication.name}`)
+          } else {
+            console.error(`[v0] Erro ao enviar WhatsApp via Z-API: ${zapiResponse.status}`)
           }
         }
-      } catch (twilioError) {
-        console.error(`[v0] Erro ao enviar SMS via Twilio:`, twilioError)
+      } catch (zapiError) {
+        console.error(`[v0] Erro ao enviar WhatsApp via Z-API:`, zapiError)
       }
     }
 

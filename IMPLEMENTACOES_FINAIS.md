@@ -30,40 +30,44 @@ Todas as datas e horários estavam com 3 horas de diferença devido ao timezone 
 
 ---
 
-## 2. Integração com Twilio (SMS e WhatsApp)
+## 2. Integração com Z-API (WhatsApp)
 
 ### Implementação
 
-**Arquivo criado: `app/api/notifications/twilio/route.ts`**
-- Endpoint POST para enviar SMS ou WhatsApp
-- Suporte para SMS via Twilio Phone Number
-- Suporte para WhatsApp via Twilio Sandbox/Número oficial
+**Arquivo criado: `app/api/notifications/zapi/route.ts`**
+- Endpoint POST para enviar WhatsApp via Z-API
+- Formatação automática de números (remove caracteres especiais)
 - Registro de mensagens enviadas na tabela `notifications`
+- Suporte para formatação de texto (negrito, itálico, emojis)
 
 **Arquivos atualizados:**
-- `app/api/medications/scheduled-reminders/route.ts` - Envia SMS quando chega horário do remédio
-- `app/api/notifications/create-appointment-reminders/route.ts` - Envia SMS para lembretes de consulta
-- `package.json` - Dependência `twilio` já incluída (v5.10.7)
+- `app/api/medications/scheduled-reminders/route.ts` - Envia WhatsApp quando chega horário do remédio
+- `app/api/notifications/create-appointment-reminders/route.ts` - Envia WhatsApp para lembretes de consulta
 
 ### Configuração Necessária
 
 **Variáveis de ambiente (adicionar no Vercel):**
 \`\`\`env
-TWILIO_ACCOUNT_SID=ACxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx
-TWILIO_AUTH_TOKEN=xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx
-TWILIO_PHONE_NUMBER=+5511999999999
-TWILIO_WHATSAPP_NUMBER=+14155238886
+ZAPI_INSTANCE_ID=sua_instance_id_aqui
+ZAPI_TOKEN=seu_token_aqui
 \`\`\`
 
-**Documentação:** `TWILIO_SETUP.md` - Guia completo de configuração
+**Documentação:** `ZAPI_SETUP.md` - Guia completo de configuração
 
 ### Funcionamento
-- **SMS automático**: Enviado nos horários agendados de medicamento e antes de consultas
-- **WhatsApp**: Disponível através do Twilio Sandbox (testes) ou número oficial (produção)
-- **Requisito**: Campo `phone` preenchido na tabela `profiles` no formato `+5511999999999`
+- **WhatsApp automático**: Enviado nos horários agendados de medicamento e antes de consultas
+- **Formato da mensagem**: Suporta negrito (*texto*), itálico (_texto_) e emojis
+- **Requisito**: Campo `phone` preenchido na tabela `profiles` no formato `5511999999999` (sem +)
+
+### Vantagens da Z-API
+- ✅ Setup imediato (não precisa aprovação Meta)
+- ✅ Plano gratuito com 100 mensagens/mês
+- ✅ Suporte a formatação WhatsApp
+- ✅ Webhooks para status de entrega
+- ✅ Ideal para MVP e pequenos volumes
 
 ### Resultado
-✅ Sistema envia notificações por múltiplos canais: push, in-app, SMS e WhatsApp
+✅ Sistema envia notificações por múltiplos canais: push, in-app e WhatsApp
 
 ---
 
@@ -312,13 +316,13 @@ export async function DELETE(request: Request) {
 
 ## Próximos Passos Obrigatórios
 
-### 1. Configurar Twilio (Para SMS/WhatsApp funcionar)
-- [ ] Criar conta no Twilio
-- [ ] Obter credenciais (Account SID, Auth Token)
-- [ ] Comprar número de telefone
+### 1. Configurar Z-API (Para WhatsApp funcionar)
+- [ ] Criar conta no [z-api.io](https://www.z-api.io/)
+- [ ] Criar instância e conectar WhatsApp via QR Code
+- [ ] Obter credenciais (Instance ID e Token)
 - [ ] Configurar variáveis de ambiente no Vercel
-- [ ] Testar envio de SMS
-- Guia: `TWILIO_SETUP.md`
+- [ ] Testar envio de WhatsApp
+- Guia completo: `ZAPI_SETUP.md`
 
 ### 2. Configurar Cron Jobs (Para lembretes automáticos)
 
@@ -353,18 +357,18 @@ export async function DELETE(request: Request) {
 
 ### 5. Preencher Campo Phone nos Perfis
 - [ ] Garantir que pacientes tenham campo `phone` preenchido
-- [ ] Formato obrigatório: `+5511999999999` (com código do país)
+- [ ] Formato obrigatório: `5511999999999` (sem + e sem caracteres especiais)
 
 ---
 
 ## Arquivos Novos Criados
 
 1. `lib/timezone.ts` - Funções de timezone
-2. `app/api/notifications/twilio/route.ts` - API Twilio
+2. `app/api/notifications/zapi/route.ts` - API Z-API para WhatsApp
 3. `scripts/025_add_delete_patient_cascade_function.sql` - Função de deletar
 4. `scripts/026_add_medication_schedules.sql` - Tabela de horários
 5. `scripts/027_make_frequency_nullable.sql` - Tornar frequency opcional
-6. `TWILIO_SETUP.md` - Guia Twilio
+6. `ZAPI_SETUP.md` - Guia completo Z-API
 7. `MEDICATION_SCHEDULES_SETUP.md` - Guia de horários
 8. `IMPLEMENTACOES_FINAIS.md` - Este documento
 
@@ -422,7 +426,7 @@ export async function DELETE(request: Request) {
 
 ## Suporte e Documentação
 
-- **Twilio**: `TWILIO_SETUP.md`
+- **Z-API**: `ZAPI_SETUP.md`
 - **Notificações Push**: `CONFIGURAR_NOTIFICACOES.md`
 - **Horários de Medicamentos**: `MEDICATION_SCHEDULES_SETUP.md`
 - **Mudanças Recentes**: `CHANGELOG_FIXES.md`
@@ -432,4 +436,4 @@ export async function DELETE(request: Request) {
 
 **Sistema pronto para produção! 🚀**
 
-Todos os bugs críticos foram corrigidos e otimizações implementadas. Configure as integrações externas (Twilio, VAPID, Cron Jobs) e o sistema estará 100% funcional.
+Todos os bugs críticos foram corrigidos e otimizações implementadas. Configure as integrações externas (Z-API, VAPID, Cron Jobs) e o sistema estará 100% funcional.
