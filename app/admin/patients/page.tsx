@@ -171,7 +171,6 @@ export default function PatientsPage() {
                       className="gap-2"
                     >
                       <Trash2 className="h-4 w-4" />
-                      Deletar
                     </Button>
                   </div>
                 </div>
