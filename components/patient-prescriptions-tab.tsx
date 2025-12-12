@@ -25,6 +25,28 @@ export function PatientPrescriptionsTab({ patientId }: { patientId: string }) {
 
   useEffect(() => {
     loadPrescriptions()
+
+    const supabase = createClient()
+    const channel = supabase
+      .channel(`prescriptions-${patientId}`)
+      .on(
+        "postgres_changes",
+        {
+          event: "*",
+          schema: "public",
+          table: "medical_prescriptions",
+          filter: `patient_id=eq.${patientId}`,
+        },
+        () => {
+          console.log("[v0] Receita atualizada, recarregando...")
+          loadPrescriptions()
+        },
+      )
+      .subscribe()
+
+    return () => {
+      supabase.removeChannel(channel)
+    }
   }, [patientId])
 
   const loadPrescriptions = async () => {

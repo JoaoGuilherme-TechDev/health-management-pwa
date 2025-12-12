@@ -43,6 +43,28 @@ export function PatientDietTab({ patientId }: PatientDietTabProps) {
 
   useEffect(() => {
     loadDietRecipes()
+
+    const supabase = createClient()
+    const channel = supabase
+      .channel(`diet-${patientId}`)
+      .on(
+        "postgres_changes",
+        {
+          event: "*",
+          schema: "public",
+          table: "patient_diet_recipes",
+          filter: `patient_id=eq.${patientId}`,
+        },
+        () => {
+          console.log("[v0] Receita de dieta atualizada, recarregando...")
+          loadDietRecipes()
+        },
+      )
+      .subscribe()
+
+    return () => {
+      supabase.removeChannel(channel)
+    }
   }, [patientId])
 
   const loadDietRecipes = async () => {

@@ -29,6 +29,28 @@ export function PatientEvolutionTab({ patientId }: { patientId: string }) {
 
   useEffect(() => {
     loadEvolution()
+
+    const supabase = createClient()
+    const channel = supabase
+      .channel(`evolution-${patientId}`)
+      .on(
+        "postgres_changes",
+        {
+          event: "*",
+          schema: "public",
+          table: "physical_evolution",
+          filter: `user_id=eq.${patientId}`,
+        },
+        () => {
+          console.log("[v0] Evolução física atualizada, recarregando...")
+          loadEvolution()
+        },
+      )
+      .subscribe()
+
+    return () => {
+      supabase.removeChannel(channel)
+    }
   }, [patientId])
 
   const loadEvolution = async () => {

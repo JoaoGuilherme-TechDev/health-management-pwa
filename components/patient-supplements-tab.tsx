@@ -40,6 +40,28 @@ export function PatientSupplementsTab({ patientId }: PatientSupplementsTabProps)
 
   useEffect(() => {
     loadSupplements()
+
+    const supabase = createClient()
+    const channel = supabase
+      .channel(`supplements-${patientId}`)
+      .on(
+        "postgres_changes",
+        {
+          event: "*",
+          schema: "public",
+          table: "patient_supplements",
+          filter: `patient_id=eq.${patientId}`,
+        },
+        () => {
+          console.log("[v0] Suplemento atualizado, recarregando...")
+          loadSupplements()
+        },
+      )
+      .subscribe()
+
+    return () => {
+      supabase.removeChannel(channel)
+    }
   }, [patientId])
 
   const loadSupplements = async () => {

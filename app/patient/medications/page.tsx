@@ -45,6 +45,33 @@ export default function MedicationsPage() {
 
   useEffect(() => {
     loadMedications()
+
+    const supabase = createClient()
+
+    supabase.auth.getUser().then(({ data: { user } }) => {
+      if (user) {
+        const channel = supabase
+          .channel(`medications-${user.id}`)
+          .on(
+            "postgres_changes",
+            {
+              event: "*",
+              schema: "public",
+              table: "medications",
+              filter: `user_id=eq.${user.id}`,
+            },
+            () => {
+              console.log("[v0] Medicamento atualizado, recarregando...")
+              loadMedications()
+            },
+          )
+          .subscribe()
+
+        return () => {
+          supabase.removeChannel(channel)
+        }
+      }
+    })
   }, [])
 
   if (loading) {
