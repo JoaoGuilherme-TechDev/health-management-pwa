@@ -5,31 +5,34 @@ export async function POST() {
   const supabase = await createClient()
 
   try {
-    // Get all active medications
-    const { data: medications } = await supabase.from("medications").select("*").eq("is_active", true)
+    const now = new Date()
+    const today = now.toISOString().split("T")[0]
+
+    const { data: medications } = await supabase
+      .from("medications")
+      .select("*")
+      .or(`end_date.is.null,end_date.gte.${today}`)
+      .lte("start_date", today)
 
     if (!medications || medications.length === 0) {
-      return NextResponse.json({ message: "No active medications" })
+      return NextResponse.json({ message: "Nenhum medicamento ativo" })
     }
 
-    console.log("[v0] Creating reminders for", medications.length, "medications")
-
-    const today = new Date().toISOString().split("T")[0]
-    const now = new Date()
+    console.log("[v0] Criando lembretes para", medications.length, "medicamentos")
 
     for (const med of medications) {
-      // Check if notification already exists for today
+      const last12Hours = new Date(now.getTime() - 12 * 60 * 60 * 1000)
+
       const { data: existingNotif } = await supabase
         .from("notifications")
         .select("id")
         .eq("user_id", med.user_id)
         .eq("notification_type", "medication_reminder")
-        .gte("created_at", `${today}T00:00:00`)
-        .like("message", `%${med.name}%`)
-        .single()
+        .gte("created_at", last12Hours.toISOString())
+        .ilike("message", `%${med.name}%`)
+        .maybeSingle()
 
       if (!existingNotif) {
-        // Create notification for medication
         await supabase.from("notifications").insert({
           user_id: med.user_id,
           title: "Lembrete de Medicamento",
@@ -38,13 +41,15 @@ export async function POST() {
           action_url: "/patient/medications",
         })
 
-        console.log("[v0] Created medication reminder for patient", med.user_id, "- Med:", med.name)
+        console.log("[v0] Lembrete de medicamento criado para paciente", med.user_id, "- Med:", med.name)
+      } else {
+        console.log("[v0] Lembrete já existe para", med.name)
       }
     }
 
-    return NextResponse.json({ message: "Medication reminders created successfully", count: medications.length })
+    return NextResponse.json({ message: "Lembretes de medicamento processados", count: medications.length })
   } catch (error) {
-    console.error("[v0] Error creating medication reminders:", error)
-    return NextResponse.json({ error: "Failed to create medication reminders" }, { status: 500 })
+    console.error("[v0] Erro ao criar lembretes de medicamento:", error)
+    return NextResponse.json({ error: "Falha ao criar lembretes de medicamento" }, { status: 500 })
   }
 }

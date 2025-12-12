@@ -15,6 +15,19 @@ interface Notification {
   created_at: string
 }
 
+const translateNotificationType = (type: string): string => {
+  const translations: Record<string, string> = {
+    medication_reminder: "lembrete de medicamento",
+    appointment_reminder: "lembrete de consulta",
+    medication_added: "medicamento adicionado",
+    health_alert: "alerta de saúde",
+    appointment_scheduled: "consulta agendada",
+    diet_updated: "dieta atualizada",
+    supplement_added: "suplemento adicionado",
+  }
+  return translations[type] || type
+}
+
 export default function NotificationsPage() {
   const [notifications, setNotifications] = useState<Notification[]>([])
   const [loading, setLoading] = useState(true)
@@ -42,18 +55,45 @@ export default function NotificationsPage() {
 
   useEffect(() => {
     loadNotifications()
+
+    const supabase = createClient()
+
+    supabase.auth.getUser().then(({ data: { user } }) => {
+      if (user) {
+        const channel = supabase
+          .channel(`notifications-${user.id}`)
+          .on(
+            "postgres_changes",
+            {
+              event: "*",
+              schema: "public",
+              table: "notifications",
+              filter: `user_id=eq.${user.id}`,
+            },
+            () => {
+              console.log("[v0] Notificação atualizada, recarregando...")
+              loadNotifications()
+            },
+          )
+          .subscribe()
+
+        return () => {
+          supabase.removeChannel(channel)
+        }
+      }
+    })
   }, [])
 
   const handleMarkAsRead = async (id: string) => {
     const supabase = createClient()
     await supabase.from("notifications").update({ is_read: true, read_at: new Date().toISOString() }).eq("id", id)
-    await loadNotifications()
+    // Não precisa chamar loadNotifications() - realtime vai fazer isso
   }
 
   const handleDelete = async (id: string) => {
     const supabase = createClient()
     await supabase.from("notifications").delete().eq("id", id)
-    setNotifications(notifications.filter((n) => n.id !== id))
+    // Não precisa atualizar state - realtime vai fazer isso
   }
 
   const handleMarkAllAsRead = async () => {
@@ -65,8 +105,7 @@ export default function NotificationsPage() {
         .from("notifications")
         .update({ is_read: true, read_at: new Date().toISOString() })
         .in("id", unreadIds)
-
-      await loadNotifications()
+      // Não precisa chamar loadNotifications() - realtime vai fazer isso
     }
   }
 
@@ -115,20 +154,22 @@ export default function NotificationsPage() {
                     <div className="flex items-center gap-3 mt-3">
                       <span
                         className={`text-xs px-2 py-1 rounded-full ${
-                          notif.notification_type === "medication_reminder"
+                          notif.notification_type === "medication_reminder" ||
+                          notif.notification_type === "medication_added"
                             ? "bg-blue-100 text-blue-800 dark:bg-blue-900 dark:text-blue-200"
-                            : notif.notification_type === "appointment_reminder"
+                            : notif.notification_type === "appointment_reminder" ||
+                                notif.notification_type === "appointment_scheduled"
                               ? "bg-purple-100 text-purple-800 dark:bg-purple-900 dark:text-purple-200"
                               : notif.notification_type === "health_alert"
                                 ? "bg-red-100 text-red-800 dark:bg-red-900 dark:text-red-200"
                                 : "bg-gray-100 text-gray-800 dark:bg-gray-900 dark:text-gray-200"
                         }`}
                       >
-                        {notif.notification_type.replace("_", " ")}
+                        {translateNotificationType(notif.notification_type)}
                       </span>
                       <span className="text-xs text-muted-foreground">
                         {new Date(notif.created_at).toLocaleDateString("pt-BR")} às{" "}
-                        {new Date(notif.created_at).toLocaleTimeString("pt-BR")}
+                        {new Date(notif.created_at).toLocaleTimeString("pt-BR", { hour: "2-digit", minute: "2-digit" })}
                       </span>
                     </div>
                   </div>

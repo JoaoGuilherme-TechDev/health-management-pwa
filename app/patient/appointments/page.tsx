@@ -54,16 +54,31 @@ export default function AppointmentsPage() {
     loadAppointments()
 
     const supabase = createClient()
-    const channel = supabase
-      .channel("appointments-changes")
-      .on("postgres_changes", { event: "*", schema: "public", table: "appointments" }, () => {
-        loadAppointments()
-      })
-      .subscribe()
 
-    return () => {
-      supabase.removeChannel(channel)
-    }
+    supabase.auth.getUser().then(({ data: { user } }) => {
+      if (user) {
+        const channel = supabase
+          .channel(`appointments-patient-${user.id}`)
+          .on(
+            "postgres_changes",
+            {
+              event: "*",
+              schema: "public",
+              table: "appointments",
+              filter: `patient_id=eq.${user.id}`,
+            },
+            () => {
+              console.log("[v0] Consulta atualizada, recarregando...")
+              loadAppointments()
+            },
+          )
+          .subscribe()
+
+        return () => {
+          supabase.removeChannel(channel)
+        }
+      }
+    })
   }, [])
 
   const getStatusColor = (status: string) => {

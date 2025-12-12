@@ -105,6 +105,14 @@ export function PatientMedicationsTab({ patientId }: { patientId: string }) {
     }
 
     try {
+      await supabase.from("notifications").insert({
+        user_id: patientId,
+        title: "Novo Medicamento Prescrito",
+        message: `${doctorInfo.name} prescreveu ${formData.name} - ${formData.dosage}`,
+        notification_type: "medication_added",
+        action_url: "/patient/medications",
+      })
+
       await fetch("/api/notifications/push", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -131,7 +139,6 @@ export function PatientMedicationsTab({ patientId }: { patientId: string }) {
       reason: "",
       side_effects: "",
     })
-    // Não precisa chamar loadMedications() - realtime vai fazer isso automaticamente
   }
 
   const handleDelete = async (id: string) => {

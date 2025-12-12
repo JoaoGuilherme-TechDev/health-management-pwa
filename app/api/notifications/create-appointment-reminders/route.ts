@@ -7,35 +7,34 @@ export async function POST() {
   try {
     const now = new Date()
     const in2Hours = new Date(now.getTime() + 2 * 60 * 60 * 1000)
-    const tomorrow = new Date(now.getTime() + 24 * 60 * 60 * 1000)
+    const in24Hours = new Date(now.getTime() + 24 * 60 * 60 * 1000)
 
     const { data: appointments } = await supabase
       .from("appointments")
       .select("*")
       .eq("status", "scheduled")
       .gte("scheduled_at", in2Hours.toISOString())
-      .lte("scheduled_at", tomorrow.toISOString())
+      .lte("scheduled_at", in24Hours.toISOString())
 
     if (!appointments || appointments.length === 0) {
-      return NextResponse.json({ message: "Nenhuma consulta próxima" })
+      return NextResponse.json({ message: "Nenhuma consulta próxima nas próximas 2-24 horas" })
     }
 
     console.log("[v0] Criando lembretes para", appointments.length, "consultas")
 
     for (const appointment of appointments) {
-      const last12Hours = new Date(now.getTime() - 12 * 60 * 60 * 1000)
+      const last24Hours = new Date(now.getTime() - 24 * 60 * 60 * 1000)
 
       const { data: existingNotif } = await supabase
         .from("notifications")
         .select("id")
         .eq("user_id", appointment.patient_id)
         .eq("notification_type", "appointment_reminder")
-        .gte("created_at", last12Hours.toISOString())
+        .gte("created_at", last24Hours.toISOString())
         .ilike("message", `%${appointment.title}%`)
-        .single()
+        .maybeSingle()
 
       if (!existingNotif) {
-        // Criar notificação
         const appointmentDate = new Date(appointment.scheduled_at)
         const hoursUntil = Math.round((appointmentDate.getTime() - now.getTime()) / (60 * 60 * 1000))
 
@@ -64,10 +63,12 @@ export async function POST() {
         }
 
         console.log("[v0] Lembrete de consulta criado para paciente", appointment.patient_id)
+      } else {
+        console.log("[v0] Lembrete já existe para", appointment.title)
       }
     }
 
-    return NextResponse.json({ message: "Lembretes de consulta criados com sucesso", count: appointments.length })
+    return NextResponse.json({ message: "Lembretes de consulta processados", count: appointments.length })
   } catch (error) {
     console.error("[v0] Erro ao criar lembretes de consulta:", error)
     return NextResponse.json({ error: "Falha ao criar lembretes de consulta" }, { status: 500 })
