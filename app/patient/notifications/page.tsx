@@ -111,6 +111,7 @@ export default function NotificationsPage() {
       console.error("[v0] Erro ao deletar notificação:", error)
       alert("Erro ao deletar notificação. Tente novamente.")
     }
+    loadNotifications()
   }
 
   const handleMarkAllAsRead = async () => {
