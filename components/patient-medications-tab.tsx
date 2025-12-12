@@ -157,7 +157,7 @@ export function PatientMedicationsTab({ patientId }: { patientId: string }) {
     }
 
     alert("Medicamento removido com sucesso!")
-    loadMedication()
+    loadMedications()
   }
 
   if (loading) return <div>Carregando medicamentos...</div>
