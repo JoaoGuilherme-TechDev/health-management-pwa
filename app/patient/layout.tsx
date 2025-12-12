@@ -76,13 +76,6 @@ export default function PatientLayout({ children }: { children: React.ReactNode 
             <Heart className="h-5 w-5 sm:h-6 sm:w-6 text-primary" />
             <span className="text-base sm:text-xl font-bold text-foreground">HealthCare+</span>
           </Link>
-          <button
-            onClick={handleLogout}
-            className="flex items-center gap-2 text-xs sm:text-sm font-medium text-muted-foreground hover:text-foreground transition-colors"
-          >
-            <LogOut className="h-3 w-3 sm:h-4 sm:w-4" />
-            <span className="hidden sm:inline">Sair</span>
-          </button>
         </div>
       </nav>
 
