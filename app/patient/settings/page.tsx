@@ -8,6 +8,8 @@ import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Textarea } from "@/components/ui/textarea"
 import { useNotifications } from "@/components/push-notification-provider"
+import { LogOut } from "lucide-react"
+import { useRouter } from "next/navigation"
 
 interface Profile {
   id: string
@@ -23,9 +25,11 @@ interface Profile {
 }
 
 export default function SettingsPage() {
+  const router = useRouter()
   const [profile, setProfile] = useState<Profile | null>(null)
   const [loading, setLoading] = useState(true)
   const [saving, setSaving] = useState(false)
+  const [loggingOut, setLoggingOut] = useState(false)
   const { hasPermission, requestPermission } = useNotifications()
 
   useEffect(() => {
@@ -58,6 +62,13 @@ export default function SettingsPage() {
     await supabase.from("profiles").update(profile).eq("id", profile.id)
 
     setSaving(false)
+  }
+
+  const handleLogout = async () => {
+    setLoggingOut(true)
+    const supabase = createClient()
+    await supabase.auth.signOut()
+    router.push("/auth/login")
   }
 
   if (loading) {
@@ -217,6 +228,19 @@ export default function SettingsPage() {
               </p>
             </div>
           </div>
+        </CardContent>
+      </Card>
+
+      <Card className="border-destructive">
+        <CardHeader>
+          <CardTitle className="text-destructive">Sair da Conta</CardTitle>
+          <CardDescription>Encerrar sua sessão neste dispositivo</CardDescription>
+        </CardHeader>
+        <CardContent>
+          <Button onClick={handleLogout} disabled={loggingOut} variant="destructive" className="gap-2 w-full sm:w-auto">
+            <LogOut className="h-4 w-4" />
+            {loggingOut ? "Saindo..." : "Sair da Conta"}
+          </Button>
         </CardContent>
       </Card>
 

@@ -26,33 +26,45 @@ export default function AppointmentsPage() {
   const [loading, setLoading] = useState(true)
 
   useEffect(() => {
-    loadAppointments()
-  }, [])
+    const loadAppointments = async () => {
+      const supabase = createClient()
+      const {
+        data: { user },
+      } = await supabase.auth.getUser()
 
-  const loadAppointments = async () => {
-    const supabase = createClient()
-    const {
-      data: { user },
-    } = await supabase.auth.getUser()
+      if (user) {
+        console.log("[v0] Carregando consultas do paciente:", user.id)
 
-    if (user) {
-      console.log("[v0] Carregando consultas do paciente:", user.id)
+        const { data, error } = await supabase
+          .from("appointments")
+          .select("*")
+          .eq("patient_id", user.id)
+          .order("scheduled_at", { ascending: true })
 
-      const { data, error } = await supabase
-        .from("appointments")
-        .select("*")
-        .eq("patient_id", user.id)
-        .order("scheduled_at", { ascending: true })
+        console.log("[v0] Consultas carregadas:", { data, error })
 
-      console.log("[v0] Consultas carregadas:", { data, error })
-
-      if (!error && data) {
-        setAppointments(data)
+        if (!error && data) {
+          setAppointments(data)
+        }
       }
+
+      setLoading(false)
     }
 
-    setLoading(false)
-  }
+    loadAppointments()
+
+    const supabase = createClient()
+    const channel = supabase
+      .channel("appointments-changes")
+      .on("postgres_changes", { event: "*", schema: "public", table: "appointments" }, () => {
+        loadAppointments()
+      })
+      .subscribe()
+
+    return () => {
+      supabase.removeChannel(channel)
+    }
+  }, [])
 
   const getStatusColor = (status: string) => {
     switch (status) {

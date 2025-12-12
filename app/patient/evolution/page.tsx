@@ -9,27 +9,38 @@ export default function PatientEvolutionPage() {
   const [evolution, setEvolution] = useState<any[]>([])
   const [loading, setLoading] = useState(true)
 
-  useEffect(() => {
-    const loadEvolution = async () => {
-      const supabase = createClient()
-      const {
-        data: { user },
-      } = await supabase.auth.getUser()
+  const loadEvolution = async () => {
+    const supabase = createClient()
+    const {
+      data: { user },
+    } = await supabase.auth.getUser()
 
-      if (user) {
-        const { data } = await supabase
-          .from("physical_evolution")
-          .select("*")
-          .eq("user_id", user.id)
-          .order("measured_at", { ascending: false })
+    if (user) {
+      const { data } = await supabase
+        .from("physical_evolution")
+        .select("*")
+        .eq("user_id", user.id)
+        .order("measured_at", { ascending: false })
 
-        console.log("[v0] Evolution data:", data)
-        setEvolution(data || [])
-      }
-      setLoading(false)
+      setEvolution(data || [])
     }
+    setLoading(false)
+  }
 
+  useEffect(() => {
     loadEvolution()
+
+    const supabase = createClient()
+    const channel = supabase
+      .channel("evolution-changes")
+      .on("postgres_changes", { event: "*", schema: "public", table: "physical_evolution" }, () => {
+        loadEvolution()
+      })
+      .subscribe()
+
+    return () => {
+      supabase.removeChannel(channel)
+    }
   }, [])
 
   if (loading) {

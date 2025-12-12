@@ -9,27 +9,38 @@ export default function PatientDietPage() {
   const [dietRecipes, setDietRecipes] = useState<any[]>([])
   const [loading, setLoading] = useState(true)
 
-  useEffect(() => {
-    const loadDiet = async () => {
-      const supabase = createClient()
-      const {
-        data: { user },
-      } = await supabase.auth.getUser()
+  const loadDiet = async () => {
+    const supabase = createClient()
+    const {
+      data: { user },
+    } = await supabase.auth.getUser()
 
-      if (user) {
-        const { data } = await supabase
-          .from("patient_diet_recipes")
-          .select("*")
-          .eq("patient_id", user.id)
-          .order("created_at", { ascending: false })
+    if (user) {
+      const { data } = await supabase
+        .from("patient_diet_recipes")
+        .select("*")
+        .eq("patient_id", user.id)
+        .order("created_at", { ascending: false })
 
-        console.log("[v0] Diet recipes data:", data)
-        setDietRecipes(data || [])
-      }
-      setLoading(false)
+      setDietRecipes(data || [])
     }
+    setLoading(false)
+  }
 
+  useEffect(() => {
     loadDiet()
+
+    const supabase = createClient()
+    const channel = supabase
+      .channel("diet-recipes-changes")
+      .on("postgres_changes", { event: "*", schema: "public", table: "patient_diet_recipes" }, () => {
+        loadDiet()
+      })
+      .subscribe()
+
+    return () => {
+      supabase.removeChannel(channel)
+    }
   }, [])
 
   if (loading) {

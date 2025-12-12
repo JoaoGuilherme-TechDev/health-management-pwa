@@ -8,11 +8,13 @@ import { Textarea } from "@/components/ui/textarea"
 import { createClient } from "@/lib/supabase/client"
 import { useEffect, useState } from "react"
 import { useRouter } from "next/navigation"
+import { LogOut } from "lucide-react"
 
 export default function AdminSettingsPage() {
   const router = useRouter()
   const [loading, setLoading] = useState(true)
   const [saving, setSaving] = useState(false)
+  const [loggingOut, setLoggingOut] = useState(false)
   const [profile, setProfile] = useState<any>(null)
   const [formData, setFormData] = useState({
     doctor_full_name: "",
@@ -72,6 +74,13 @@ export default function AdminSettingsPage() {
       loadProfile()
     }
     setSaving(false)
+  }
+
+  const handleLogout = async () => {
+    setLoggingOut(true)
+    const supabase = createClient()
+    await supabase.auth.signOut()
+    router.push("/auth/login")
   }
 
   if (loading) return <div>Carregando...</div>
@@ -174,6 +183,19 @@ export default function AdminSettingsPage() {
               <p className="font-medium text-green-600 dark:text-green-400">Operacional</p>
             </div>
           </div>
+        </CardContent>
+      </Card>
+
+      <Card className="border-destructive">
+        <CardHeader>
+          <CardTitle className="text-destructive">Zona de Perigo</CardTitle>
+          <CardDescription>Ações irreversíveis que afetam sua sessão</CardDescription>
+        </CardHeader>
+        <CardContent>
+          <Button onClick={handleLogout} disabled={loggingOut} variant="destructive" className="gap-2">
+            <LogOut className="h-4 w-4" />
+            {loggingOut ? "Saindo..." : "Sair da Conta"}
+          </Button>
         </CardContent>
       </Card>
 

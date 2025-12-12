@@ -5,8 +5,18 @@ import { useEffect, useState } from "react"
 import { Card, CardContent } from "@/components/ui/card"
 import { Input } from "@/components/ui/input"
 import { Button } from "@/components/ui/button"
-import { Users, Plus } from "lucide-react"
+import { Users, Plus, Trash2 } from "lucide-react"
 import { CreatePatientDialog } from "@/components/create-patient-dialog"
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog"
 
 interface Patient {
   id: string
@@ -22,10 +32,11 @@ export default function PatientsPage() {
   const [loading, setLoading] = useState(true)
   const [searchTerm, setSearchTerm] = useState("")
   const [showCreateDialog, setShowCreateDialog] = useState(false)
+  const [patientToDelete, setPatientToDelete] = useState<Patient | null>(null)
+  const [deleting, setDeleting] = useState(false)
 
   const loadPatients = async () => {
     try {
-      console.log("[v0] Carregando pacientes...")
       const supabase = createClient()
 
       const { data, error } = await supabase
@@ -38,7 +49,6 @@ export default function PatientsPage() {
         console.error("[v0] Erro ao carregar pacientes:", error)
         setPatients([])
       } else {
-        console.log("[v0] Pacientes carregados:", data?.length || 0)
         setPatients(data || [])
       }
     } catch (err) {
@@ -51,7 +61,38 @@ export default function PatientsPage() {
 
   useEffect(() => {
     loadPatients()
+
+    const supabase = createClient()
+    const channel = supabase
+      .channel("profiles-changes")
+      .on("postgres_changes", { event: "*", schema: "public", table: "profiles", filter: "role=eq.patient" }, () => {
+        loadPatients()
+      })
+      .subscribe()
+
+    return () => {
+      supabase.removeChannel(channel)
+    }
   }, [])
+
+  const handleDeletePatient = async () => {
+    if (!patientToDelete) return
+
+    setDeleting(true)
+    const supabase = createClient()
+
+    const { error } = await supabase.rpc("delete_patient_cascade", { patient_id: patientToDelete.id })
+
+    if (error) {
+      alert(`Erro ao deletar paciente: ${error.message}`)
+    } else {
+      alert("Paciente deletado com sucesso!")
+      setPatientToDelete(null)
+      loadPatients()
+    }
+
+    setDeleting(false)
+  }
 
   const filteredPatients = patients.filter(
     (p) =>
@@ -116,18 +157,50 @@ export default function PatientsPage() {
                       Cadastrado em: {new Date(patient.created_at).toLocaleDateString("pt-BR")}
                     </p>
                   </div>
-                  <a
-                    href={`/admin/patients/${patient.id}`}
-                    className="px-4 py-2 rounded-lg bg-primary text-primary-foreground text-sm font-medium hover:opacity-90 transition-opacity"
-                  >
-                    Ver Detalhes
-                  </a>
+                  <div className="flex gap-2">
+                    <a
+                      href={`/admin/patients/${patient.id}`}
+                      className="px-4 py-2 rounded-lg bg-primary text-primary-foreground text-sm font-medium hover:opacity-90 transition-opacity"
+                    >
+                      Ver Detalhes
+                    </a>
+                    <Button
+                      variant="destructive"
+                      size="sm"
+                      onClick={() => setPatientToDelete(patient)}
+                      className="gap-2"
+                    >
+                      <Trash2 className="h-4 w-4" />
+                      Deletar
+                    </Button>
+                  </div>
                 </div>
               </CardContent>
             </Card>
           ))}
         </div>
       )}
+
+      <AlertDialog open={!!patientToDelete} onOpenChange={() => setPatientToDelete(null)}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Tem certeza?</AlertDialogTitle>
+            <AlertDialogDescription>
+              Esta ação não pode ser desfeita. Isso irá deletar permanentemente o paciente{" "}
+              <strong>
+                {patientToDelete?.first_name} {patientToDelete?.last_name}
+              </strong>{" "}
+              e TODOS os seus dados (medicamentos, consultas, dieta, evolução física, etc).
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel disabled={deleting}>Cancelar</AlertDialogCancel>
+            <AlertDialogAction onClick={handleDeletePatient} disabled={deleting} className="bg-destructive">
+              {deleting ? "Deletando..." : "Sim, deletar paciente"}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   )
 }

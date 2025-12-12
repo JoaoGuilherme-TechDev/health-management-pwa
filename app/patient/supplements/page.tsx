@@ -9,27 +9,38 @@ export default function PatientSupplementsPage() {
   const [supplements, setSupplements] = useState<any[]>([])
   const [loading, setLoading] = useState(true)
 
-  useEffect(() => {
-    const loadSupplements = async () => {
-      const supabase = createClient()
-      const {
-        data: { user },
-      } = await supabase.auth.getUser()
+  const loadSupplements = async () => {
+    const supabase = createClient()
+    const {
+      data: { user },
+    } = await supabase.auth.getUser()
 
-      if (user) {
-        const { data } = await supabase
-          .from("patient_supplements")
-          .select("*")
-          .eq("patient_id", user.id)
-          .order("created_at", { ascending: false })
+    if (user) {
+      const { data } = await supabase
+        .from("patient_supplements")
+        .select("*")
+        .eq("patient_id", user.id)
+        .order("created_at", { ascending: false })
 
-        console.log("[v0] Supplements data:", data)
-        setSupplements(data || [])
-      }
-      setLoading(false)
+      setSupplements(data || [])
     }
+    setLoading(false)
+  }
 
+  useEffect(() => {
     loadSupplements()
+
+    const supabase = createClient()
+    const channel = supabase
+      .channel("supplements-changes")
+      .on("postgres_changes", { event: "*", schema: "public", table: "patient_supplements" }, () => {
+        loadSupplements()
+      })
+      .subscribe()
+
+    return () => {
+      supabase.removeChannel(channel)
+    }
   }, [])
 
   if (loading) {
