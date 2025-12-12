@@ -82,7 +82,6 @@ export function PatientDietTab({ patientId }: PatientDietTabProps) {
   }
 
   const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault()
     const supabase = createClient()
 
     const {
