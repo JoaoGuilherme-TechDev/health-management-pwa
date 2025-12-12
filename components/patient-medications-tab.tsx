@@ -139,6 +139,7 @@ export function PatientMedicationsTab({ patientId }: { patientId: string }) {
       reason: "",
       side_effects: "",
     })
+    loadMedications()
   }
 
   const handleDelete = async (id: string) => {
@@ -156,7 +157,7 @@ export function PatientMedicationsTab({ patientId }: { patientId: string }) {
     }
 
     alert("Medicamento removido com sucesso!")
-    // Não precisa chamar loadMedications() - realtime vai fazer isso automaticamente
+    loadMedication()
   }
 
   if (loading) return <div>Carregando medicamentos...</div>
