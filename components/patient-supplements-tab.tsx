@@ -79,7 +79,6 @@ export function PatientSupplementsTab({ patientId }: PatientSupplementsTabProps)
   }
 
   const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault()
     const supabase = createClient()
 
     const {
