@@ -97,11 +97,19 @@ export default function NotificationsPage() {
   }
 
   const handleDelete = async (id: string) => {
-    const supabase = createClient()
-    const { error } = await supabase.from("notifications").delete().eq("id", id)
+    try {
+      const response = await fetch(`/api/notifications?id=${id}`, {
+        method: "DELETE",
+      })
 
-    if (error) {
+      if (!response.ok) {
+        throw new Error("Falha ao deletar notificação")
+      }
+
+      console.log("[v0] Notificação deletada com sucesso")
+    } catch (error) {
       console.error("[v0] Erro ao deletar notificação:", error)
+      alert("Erro ao deletar notificação. Tente novamente.")
     }
   }
 

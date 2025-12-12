@@ -53,3 +53,25 @@ export async function GET(request: Request) {
     return NextResponse.json({ error: "Failed to fetch notifications" }, { status: 500 })
   }
 }
+
+export async function DELETE(request: Request) {
+  const supabase = await createClient()
+
+  const { searchParams } = new URL(request.url)
+  const notificationId = searchParams.get("id")
+
+  if (!notificationId) {
+    return NextResponse.json({ error: "Missing notification id" }, { status: 400 })
+  }
+
+  try {
+    const { error } = await supabase.from("notifications").delete().eq("id", notificationId)
+
+    if (error) throw error
+
+    return NextResponse.json({ success: true })
+  } catch (error) {
+    console.error("Error deleting notification:", error)
+    return NextResponse.json({ error: "Failed to delete notification" }, { status: 500 })
+  }
+}
