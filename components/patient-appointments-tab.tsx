@@ -88,7 +88,7 @@ export function PatientAppointmentsTab({ patientId }: { patientId: string }) {
   const handleAdd = async () => {
     console.log("[v0] Iniciando agendamento de consulta...")
     const supabase = createClient()
-     const {
+    const {
       data: { user },
     } = await supabase.auth.getUser()
 
@@ -120,18 +120,6 @@ export function PatientAppointmentsTab({ patientId }: { patientId: string }) {
     }
 
     console.log("[v0] Consulta agendada com sucesso:", data)
-
-    try {
-      await supabase.from("notifications").insert({
-        user_id: patientId,
-        title: "Nova Consulta Agendada",
-        message: `${doctorInfo.name} agendou consulta: ${formData.title} em ${new Date(formData.scheduled_at).toLocaleDateString("pt-BR")} às ${new Date(formData.scheduled_at).toLocaleTimeString("pt-BR", { hour: "2-digit", minute: "2-digit" })}`,
-        notification_type: "appointment_scheduled",
-        action_url: "/patient/appointments",
-      })
-    } catch (notifError) {
-      console.error("[v0] Erro ao criar notificação:", notifError)
-    }
 
     alert("Consulta agendada com sucesso!")
 

@@ -17,6 +17,8 @@ interface Notification {
 
 const translateNotificationType = (type: string): string => {
   const translations: Record<string, string> = {
+    lembrete_medicamento: "lembrete de medicamento",
+    lembrete_consulta: "lembrete de consulta",
     medication_reminder: "lembrete de medicamento",
     appointment_reminder: "lembrete de consulta",
     medication_added: "medicamento adicionado",
@@ -173,10 +175,12 @@ export default function NotificationsPage() {
                     <div className="flex items-center gap-3 mt-3 flex-wrap">
                       <span
                         className={`text-xs px-2 py-1 rounded-full whitespace-nowrap ${
+                          notif.notification_type === "lembrete_medicamento" ||
                           notif.notification_type === "medication_reminder" ||
                           notif.notification_type === "medication_added"
                             ? "bg-blue-100 text-blue-800 dark:bg-blue-900 dark:text-blue-200"
-                            : notif.notification_type === "appointment_reminder" ||
+                            : notif.notification_type === "lembrete_consulta" ||
+                                notif.notification_type === "appointment_reminder" ||
                                 notif.notification_type === "appointment_scheduled"
                               ? "bg-purple-100 text-purple-800 dark:bg-purple-900 dark:text-purple-200"
                               : notif.notification_type === "health_alert"

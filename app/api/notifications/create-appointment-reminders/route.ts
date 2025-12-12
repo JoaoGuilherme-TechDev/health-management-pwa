@@ -20,7 +20,9 @@ export async function POST() {
       return NextResponse.json({ message: "Nenhuma consulta próxima nas próximas 2-24 horas" })
     }
 
-    console.log("[v0] Criando lembretes para", appointments.length, "consultas")
+    console.log("[v0] Processando lembretes para", appointments.length, "consultas")
+
+    let remindersCreated = 0
 
     for (const appointment of appointments) {
       const last24Hours = new Date(now.getTime() - 24 * 60 * 60 * 1000)
@@ -29,7 +31,7 @@ export async function POST() {
         .from("notifications")
         .select("id")
         .eq("user_id", appointment.patient_id)
-        .eq("notification_type", "appointment_reminder")
+        .eq("notification_type", "lembrete_consulta")
         .gte("created_at", last24Hours.toISOString())
         .ilike("message", `%${appointment.title}%`)
         .maybeSingle()
@@ -42,7 +44,7 @@ export async function POST() {
           user_id: appointment.patient_id,
           title: "Lembrete de Consulta",
           message: `Você tem uma consulta em ${hoursUntil} horas: ${appointment.title} às ${appointmentDate.toLocaleTimeString("pt-BR", { hour: "2-digit", minute: "2-digit" })}`,
-          notification_type: "appointment_reminder",
+          notification_type: "lembrete_consulta",
           action_url: "/patient/appointments",
         })
 
@@ -54,21 +56,27 @@ export async function POST() {
               user_id: appointment.patient_id,
               title: "Lembrete de Consulta",
               message: `Você tem uma consulta em ${hoursUntil} horas: ${appointment.title}`,
-              notification_type: "appointment_reminder",
+              notification_type: "lembrete_consulta",
               url: "/patient/appointments",
+              requireInteraction: true,
             }),
           })
         } catch (pushError) {
           console.error("[v0] Erro ao enviar push:", pushError)
         }
 
-        console.log("[v0] Lembrete de consulta criado para paciente", appointment.patient_id)
+        remindersCreated++
+        console.log("[v0] Lembrete criado para consulta:", appointment.title, "- Paciente:", appointment.patient_id)
       } else {
-        console.log("[v0] Lembrete já existe para", appointment.title)
+        console.log("[v0] Lembrete já existe para consulta:", appointment.title)
       }
     }
 
-    return NextResponse.json({ message: "Lembretes de consulta processados", count: appointments.length })
+    return NextResponse.json({
+      message: "Lembretes de consulta processados",
+      total: appointments.length,
+      created: remindersCreated,
+    })
   } catch (error) {
     console.error("[v0] Erro ao criar lembretes de consulta:", error)
     return NextResponse.json({ error: "Falha ao criar lembretes de consulta" }, { status: 500 })
