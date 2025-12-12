@@ -124,7 +124,7 @@ export default function NotificationsPage() {
         .from("notifications")
         .update({ is_read: true, read_at: new Date().toISOString() })
         .in("id", unreadIds)
-      // Não precisa chamar loadNotifications() - realtime vai fazer isso
+      loadNotifications()
     }
   }
 
