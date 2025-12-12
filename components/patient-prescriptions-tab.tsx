@@ -25,6 +25,7 @@ export function PatientPrescriptionsTab({ patientId }: { patientId: string }) {
 
   useEffect(() => {
     loadPrescriptions()
+    loadDoctorInfo()
 
     const supabase = createClient()
     const channel = supabase

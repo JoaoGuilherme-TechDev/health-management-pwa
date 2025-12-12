@@ -88,7 +88,11 @@ export function PatientAppointmentsTab({ patientId }: { patientId: string }) {
   const handleAdd = async () => {
     console.log("[v0] Iniciando agendamento de consulta...")
     const supabase = createClient()
+     const {
+      data: { user },
+    } = await supabase.auth.getUser()
 
+    console.log("[v0] Usuário atual (admin):", user?.id)
     const dataToInsert = {
       patient_id: patientId,
       status: "scheduled",
@@ -140,6 +144,7 @@ export function PatientAppointmentsTab({ patientId }: { patientId: string }) {
       location: "",
       notes: "",
     })
+    loadAppointments()
   }
 
   const handleDelete = async (id: string) => {
