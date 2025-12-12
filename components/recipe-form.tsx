@@ -38,6 +38,7 @@ export default function RecipeForm({ recipe, onSuccess, onCancel }: RecipeFormPr
   }
 
   const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault()
     setLoading(true)
 
     const ingredientsArray = formData.ingredients

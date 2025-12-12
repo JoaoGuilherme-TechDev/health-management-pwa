@@ -36,6 +36,7 @@ export default function SupplementForm({ supplement, onSuccess, onCancel }: Supp
   }
 
   const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault()
     setLoading(true)
 
     const payload = {

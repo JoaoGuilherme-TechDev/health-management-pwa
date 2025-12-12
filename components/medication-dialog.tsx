@@ -69,6 +69,7 @@ export function MedicationDialog({ open, onOpenChange, medication, onSave }: Med
   }, [medication, open])
 
   const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault()
     setSaving(true)
 
     const supabase = createClient()
