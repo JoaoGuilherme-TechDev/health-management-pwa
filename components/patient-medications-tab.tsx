@@ -7,8 +7,9 @@ import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Textarea } from "@/components/ui/textarea"
 import { createClient } from "@/lib/supabase/client"
-import { Plus, Pill, Trash2 } from "lucide-react"
+import { Plus, Pill, Trash2, Clock, X } from "lucide-react"
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog"
+import { Badge } from "@/components/ui/badge"
 
 export function PatientMedicationsTab({ patientId }: { patientId: string }) {
   const [medications, setMedications] = useState<any[]>([])
@@ -18,12 +19,13 @@ export function PatientMedicationsTab({ patientId }: { patientId: string }) {
   const [formData, setFormData] = useState({
     name: "",
     dosage: "",
-    frequency: "",
     start_date: "",
     end_date: "",
     reason: "",
     side_effects: "",
   })
+  const [schedules, setSchedules] = useState<string[]>(["08:00"]) // Horários agendados
+  const [newScheduleTime, setNewScheduleTime] = useState("08:00")
 
   useEffect(() => {
     loadMedications()
@@ -56,7 +58,15 @@ export function PatientMedicationsTab({ patientId }: { patientId: string }) {
     const supabase = createClient()
     const { data } = await supabase
       .from("medications")
-      .select("*")
+      .select(`
+        *,
+        medication_schedules (
+          id,
+          scheduled_time,
+          days_of_week,
+          is_active
+        )
+      `)
       .eq("user_id", patientId)
       .order("created_at", { ascending: false })
 
@@ -86,7 +96,23 @@ export function PatientMedicationsTab({ patientId }: { patientId: string }) {
     }
   }
 
+  const addSchedule = () => {
+    if (newScheduleTime && !schedules.includes(newScheduleTime)) {
+      setSchedules([...schedules, newScheduleTime].sort())
+      setNewScheduleTime("08:00")
+    }
+  }
+
+  const removeSchedule = (time: string) => {
+    setSchedules(schedules.filter((s) => s !== time))
+  }
+
   const handleAdd = async () => {
+    if (schedules.length === 0) {
+      alert("Adicione pelo menos um horário para o medicamento!")
+      return
+    }
+
     const supabase = createClient()
 
     const dataToInsert = {
@@ -96,7 +122,7 @@ export function PatientMedicationsTab({ patientId }: { patientId: string }) {
       ...formData,
     }
 
-    const { data, error } = await supabase.from("medications").insert(dataToInsert).select()
+    const { data: medication, error } = await supabase.from("medications").insert(dataToInsert).select().single()
 
     if (error) {
       console.error("[v0] Erro ao adicionar medicamento:", error)
@@ -104,41 +130,59 @@ export function PatientMedicationsTab({ patientId }: { patientId: string }) {
       return
     }
 
-    try {
-      await supabase.from("notifications").insert({
+    if (medication) {
+      const schedulesToInsert = schedules.map((time) => ({
+        medication_id: medication.id,
         user_id: patientId,
-        title: "Novo Medicamento Prescrito",
-        message: `${doctorInfo.name} prescreveu ${formData.name} - ${formData.dosage}`,
-        notification_type: "medication_added",
-        action_url: "/patient/medications",
-      })
+        scheduled_time: time,
+        days_of_week: [0, 1, 2, 3, 4, 5, 6], // Todos os dias por padrão
+      }))
 
-      await fetch("/api/notifications/push", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
+      const { error: scheduleError } = await supabase.from("medication_schedules").insert(schedulesToInsert)
+
+      if (scheduleError) {
+        console.error("[v0] Erro ao adicionar horários:", scheduleError)
+        alert("Medicamento adicionado, mas houve erro ao configurar os horários")
+        return
+      }
+
+      try {
+        const scheduleText = schedules.join(", ")
+        await supabase.from("notifications").insert({
           user_id: patientId,
           title: "Novo Medicamento Prescrito",
-          message: `${doctorInfo.name} prescreveu ${formData.name} - ${formData.dosage}`,
+          message: `${doctorInfo.name} prescreveu ${formData.name} - ${formData.dosage}. Horários: ${scheduleText}`,
           notification_type: "medication_added",
-          url: "/patient/medications",
-        }),
-      })
-    } catch (notifError) {
-      console.error("[v0] Erro ao enviar notificação:", notifError)
+          action_url: "/patient/medications",
+        })
+
+        await fetch("/api/notifications/push", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            user_id: patientId,
+            title: "Novo Medicamento Prescrito",
+            message: `${doctorInfo.name} prescreveu ${formData.name} - ${formData.dosage}`,
+            notification_type: "medication_added",
+            url: "/patient/medications",
+          }),
+        })
+      } catch (notifError) {
+        console.error("[v0] Erro ao enviar notificação:", notifError)
+      }
     }
 
-    alert("Medicamento adicionado com sucesso!")
+    alert("Medicamento e horários adicionados com sucesso!")
     setShowDialog(false)
     setFormData({
       name: "",
       dosage: "",
-      frequency: "",
       start_date: "",
       end_date: "",
       reason: "",
       side_effects: "",
     })
+    setSchedules(["08:00"])
     loadMedications()
   }
 
@@ -187,9 +231,21 @@ export function PatientMedicationsTab({ patientId }: { patientId: string }) {
                   <div className="flex items-start justify-between">
                     <div className="flex-1">
                       <h4 className="font-semibold text-foreground text-lg">{med.name}</h4>
-                      <p className="text-sm text-muted-foreground mt-1">
-                        Dosagem: {med.dosage} • Frequência: {med.frequency}
-                      </p>
+                      <p className="text-sm text-muted-foreground mt-1">Dosagem: {med.dosage}</p>
+                      {med.medication_schedules && med.medication_schedules.length > 0 && (
+                        <div className="flex flex-wrap gap-2 mt-2">
+                          <span className="text-sm font-medium text-muted-foreground">Horários:</span>
+                          {med.medication_schedules
+                            .filter((s: any) => s.is_active)
+                            .sort((a: any, b: any) => a.scheduled_time.localeCompare(b.scheduled_time))
+                            .map((schedule: any) => (
+                              <Badge key={schedule.id} variant="secondary" className="gap-1">
+                                <Clock className="h-3 w-3" />
+                                {schedule.scheduled_time.substring(0, 5)}
+                              </Badge>
+                            ))}
+                        </div>
+                      )}
                       {med.reason && (
                         <p className="text-sm text-muted-foreground mt-2">
                           <span className="font-medium">Motivo:</span> {med.reason}
@@ -223,7 +279,7 @@ export function PatientMedicationsTab({ patientId }: { patientId: string }) {
       </Card>
 
       <Dialog open={showDialog} onOpenChange={setShowDialog}>
-        <DialogContent className="max-w-2xl">
+        <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
           <DialogHeader>
             <DialogTitle>Adicionar Medicamento</DialogTitle>
           </DialogHeader>
@@ -251,14 +307,6 @@ export function PatientMedicationsTab({ patientId }: { patientId: string }) {
                 />
               </div>
               <div>
-                <Label>Frequência *</Label>
-                <Input
-                  value={formData.frequency}
-                  onChange={(e) => setFormData({ ...formData, frequency: e.target.value })}
-                  placeholder="Ex: 2x ao dia"
-                />
-              </div>
-              <div>
                 <Label>Data de Início *</Label>
                 <Input
                   type="date"
@@ -275,6 +323,54 @@ export function PatientMedicationsTab({ patientId }: { patientId: string }) {
                 />
               </div>
             </div>
+
+            <div className="space-y-3 p-4 rounded-lg border border-border bg-muted/50">
+              <Label className="text-base font-semibold">Horários de Administração *</Label>
+              <p className="text-sm text-muted-foreground">
+                Configure os horários em que o paciente deve tomar o medicamento
+              </p>
+
+              <div className="flex gap-2">
+                <div className="flex-1">
+                  <Input
+                    type="time"
+                    value={newScheduleTime}
+                    onChange={(e) => setNewScheduleTime(e.target.value)}
+                    className="font-mono"
+                  />
+                </div>
+                <Button type="button" onClick={addSchedule} variant="secondary" className="gap-2">
+                  <Plus className="h-4 w-4" />
+                  Adicionar Horário
+                </Button>
+              </div>
+
+              {schedules.length > 0 && (
+                <div className="space-y-2">
+                  <p className="text-sm font-medium">Horários configurados:</p>
+                  <div className="flex flex-wrap gap-2">
+                    {schedules.sort().map((time) => (
+                      <Badge key={time} variant="default" className="gap-2 pr-1">
+                        <Clock className="h-3 w-3" />
+                        {time}
+                        <Button
+                          type="button"
+                          variant="ghost"
+                          size="icon"
+                          className="h-5 w-5 hover:bg-destructive/20"
+                          onClick={() => removeSchedule(time)}
+                        >
+                          <X className="h-3 w-3" />
+                        </Button>
+                      </Badge>
+                    ))}
+                  </div>
+                </div>
+              )}
+
+              {schedules.length === 0 && <p className="text-sm text-destructive">⚠️ Adicione pelo menos um horário</p>}
+            </div>
+
             <div>
               <Label>Motivo da Prescrição</Label>
               <Textarea
@@ -297,9 +393,9 @@ export function PatientMedicationsTab({ patientId }: { patientId: string }) {
               </Button>
               <Button
                 onClick={handleAdd}
-                disabled={!formData.name || !formData.dosage || !formData.frequency || !formData.start_date}
+                disabled={!formData.name || !formData.dosage || !formData.start_date || schedules.length === 0}
               >
-                Adicionar
+                Adicionar Medicamento
               </Button>
             </div>
           </div>
