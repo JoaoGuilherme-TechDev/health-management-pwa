@@ -5,6 +5,7 @@ import { useEffect, useState } from "react"
 import { Card, CardContent } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { Bell, Trash2, CheckCircle } from "lucide-react"
+import { formatBrasiliaDate } from "@/lib/timezone"
 
 interface Notification {
   id: string
@@ -191,8 +192,7 @@ export default function NotificationsPage() {
                         {translateNotificationType(notif.notification_type)}
                       </span>
                       <span className="text-xs text-muted-foreground whitespace-nowrap">
-                        {new Date(notif.created_at).toLocaleDateString("pt-BR")} às{" "}
-                        {new Date(notif.created_at).toLocaleTimeString("pt-BR", { hour: "2-digit", minute: "2-digit" })}
+                        {formatBrasiliaDate(notif.created_at, "date")} às {formatBrasiliaDate(notif.created_at, "time")}
                       </span>
                     </div>
                   </div>

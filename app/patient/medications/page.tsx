@@ -3,7 +3,13 @@
 import { createClient } from "@/lib/supabase/client"
 import { useEffect, useState } from "react"
 import { Card, CardContent } from "@/components/ui/card"
-import { Pill } from "lucide-react"
+import { Pill, Clock } from "lucide-react"
+import { formatBrasiliaDate } from "@/lib/timezone"
+
+interface MedicationSchedule {
+  id: string
+  scheduled_time: string
+}
 
 interface Medication {
   id: string
@@ -16,6 +22,7 @@ interface Medication {
   reason: string
   start_date: string
   end_date: string | null
+  medication_schedules?: MedicationSchedule[]
 }
 
 export default function MedicationsPage() {
@@ -31,7 +38,13 @@ export default function MedicationsPage() {
     if (user) {
       const { data } = await supabase
         .from("medications")
-        .select("*")
+        .select(`
+          *,
+          medication_schedules (
+            id,
+            scheduled_time
+          )
+        `)
         .eq("user_id", user.id)
         .order("created_at", { ascending: false })
 
@@ -50,7 +63,7 @@ export default function MedicationsPage() {
 
     supabase.auth.getUser().then(({ data: { user } }) => {
       if (user) {
-        const channel = supabase
+        const medicationsChannel = supabase
           .channel(`medications-${user.id}`)
           .on(
             "postgres_changes",
@@ -67,8 +80,26 @@ export default function MedicationsPage() {
           )
           .subscribe()
 
+        const schedulesChannel = supabase
+          .channel(`medication-schedules-${user.id}`)
+          .on(
+            "postgres_changes",
+            {
+              event: "*",
+              schema: "public",
+              table: "medication_schedules",
+              filter: `user_id=eq.${user.id}`,
+            },
+            () => {
+              console.log("[v0] Horários atualizados, recarregando...")
+              loadMedications()
+            },
+          )
+          .subscribe()
+
         return () => {
-          supabase.removeChannel(channel)
+          supabase.removeChannel(medicationsChannel)
+          supabase.removeChannel(schedulesChannel)
         }
       }
     })
@@ -111,13 +142,37 @@ export default function MedicationsPage() {
                       </div>
                     )}
                     {med.reason && <p className="text-sm text-muted-foreground mt-1">Motivo: {med.reason}</p>}
+
+                    {med.medication_schedules && med.medication_schedules.length > 0 && (
+                      <div className="mt-3 p-3 bg-blue-50 dark:bg-blue-950 rounded-lg border border-blue-200 dark:border-blue-800">
+                        <div className="flex items-center gap-2 mb-2">
+                          <Clock className="h-4 w-4 text-blue-600 dark:text-blue-400" />
+                          <span className="text-sm font-medium text-blue-900 dark:text-blue-100">
+                            Horários para tomar:
+                          </span>
+                        </div>
+                        <div className="flex flex-wrap gap-2">
+                          {med.medication_schedules
+                            .sort((a, b) => a.scheduled_time.localeCompare(b.scheduled_time))
+                            .map((schedule) => (
+                              <span
+                                key={schedule.id}
+                                className="px-3 py-1 bg-blue-100 dark:bg-blue-900 text-blue-700 dark:text-blue-200 rounded-full text-sm font-medium"
+                              >
+                                {schedule.scheduled_time.substring(0, 5)}
+                              </span>
+                            ))}
+                        </div>
+                      </div>
+                    )}
+
                     <div className="flex gap-4 mt-3 text-xs">
                       <span className="text-muted-foreground">
-                        Início: {new Date(med.start_date).toLocaleDateString("pt-BR")}
+                        Início: {formatBrasiliaDate(med.start_date, "date")}
                       </span>
                       {med.end_date && (
                         <span className="text-muted-foreground">
-                          Término: {new Date(med.end_date).toLocaleDateString("pt-BR")}
+                          Término: {formatBrasiliaDate(med.end_date, "date")}
                         </span>
                       )}
                     </div>

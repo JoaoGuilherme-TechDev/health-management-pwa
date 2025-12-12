@@ -1,11 +1,12 @@
 import { createClient } from "@/lib/supabase/server"
 import { NextResponse } from "next/server"
+import { getCurrentBrasiliaTime, formatBrasiliaDate } from "@/lib/timezone"
 
 export async function POST() {
   const supabase = await createClient()
 
   try {
-    const now = new Date()
+    const now = getCurrentBrasiliaTime()
     const in2Hours = new Date(now.getTime() + 2 * 60 * 60 * 1000)
     const in24Hours = new Date(now.getTime() + 24 * 60 * 60 * 1000)
 
@@ -20,7 +21,7 @@ export async function POST() {
       return NextResponse.json({ message: "Nenhuma consulta próxima nas próximas 2-24 horas" })
     }
 
-    console.log("[v0] Processando lembretes para", appointments.length, "consultas")
+    console.log("[v0] Processando lembretes para", appointments.length, "consultas - Horário de Brasília")
 
     let remindersCreated = 0
 
@@ -40,10 +41,12 @@ export async function POST() {
         const appointmentDate = new Date(appointment.scheduled_at)
         const hoursUntil = Math.round((appointmentDate.getTime() - now.getTime()) / (60 * 60 * 1000))
 
+        const timeStr = formatBrasiliaDate(appointment.scheduled_at, "time")
+
         await supabase.from("notifications").insert({
           user_id: appointment.patient_id,
           title: "Lembrete de Consulta",
-          message: `Você tem uma consulta em ${hoursUntil} horas: ${appointment.title} às ${appointmentDate.toLocaleTimeString("pt-BR", { hour: "2-digit", minute: "2-digit" })}`,
+          message: `Você tem uma consulta em ${hoursUntil} horas: ${appointment.title} às ${timeStr}`,
           notification_type: "lembrete_consulta",
           action_url: "/patient/appointments",
         })
@@ -54,7 +57,7 @@ export async function POST() {
             headers: { "Content-Type": "application/json" },
             body: JSON.stringify({
               user_id: appointment.patient_id,
-              title: "Lembrete de Consulta",
+              title: "📅 Lembrete de Consulta",
               message: `Você tem uma consulta em ${hoursUntil} horas: ${appointment.title}`,
               notification_type: "lembrete_consulta",
               url: "/patient/appointments",
@@ -63,6 +66,30 @@ export async function POST() {
           })
         } catch (pushError) {
           console.error("[v0] Erro ao enviar push:", pushError)
+        }
+
+        try {
+          const { data: profile } = await supabase
+            .from("profiles")
+            .select("phone")
+            .eq("id", appointment.patient_id)
+            .single()
+
+          if (profile?.phone) {
+            await fetch(`${process.env.NEXT_PUBLIC_SITE_URL || "http://localhost:3000"}/api/notifications/twilio`, {
+              method: "POST",
+              headers: { "Content-Type": "application/json" },
+              body: JSON.stringify({
+                userId: appointment.patient_id,
+                message: `📅 Lembrete: Consulta em ${hoursUntil} horas - ${appointment.title} às ${timeStr}`,
+                phoneNumber: profile.phone,
+                type: "sms",
+              }),
+            })
+            console.log(`[v0] SMS enviado para consulta: ${appointment.title}`)
+          }
+        } catch (twilioError) {
+          console.error("[v0] Erro ao enviar SMS via Twilio:", twilioError)
         }
 
         remindersCreated++

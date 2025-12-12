@@ -1,16 +1,17 @@
 import { createClient } from "@/lib/supabase/server"
 import { NextResponse } from "next/server"
+import { getCurrentBrasiliaTime } from "@/lib/timezone"
 
 export async function POST(request: Request) {
   const supabase = await createClient()
 
   try {
-    const now = new Date()
-    const currentTime = now.toTimeString().substring(0, 5) // HH:MM format
-    const currentDay = now.getDay() // 0 = Domingo, 6 = Sábado
+    const now = getCurrentBrasiliaTime()
+    const currentTime = now.toTimeString().substring(0, 5)
+    const currentDay = now.getDay()
     const today = now.toISOString().split("T")[0]
 
-    console.log(`[v0] Processando lembretes agendados para ${currentTime} (dia ${currentDay})`)
+    console.log(`[v0] Processando lembretes agendados para ${currentTime} (dia ${currentDay}) - Horário de Brasília`)
 
     // Buscar medicamentos ativos com horários próximos (±5 minutos do horário atual)
     const { data: schedules, error: schedulesError } = await supabase
@@ -47,12 +48,10 @@ export async function POST(request: Request) {
     for (const schedule of schedules) {
       const medication = schedule.medications as any
 
-      // Verificar se hoje está nos dias da semana configurados
       if (!schedule.days_of_week.includes(currentDay)) {
         continue
       }
 
-      // Verificar se o medicamento ainda está no período de validade
       if (medication.start_date && new Date(medication.start_date) > now) {
         continue
       }
@@ -60,7 +59,6 @@ export async function POST(request: Request) {
         continue
       }
 
-      // Verificar se já existe lembrete para este horário hoje
       const { data: existingReminder } = await supabase
         .from("medication_reminders")
         .select("id")
@@ -74,7 +72,6 @@ export async function POST(request: Request) {
         continue
       }
 
-      // Criar lembrete na tabela medication_reminders
       const { error: reminderError } = await supabase.from("medication_reminders").insert({
         medication_id: medication.id,
         user_id: medication.user_id,
@@ -91,12 +88,11 @@ export async function POST(request: Request) {
 
       remindersCreated++
 
-      // Criar notificação in-app
       const { error: notifError } = await supabase.from("notifications").insert({
         user_id: medication.user_id,
         title: "Hora do Remédio",
         message: `Está na hora do seu remédio: ${medication.name} - ${medication.dosage}`,
-        notification_type: "medication_reminder",
+        notification_type: "lembrete_medicamento",
         action_url: "/patient/medications",
       })
 
@@ -106,7 +102,6 @@ export async function POST(request: Request) {
         notificationsCreated++
       }
 
-      // Enviar push notification
       try {
         const pushResponse = await fetch(
           `${process.env.NEXT_PUBLIC_SITE_URL || "http://localhost:3000"}/api/notifications/push`,
@@ -117,9 +112,9 @@ export async function POST(request: Request) {
               user_id: medication.user_id,
               title: "⏰ Hora do Remédio",
               message: `Está na hora do seu remédio: ${medication.name} - ${medication.dosage}`,
-              notification_type: "medication_reminder",
+              notification_type: "lembrete_medicamento",
               url: "/patient/medications",
-              requireInteraction: true, // Garantir que a notificação seja persistente
+              requireInteraction: true,
             }),
           },
         )
@@ -131,6 +126,32 @@ export async function POST(request: Request) {
         }
       } catch (pushError) {
         console.error(`[v0] Erro ao enviar push notification:`, pushError)
+      }
+
+      try {
+        const { data: profile } = await supabase.from("profiles").select("phone").eq("id", medication.user_id).single()
+
+        if (profile?.phone) {
+          const twilioResponse = await fetch(
+            `${process.env.NEXT_PUBLIC_SITE_URL || "http://localhost:3000"}/api/notifications/twilio`,
+            {
+              method: "POST",
+              headers: { "Content-Type": "application/json" },
+              body: JSON.stringify({
+                userId: medication.user_id,
+                message: `⏰ Hora do Remédio: ${medication.name} - ${medication.dosage}`,
+                phoneNumber: profile.phone,
+                type: "sms",
+              }),
+            },
+          )
+
+          if (twilioResponse.ok) {
+            console.log(`[v0] SMS enviado com sucesso para ${medication.name}`)
+          }
+        }
+      } catch (twilioError) {
+        console.error(`[v0] Erro ao enviar SMS via Twilio:`, twilioError)
       }
     }
 
