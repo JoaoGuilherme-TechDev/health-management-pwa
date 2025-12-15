@@ -1,0 +1,130 @@
+"use client"
+
+import type React from "react"
+
+import { createClient } from "@/lib/supabase/client"
+import { useState } from "react"
+import { Button } from "@/components/ui/button"
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
+import { Input } from "@/components/ui/input"
+import { X } from "lucide-react"
+
+interface SupplementFormProps {
+  supplement?: any
+  onSuccess: () => void
+  onCancel: () => void
+}
+
+export default function SupplementForm({ supplement, onSuccess, onCancel }: SupplementFormProps) {
+  const [formData, setFormData] = useState({
+    name: supplement?.name || "",
+    benefit: supplement?.benefit || "",
+    dosage: supplement?.dosage || "",
+    image_url: supplement?.image_url || "",
+  })
+  const [loading, setLoading] = useState(false)
+  const supabase = createClient()
+
+  const handleImageUpload = async (file: File) => {
+    const timestamp = Date.now()
+    const path = `supplements/${timestamp}-${file.name}`
+    const { data, error } = await supabase.storage.from("supplements").upload(path, file)
+    if (!error && data) {
+      const { data: urlData } = supabase.storage.from("supplements").getPublicUrl(path)
+      setFormData({ ...formData, image_url: urlData.publicUrl })
+    }
+  }
+
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault()
+    setLoading(true)
+
+    const payload = {
+      name: formData.name,
+      benefit: formData.benefit,
+      dosage: formData.dosage,
+      image_url: formData.image_url,
+    }
+
+    if (supplement?.id) {
+      await supabase.from("supplements").update(payload).eq("id", supplement.id)
+    } else {
+      await supabase.from("supplements").insert([payload])
+    }
+
+    setLoading(false)
+    onSuccess()
+  }
+
+  return (
+    <Card>
+      <CardHeader className="flex flex-row items-center justify-between space-y-0">
+        <CardTitle>{supplement ? "Edit Supplement" : "Add New Supplement"}</CardTitle>
+        <button onClick={onCancel} className="p-1 hover:bg-muted rounded">
+          <X className="h-5 w-5" />
+        </button>
+      </CardHeader>
+      <CardContent>
+        <form onSubmit={handleSubmit} className="space-y-4">
+          <div>
+            <label className="text-sm font-medium text-foreground">Name</label>
+            <Input
+              required
+              value={formData.name}
+              onChange={(e) => setFormData({ ...formData, name: e.target.value })}
+              placeholder="Supplement name"
+            />
+          </div>
+
+          <div>
+            <label className="text-sm font-medium text-foreground">Benefit</label>
+            <Input
+              required
+              value={formData.benefit}
+              onChange={(e) => setFormData({ ...formData, benefit: e.target.value })}
+              placeholder="Health benefit"
+            />
+          </div>
+
+          <div>
+            <label className="text-sm font-medium text-foreground">Dosage</label>
+            <Input
+              required
+              value={formData.dosage}
+              onChange={(e) => setFormData({ ...formData, dosage: e.target.value })}
+              placeholder="e.g., 1000mg daily"
+            />
+          </div>
+
+          <div>
+            <label className="text-sm font-medium text-foreground">Image</label>
+            <div className="flex gap-4">
+              {formData.image_url && (
+                <img
+                  src={formData.image_url || "/placeholder.svg"}
+                  alt="preview"
+                  className="w-24 h-24 object-cover rounded"
+                />
+              )}
+              <input
+                type="file"
+                accept="image/*"
+                onChange={(e) => e.target.files && handleImageUpload(e.target.files[0])}
+                className="flex-1 p-2 border border-border rounded"
+              />
+            </div>
+          </div>
+
+          <div className="flex gap-2">
+            <Button type="submit" disabled={loading}>
+              {loading ? "Saving..." : supplement ? "Update Supplement" : "Add Supplement"}
+            </Button>
+            <Button type="button" variant="outline" onClick={onCancel}>
+              Cancel
+            </Button>
+          </div>
+        </form>
+      </CardContent>
+    </Card>
+  )
+}

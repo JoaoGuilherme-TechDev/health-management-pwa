@@ -1,0 +1,188 @@
+@import "tailwindcss";
+@import "tw-animate-css";
+
+@custom-variant dark (&:is(.dark *));
+
+/* Paleta de cores de saúde com azul e verde pastel */
+/* Cores mais vibrantes e detalhadas para saúde */
+:root {
+  --background: #f5faf9;
+  --foreground: #0f2e2b;
+  --card: #ffffff;
+  --card-foreground: #0f2e2b;
+  --popover: #ffffff;
+  --popover-foreground: #0f2e2b;
+  --primary: #2d9c96;
+  --primary-foreground: #ffffff;
+  --secondary: #8fd3cd;
+  --secondary-foreground: #0f2e2b;
+  --muted: #d9f2ef;
+  --muted-foreground: #4a7c77;
+  --accent: #7ec97f;
+  --accent-foreground: #0f2e2b;
+  --destructive: #ef4444;
+  --destructive-foreground: #ffffff;
+  --border: #b8e6e1;
+  --input: #b8e6e1;
+  --ring: #2d9c96;
+  --chart-1: #2d9c96;
+  --chart-2: #7ec97f;
+  --chart-3: #5ab5b4;
+  --chart-4: #9cd6a8;
+  --chart-5: #6bbfbe;
+  --radius: 0.75rem;
+  --sidebar: #e8f8f6;
+  --sidebar-foreground: #0f2e2b;
+  --sidebar-primary: #2d9c96;
+  --sidebar-primary-foreground: #ffffff;
+  --sidebar-accent: #d9f2ef;
+  --sidebar-accent-foreground: #0f2e2b;
+  --sidebar-border: #b8e6e1;
+  --sidebar-ring: #2d9c96;
+}
+
+.dark {
+  --background: #0a1816;
+  --foreground: #e8f8f6;
+  --card: #1a2e2b;
+  --card-foreground: #e8f8f6;
+  --popover: #1a2e2b;
+  --popover-foreground: #e8f8f6;
+  --primary: #3dbfb6;
+  --primary-foreground: #ffffff;
+  --secondary: #1f4a45;
+  --secondary-foreground: #e8f8f6;
+  --muted: #1a3530;
+  --muted-foreground: #8ab3ad;
+  --accent: #2d7a5f;
+  --accent-foreground: #e8f8f6;
+  --destructive: #ef4444;
+  --destructive-foreground: #ffffff;
+  --border: #1f4a45;
+  --input: #1f4a45;
+  --ring: #3dbfb6;
+  --chart-1: #3dbfb6;
+  --chart-2: #5ec97f;
+  --chart-3: #5ab5b4;
+  --chart-4: #7ec97f;
+  --chart-5: #6bbfbe;
+  --sidebar: #142623;
+  --sidebar-foreground: #e8f8f6;
+  --sidebar-primary: #3dbfb6;
+  --sidebar-primary-foreground: #ffffff;
+  --sidebar-accent: #1f4a45;
+  --sidebar-accent-foreground: #e8f8f6;
+  --sidebar-border: #1f4a45;
+  --sidebar-ring: #3dbfb6;
+}
+
+@theme inline {
+  --font-sans: "Geist", "Geist Fallback";
+  --font-mono: "Geist Mono", "Geist Mono Fallback";
+  --color-background: var(--background);
+  --color-foreground: var(--foreground);
+  --color-card: var(--card);
+  --color-card-foreground: var(--card-foreground);
+  --color-popover: var(--popover);
+  --color-popover-foreground: var(--popover-foreground);
+  --color-primary: var(--primary);
+  --color-primary-foreground: var(--primary-foreground);
+  --color-secondary: var(--secondary);
+  --color-secondary-foreground: var(--secondary-foreground);
+  --color-muted: var(--muted);
+  --color-muted-foreground: var(--muted-foreground);
+  --color-accent: var(--accent);
+  --color-accent-foreground: var(--accent-foreground);
+  --color-destructive: var(--destructive);
+  --color-destructive-foreground: var(--destructive-foreground);
+  --color-border: var(--border);
+  --color-input: var(--input);
+  --color-ring: var(--ring);
+  --color-chart-1: var(--chart-1);
+  --color-chart-2: var(--chart-2);
+  --color-chart-3: var(--chart-3);
+  --color-chart-4: var(--chart-4);
+  --color-chart-5: var(--chart-5);
+  --radius-sm: calc(var(--radius) - 4px);
+  --radius-md: calc(var(--radius) - 2px);
+  --radius-lg: var(--radius);
+  --radius-xl: calc(var(--radius) + 4px);
+  --color-sidebar: var(--sidebar);
+  --color-sidebar-foreground: var(--sidebar-foreground);
+  --color-sidebar-primary: var(--sidebar-primary);
+  --color-sidebar-primary-foreground: var(--sidebar-primary-foreground);
+  --color-sidebar-accent: var(--sidebar-accent);
+  --color-sidebar-accent-foreground: var(--sidebar-accent-foreground);
+  --color-sidebar-border: var(--sidebar-border);
+  --color-sidebar-ring: var(--sidebar-ring);
+}
+
+@layer base {
+  * {
+    @apply border-border outline-ring/50;
+  }
+  body {
+    @apply bg-background text-foreground;
+  }
+
+  /* Enhanced mobile-first scrollable carousel utilities */
+  .no-scrollbar::-webkit-scrollbar {
+    display: none;
+  }
+  .no-scrollbar {
+    -ms-overflow-style: none;
+    scrollbar-width: none;
+  }
+
+  /* Mobile-optimized touch scrolling */
+  .mobile-scroll {
+    -webkit-overflow-scrolling: touch;
+    scroll-behavior: smooth;
+    scroll-snap-type: x proximity;
+  }
+
+  /* Prevent horizontal scroll on body */
+  html,
+  body {
+    overflow-x: hidden;
+    width: 100%;
+    position: relative;
+  }
+
+  /* Mobile touch targets - minimum 44px for accessibility */
+  @media (max-width: 640px) {
+    button,
+    a,
+    input,
+    select,
+    textarea {
+      min-height: 44px;
+    }
+
+    /* Better spacing for mobile forms */
+    input,
+    select,
+    textarea {
+      font-size: 16px; /* Prevents zoom on iOS */
+    }
+
+    /* Improved tap highlighting */
+    button,
+    a {
+      -webkit-tap-highlight-color: rgba(45, 156, 150, 0.2);
+    }
+  }
+
+  /* Smooth scrolling for all scrollable containers */
+  * {
+    scroll-behavior: smooth;
+  }
+
+  /* Better mobile viewport handling */
+  @supports (-webkit-touch-callout: none) {
+    /* iOS specific fixes */
+    body {
+      min-height: -webkit-fill-available;
+    }
+  }
+}
