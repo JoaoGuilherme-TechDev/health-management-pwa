@@ -12,6 +12,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/u
 import { formatBrasiliaDate } from "@/lib/timezone"
 
 export function PatientEvolutionTab({ patientId }: { patientId: string }) {
+
   const [evolution, setEvolution] = useState<any[]>([])
   const [loading, setLoading] = useState(true)
   const [showDialog, setShowDialog] = useState(false)
@@ -81,6 +82,7 @@ export function PatientEvolutionTab({ patientId }: { patientId: string }) {
       bone_mass: formData.bone_mass ? Number.parseFloat(formData.bone_mass) : null,
       notes: formData.notes,
     })
+    
 
     try {
       await fetch("/api/notifications/push", {
@@ -131,7 +133,7 @@ export function PatientEvolutionTab({ patientId }: { patientId: string }) {
     alert("Medição removida com sucesso!")
     loadEvolution()
   }
-
+  loadEvolution()
   if (loading) return <div>Carregando evolução física...</div>
 
   return (

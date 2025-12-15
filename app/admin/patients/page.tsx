@@ -94,7 +94,9 @@ export default function PatientsPage() {
         </Button>
       </div>
 
-      <CreatePatientDialog open={showCreateDialog} onOpenChange={setShowCreateDialog} />
+      <CreatePatientDialog open={showCreateDialog} onOpenChange={setShowCreateDialog} onPatientCreated={function (): void {
+        throw new Error("Function not implemented.")
+      } } />
 
       <div className="flex gap-4">
         <Input

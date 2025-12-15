@@ -104,7 +104,7 @@ export function CreatePatientDialog({ open, onOpenChange, onPatientCreated }: Cr
         password: "",
       })
       onOpenChange(false)
-      onPatientCreated()
+
     } catch (err) {
       console.error("[v0] Erro ao criar paciente:", err)
       setError(err instanceof Error ? err.message : "Falha ao criar paciente")
