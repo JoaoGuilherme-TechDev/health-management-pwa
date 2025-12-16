@@ -159,7 +159,7 @@ export function PatientEvolutionTab({ patientId }: { patientId: string }) {
               {evolution.map((evo) => (
                 <div
                   key={evo.id}
-                  className="p-6 rounded-lg border-2 border-primary/20 bg-gradient-to-br from-primary/5 to-accent/5"
+                  className="p-6 rounded-lg border-2 border-primary/20 bg-linear-to-br from-primary/5 to-accent/5"
                 >
                   <div className="flex items-start justify-between mb-4">
                     <div className="text-sm text-muted-foreground">

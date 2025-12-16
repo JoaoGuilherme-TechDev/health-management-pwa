@@ -77,7 +77,7 @@ export default function PatientDetailsPage() {
       </div>
 
       {/* Patient Overview Card */}
-      <Card className="bg-gradient-to-br from-primary/10 to-accent/10 border-primary/20">
+      <Card className="bg-linear-to-br from-primary/10 to-accent/10 border-primary/20">
         <CardContent className="pt-4 sm:pt-6">
           <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 sm:gap-4">
             <div>
@@ -110,49 +110,49 @@ export default function PatientDetailsPage() {
             <TabsList className="inline-flex w-auto min-w-full sm:grid sm:grid-cols-7 gap-1 h-auto p-1">
               <TabsTrigger
                 value="info"
-                className="flex-shrink-0 flex items-center justify-center gap-2 px-4 py-3 min-w-[90px] data-[state=active]:bg-primary data-[state=active]:text-primary-foreground"
+                className="shrink-0 flex items-center justify-center gap-2 px-4 py-3 min-w-22.5 data-[state=active]:bg-primary data-[state=active]:text-primary-foreground"
               >
                 <User className="h-4 w-4 shrink-0" />
                 <span className="text-xs font-medium">Info</span>
               </TabsTrigger>
               <TabsTrigger
                 value="medications"
-                className="flex-shrink-0 flex items-center justify-center gap-2 px-4 py-3 min-w-[90px] data-[state=active]:bg-primary data-[state=active]:text-primary-foreground"
+                className="shrink-0 flex items-center justify-center gap-2 px-4 py-3 min-w-22.5 data-[state=active]:bg-primary data-[state=active]:text-primary-foreground"
               >
                 <Pill className="h-4 w-4 shrink-0" />
                 <span className="text-xs font-medium">Remédios</span>
               </TabsTrigger>
               <TabsTrigger
                 value="appointments"
-                className="flex-shrink-0 flex items-center justify-center gap-2 px-4 py-3 min-w-[90px] data-[state=active]:bg-primary data-[state=active]:text-primary-foreground"
+                className="shrink-0 flex items-center justify-center gap-2 px-4 py-3 min-w-22.5 data-[state=active]:bg-primary data-[state=active]:text-primary-foreground"
               >
                 <Calendar className="h-4 w-4 shrink-0" />
                 <span className="text-xs font-medium">Consultas</span>
               </TabsTrigger>
               <TabsTrigger
                 value="prescriptions"
-                className="flex-shrink-0 flex items-center justify-center gap-2 px-4 py-3 min-w-[90px] data-[state=active]:bg-primary data-[state=active]:text-primary-foreground"
+                className="shrink-0 flex items-center justify-center gap-2 px-4 py-3 min-w-22.5 data-[state=active]:bg-primary data-[state=active]:text-primary-foreground"
               >
                 <FileText className="h-4 w-4 shrink-0" />
                 <span className="text-xs font-medium">Receitas</span>
               </TabsTrigger>
               <TabsTrigger
                 value="diet"
-                className="flex-shrink-0 flex items-center justify-center gap-2 px-4 py-3 min-w-[90px] data-[state=active]:bg-primary data-[state=active]:text-primary-foreground"
+                className="shrink-0 flex items-center justify-center gap-2 px-4 py-3 min-w-22.5 data-[state=active]:bg-primary data-[state=active]:text-primary-foreground"
               >
                 <Utensils className="h-4 w-4 shrink-0" />
                 <span className="text-xs font-medium">Dieta</span>
               </TabsTrigger>
               <TabsTrigger
                 value="supplements"
-                className="flex-shrink-0 flex items-center justify-center gap-2 px-4 py-3 min-w-[90px] data-[state=active]:bg-primary data-[state=active]:text-primary-foreground"
+                className="shrink-0 items-center justify-center gap-2 px-4 py-3 min-w-22.5 data-[state=active]:bg-primary data-[state=active]:text-primary-foreground"
               >
                 <Pill className="h-4 w-4 shrink-0" />
                 <span className="text-xs font-medium">Suplem.</span>
               </TabsTrigger>
               <TabsTrigger
                 value="evolution"
-                className="flex-shrink-0 flex items-center justify-center gap-2 px-4 py-3 min-w-[90px] data-[state=active]:bg-primary data-[state=active]:text-primary-foreground"
+                className="shrink-0 flex items-center justify-center gap-2 px-4 py-3 min-w-22.5 data-[state=active]:bg-primary data-[state=active]:text-primary-foreground"
               >
                 <Activity className="h-4 w-4 shrink-0" />
                 <span className="text-xs font-medium">Evolução</span>
