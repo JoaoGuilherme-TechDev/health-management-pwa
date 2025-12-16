@@ -1,54 +1,73 @@
 import { createClient } from "@/lib/supabase/server"
 import { NextResponse } from "next/server"
+import { getCurrentBrasiliaTime } from "@/lib/timezone"
 
-export async function POST(request: Request) {
+export async function POST() {
   const supabase = await createClient()
 
   try {
-    // Get all active medications
-    const { data: medications } = await supabase
-      .from("medications")
-      .select("id, user_id, name, frequency")
-      .eq("is_active", true)
+    const now = getCurrentBrasiliaTime()
+    const today = now.toISOString().split("T")[0]
 
-    if (!medications || medications.length === 0) {
-      return NextResponse.json({ message: "No active medications" })
+    const { data: medications, error: medicationsError } = await supabase
+      .from("medications")
+      .select("id, user_id, name, dosage, frequency, start_date, end_date")
+      .eq("is_active", true)
+      .or(`end_date.is.null,end_date.gte.${today}`)
+      .lte("start_date", today)
+
+    if (medicationsError) {
+      console.error("[v0] Erro ao buscar medicamentos:", medicationsError)
+      return NextResponse.json({ error: "Erro ao buscar medicamentos" }, { status: 500 })
     }
 
-    // Create reminders for today
-    const today = new Date().toISOString().split("T")[0]
+    if (!medications || medications.length === 0) {
+      return NextResponse.json({ message: "Nenhum medicamento ativo" })
+    }
+
+    let remindersCreated = 0
 
     for (const med of medications) {
-      // Check if reminder already exists for today
-      const { data: existingReminder } = await supabase
-        .from("medication_reminders")
+      const last12Hours = new Date(now.getTime() - 12 * 60 * 60 * 1000)
+
+      const { data: existingReminder, error: checkError } = await supabase
+        .from("notifications")
         .select("id")
-        .eq("medication_id", med.id)
-        .eq("reminder_date", today)
-        .single()
+        .eq("user_id", med.user_id)
+        .eq("notification_type", "medication_reminder")
+        .gte("created_at", last12Hours.toISOString())
+        .ilike("message", `%${med.name}%`)
+        .maybeSingle()
+
+      if (checkError) {
+        console.error("[v0] Erro ao verificar lembrete existente:", checkError)
+        continue
+      }
 
       if (!existingReminder) {
-        // Create reminder
-        await supabase.from("medication_reminders").insert({
-          medication_id: med.id,
+        const { error: insertError } = await supabase.from("notifications").insert({
           user_id: med.user_id,
-          reminder_time: "09:00",
-          reminder_date: today,
+          title: "Lembrete de Medicamento",
+          message: `Hora de tomar: ${med.name} (${med.dosage}) - ${med.frequency}`,
+          notification_type: "medication_reminder",
+          action_url: "/patient/medications",
+          read: false,
         })
 
-        // Create notification
-        await supabase.from("notifications").insert({
-          user_id: med.user_id,
-          title: `Time for ${med.name}`,
-          message: `Remember to take your ${med.name} (${med.frequency})`,
-          notification_type: "medication_reminder",
-        })
+        if (!insertError) {
+          remindersCreated++
+          console.log("[v0] Lembrete criado para:", med.name)
+        }
       }
     }
 
-    return NextResponse.json({ message: "Reminders created successfully" })
+    return NextResponse.json({
+      message: "Lembretes de medicamento processados",
+      count: medications.length,
+      created: remindersCreated,
+    })
   } catch (error) {
-    console.error("Error creating reminders:", error)
-    return NextResponse.json({ error: "Failed to create reminders" }, { status: 500 })
+    console.error("[v0] Erro ao criar lembretes:", error)
+    return NextResponse.json({ error: "Falha ao criar lembretes" }, { status: 500 })
   }
 }

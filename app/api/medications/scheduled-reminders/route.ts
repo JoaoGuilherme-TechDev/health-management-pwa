@@ -2,7 +2,7 @@ import { createClient } from "@/lib/supabase/server"
 import { NextResponse } from "next/server"
 import { getCurrentBrasiliaTime } from "@/lib/timezone"
 
-export async function POST(request: Request) {
+export async function POST() {
   const supabase = await createClient()
 
   try {
@@ -13,13 +13,14 @@ export async function POST(request: Request) {
 
     console.log(`[v0] Processando lembretes agendados para ${currentTime} (dia ${currentDay}) - Horário de Brasília`)
 
-    // Buscar medicamentos ativos com horários próximos (±5 minutos do horário atual)
     const { data: schedules, error: schedulesError } = await supabase
       .from("medication_schedules")
-      .select(
-        `
-        *,
-        medications!inner (
+      .select(`
+        id,
+        scheduled_time,
+        days_of_week,
+        is_active,
+        medications!inner(
           id,
           name,
           dosage,
@@ -27,8 +28,7 @@ export async function POST(request: Request) {
           start_date,
           end_date
         )
-      `,
-      )
+      `)
       .eq("is_active", true)
       .gte("scheduled_time", `${currentTime}:00`)
       .lte("scheduled_time", `${currentTime}:59`)
@@ -46,7 +46,7 @@ export async function POST(request: Request) {
     let notificationsCreated = 0
 
     for (const schedule of schedules) {
-      const medication = schedule.medications as any
+      const medication = (schedule as any).medications
 
       if (!schedule.days_of_week.includes(currentDay)) {
         continue
@@ -59,7 +59,7 @@ export async function POST(request: Request) {
         continue
       }
 
-      const { data: existingReminder } = await supabase
+      const { data: existingReminder, error: checkError } = await supabase
         .from("medication_reminders")
         .select("id")
         .eq("schedule_id", schedule.id)
@@ -67,8 +67,12 @@ export async function POST(request: Request) {
         .eq("reminder_time", schedule.scheduled_time)
         .maybeSingle()
 
+      if (checkError) {
+        console.error("[v0] Erro ao verificar lembrete:", checkError)
+        continue
+      }
+
       if (existingReminder) {
-        console.log(`[v0] Lembrete já existe para ${medication.name} às ${schedule.scheduled_time}`)
         continue
       }
 
@@ -82,7 +86,7 @@ export async function POST(request: Request) {
       })
 
       if (reminderError) {
-        console.error(`[v0] Erro ao criar lembrete para ${medication.name}:`, reminderError)
+        console.error(`[v0] Erro ao criar lembrete:`, reminderError)
         continue
       }
 
@@ -94,65 +98,11 @@ export async function POST(request: Request) {
         message: `Está na hora do seu remédio: ${medication.name} - ${medication.dosage}`,
         notification_type: "lembrete_medicamento",
         action_url: "/patient/medications",
+        read: false,
       })
 
-      if (notifError) {
-        console.error(`[v0] Erro ao criar notificação para ${medication.name}:`, notifError)
-      } else {
+      if (!notifError) {
         notificationsCreated++
-      }
-
-      try {
-        const pushResponse = await fetch(
-          `${process.env.NEXT_PUBLIC_SITE_URL || "http://localhost:3000"}/api/notifications/push`,
-          {
-            method: "POST",
-            headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({
-              user_id: medication.user_id,
-              title: "⏰ Hora do Remédio",
-              message: `Está na hora do seu remédio: ${medication.name} - ${medication.dosage}`,
-              notification_type: "lembrete_medicamento",
-              url: "/patient/medications",
-              requireInteraction: true,
-            }),
-          },
-        )
-
-        if (!pushResponse.ok) {
-          console.error(`[v0] Erro ao enviar push notification: ${pushResponse.status}`)
-        } else {
-          console.log(`[v0] Push notification enviada com sucesso para ${medication.name}`)
-        }
-      } catch (pushError) {
-        console.error(`[v0] Erro ao enviar push notification:`, pushError)
-      }
-
-      try {
-        const { data: profile } = await supabase.from("profiles").select("phone").eq("id", medication.user_id).single()
-
-        if (profile?.phone) {
-          const zapiResponse = await fetch(
-            `${process.env.NEXT_PUBLIC_SITE_URL || "http://localhost:3000"}/api/notifications/zapi`,
-            {
-              method: "POST",
-              headers: { "Content-Type": "application/json" },
-              body: JSON.stringify({
-                userId: medication.user_id,
-                message: `⏰ *Hora do Remédio*\n\n${medication.name} - ${medication.dosage}\n\nNão esqueça de tomar seu medicamento!`,
-                phoneNumber: profile.phone,
-              }),
-            },
-          )
-
-          if (zapiResponse.ok) {
-            console.log(`[v0] WhatsApp enviado com sucesso via Z-API para ${medication.name}`)
-          } else {
-            console.error(`[v0] Erro ao enviar WhatsApp via Z-API: ${zapiResponse.status}`)
-          }
-        }
-      } catch (zapiError) {
-        console.error(`[v0] Erro ao enviar WhatsApp via Z-API:`, zapiError)
       }
     }
 
@@ -165,7 +115,7 @@ export async function POST(request: Request) {
       notificationsCreated,
     })
   } catch (error) {
-    console.error("[v0] Erro ao processar lembretes agendados:", error)
+    console.error("[v0] Erro ao processar lembretes:", error)
     return NextResponse.json({ error: "Erro ao processar lembretes" }, { status: 500 })
   }
 }

@@ -19,13 +19,14 @@ interface Notification {
 const translateNotificationType = (type: string): string => {
   const translations: Record<string, string> = {
     lembrete_medicamento: "Lembrete de medicamento",
-    lembrete_consulta: "Lembrete de consulta",
     medication_reminder: "Lembrete de medicamento",
-    appointment_reminder: "Lembrete de consulta",
+    appointment_reminder: "Lembrete de Consulta",
     medication_added: "Medicamento adicionado",
     health_alert: "Alerta de saúde",
     appointment_scheduled: "Consulta agendada",
     diet_updated: "Dieta atualizada",
+    diet_added: "Dieta adicionada",
+    evolution_added: "Evolução adicionada",
     supplement_added: "Suplemento adicionado",
   }
   return translations[type] || type
@@ -223,7 +224,7 @@ export default function NotificationsPage() {
                         {translateNotificationType(notif.notification_type)}
                       </span>
                       <span className="text-xs text-muted-foreground whitespace-nowrap">
-                        {formatBrasiliaDate(notif.created_at, "date")} às {formatBrasiliaDate(notif.created_at, "time")}
+                        {formatBrasiliaDate(notif.created_at, "date")} às  {formatBrasiliaDate(notif.created_at, "time")}
                       </span>
                     </div>
                   </div>

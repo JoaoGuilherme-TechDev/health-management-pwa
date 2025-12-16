@@ -10,6 +10,7 @@ import { createClient } from "@/lib/supabase/client"
 import { Plus, Calendar, Trash2 } from "lucide-react"
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog"
 import { formatBrasiliaDate, toBrasiliaDate } from "@/lib/timezone"
+import { get } from "http"
 
 export function PatientAppointmentsTab({ patientId }: { patientId: string }) {
   const [appointments, setAppointments] = useState<any[]>([])
@@ -202,7 +203,7 @@ export function PatientAppointmentsTab({ patientId }: { patientId: string }) {
                       {apt.description && <p className="text-sm text-muted-foreground mt-2">{apt.description}</p>}
                       <p className="text-sm text-muted-foreground mt-2">
                         <Calendar className="h-3 w-3 inline mr-1" />
-                        {formatBrasiliaDate(apt.scheduled_at, "datetime")}
+                        {formatBrasiliaDate(apt.scheduled_at, "date")} às {formatBrasiliaDate(apt.scheduled_at, "time")}
                       </p>
                       {apt.location && <p className="text-sm text-muted-foreground">Local: {apt.location}</p>}
                     </div>
