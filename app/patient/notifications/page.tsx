@@ -18,15 +18,15 @@ interface Notification {
 
 const translateNotificationType = (type: string): string => {
   const translations: Record<string, string> = {
-    lembrete_medicamento: "lembrete de medicamento",
-    lembrete_consulta: "lembrete de consulta",
-    medication_reminder: "lembrete de medicamento",
-    appointment_reminder: "lembrete de consulta",
-    medication_added: "medicamento adicionado",
-    health_alert: "alerta de saúde",
-    appointment_scheduled: "consulta agendada",
-    diet_updated: "dieta atualizada",
-    supplement_added: "suplemento adicionado",
+    lembrete_medicamento: "Lembrete de medicamento",
+    lembrete_consulta: "Lembrete de consulta",
+    medication_reminder: "Lembrete de medicamento",
+    appointment_reminder: "Lembrete de consulta",
+    medication_added: "Medicamento adicionado",
+    health_alert: "Alerta de saúde",
+    appointment_scheduled: "Consulta agendada",
+    diet_updated: "Dieta atualizada",
+    supplement_added: "Suplemento adicionado",
   }
   return translations[type] || type
 }
@@ -131,6 +131,32 @@ export default function NotificationsPage() {
     }
   }
 
+  const handleDeleteAll = async () => {
+    const supabase = createClient()
+    const {
+      data: { user },
+    } = await supabase.auth.getUser()
+
+    if (!user) return
+
+    try {
+      const { error } = await supabase
+        .from("notifications")
+        .delete()
+        .eq("user_id", user.id)
+
+      if (error) {
+        throw new Error("Falha ao deletar notificações")
+      }
+
+      console.log("[v0] Notificações deletadas com sucesso")
+    } catch (error) {
+      console.error("[v0] Erro ao deletar notificações:", error)
+      alert("Erro ao deletar notificações. Tente novamente.")
+    }
+    loadNotifications()
+  }
+
   if (loading) {
     return <div className="text-center py-12">Carregando notificações...</div>
   }
@@ -139,14 +165,19 @@ export default function NotificationsPage() {
 
   return (
     <div className="space-y-6">
-      <div className="flex items-center justify-between">
+      <div className="block items-center justify-between">
         <div>
           <h1 className="text-3xl font-bold text-foreground">Notificações</h1>
-          <p className="text-muted-foreground mt-1">Fique informado sobre sua saúde</p>
+          <p className="text-muted-foreground mt-1 mb-4">Fique informado sobre sua saúde</p>
         </div>
         {unreadCount > 0 && (
           <Button variant="outline" onClick={handleMarkAllAsRead}>
             Marcar todas como lidas
+          </Button>
+        )}
+        {unreadCount < 0 || (
+          <Button className="opacity-90" variant="destructive" onClick={handleDeleteAll}>
+            Deletar todas
           </Button>
         )}
       </div>
@@ -170,7 +201,7 @@ export default function NotificationsPage() {
                   <div className="flex-1 min-w-0">
                     <div className="flex items-center gap-2">
                       <h3 className="font-semibold text-foreground truncate">{notif.title}</h3>
-                      {!notif.is_read && <span className="h-2 w-2 rounded-full bg-primary flex-shrink-0"></span>}
+                      {!notif.is_read && <span className="h-2 w-2 rounded-full bg-primary shrink-0"></span>}
                     </div>
                     <p className="text-sm text-muted-foreground mt-1">{notif.message}</p>
                     <div className="flex items-center gap-3 mt-3 flex-wrap">
@@ -196,7 +227,7 @@ export default function NotificationsPage() {
                       </span>
                     </div>
                   </div>
-                  <div className="flex items-center gap-1 flex-shrink-0">
+                  <div className="flex items-center gap-1 shrink-0">
                     {!notif.is_read && (
                       <Button
                         variant="ghost"
