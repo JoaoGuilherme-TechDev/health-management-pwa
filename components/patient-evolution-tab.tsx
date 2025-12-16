@@ -82,7 +82,7 @@ export function PatientEvolutionTab({ patientId }: { patientId: string }) {
       bone_mass: formData.bone_mass ? Number.parseFloat(formData.bone_mass) : null,
       notes: formData.notes,
     })
-    
+    loadEvolution()
 
     try {
       await fetch("/api/notifications/push", {
@@ -133,7 +133,7 @@ export function PatientEvolutionTab({ patientId }: { patientId: string }) {
     alert("Medição removida com sucesso!")
     loadEvolution()
   }
-  loadEvolution()
+
   if (loading) return <div>Carregando evolução física...</div>
 
   return (
