@@ -1,35 +1,14 @@
 {
-  "name": "HealthCare+ - Sistema de Gerenciamento de Saúde",
+  "name": "HealthCare+ - Gerenciamento de Saúde",
   "short_name": "HealthCare+",
-  "description": "Gerencie medicamentos, acompanhe métricas de saúde e mantenha contato com seus profissionais de saúde",
+  "description": "Sistema completo de gerenciamento de saúde para pacientes e profissionais médicos.",
   "start_url": "/",
   "scope": "/",
   "display": "standalone",
+  "background_color": "#ffffff",
+  "theme_color": "#1a7f7f",
   "orientation": "portrait-primary",
-  "theme_color": "#2d9c96",
-  "background_color": "#f5faf9",
-  "lang": "pt-BR",
-  "screenshots": [
-    {
-      "src": "/icon.svg",
-      "sizes": "192x192",
-      "type": "image/svg+xml",
-      "form_factor": "narrow"
-    },
-    {
-      "src": "/icon.svg",
-      "sizes": "512x512",
-      "type": "image/svg+xml",
-      "form_factor": "wide"
-    }
-  ],
   "icons": [
-    {
-      "src": "/icon.svg",
-      "sizes": "any",
-      "type": "image/svg+xml",
-      "purpose": "any maskable"
-    },
     {
       "src": "/icon-light-32x32.png",
       "sizes": "32x32",
@@ -37,48 +16,36 @@
       "purpose": "any"
     },
     {
-      "src": "/apple-icon.png",
-      "sizes": "180x180",
-      "type": "image/png"
-    }
-  ],
-  "categories": ["medical", "health", "productivity"],
-  "shortcuts": [
-    {
-      "name": "Ver Medicamentos",
-      "short_name": "Remédios",
-      "description": "Visualize e gerencie seus medicamentos",
-      "url": "/patient/medications?utm_source=shortcut",
-      "icons": [
-        {
-          "src": "/icon.svg",
-          "type": "image/svg+xml"
-        }
-      ]
+      "src": "/icon-dark-32x32.png",
+      "sizes": "32x32",
+      "type": "image/png",
+      "purpose": "any"
     },
     {
-      "name": "Consultas",
-      "short_name": "Consultas",
-      "description": "Veja suas próximas consultas",
-      "url": "/patient/appointments?utm_source=shortcut",
-      "icons": [
-        {
-          "src": "/icon.svg",
-          "type": "image/svg+xml"
-        }
-      ]
+      "src": "/icon.svg",
+      "sizes": "any",
+      "type": "image/svg+xml",
+      "purpose": "any"
+    },
+    {
+      "src": "/apple-icon.png",
+      "sizes": "180x180",
+      "type": "image/png",
+      "purpose": "any"
     }
   ],
-  "share_target": {
-    "action": "/share",
-    "method": "POST",
-    "enctype": "application/x-www-form-urlencoded",
-    "params": {
-      "title": "title",
-      "text": "text",
-      "url": "url"
+  "screenshots": [
+    {
+      "src": "/placeholder.svg",
+      "sizes": "540x720",
+      "type": "image/svg+xml",
+      "form_factor": "narrow"
+    },
+    {
+      "src": "/placeholder.svg",
+      "sizes": "1280x720",
+      "type": "image/svg+xml",
+      "form_factor": "wide"
     }
-  },
-  "prefer_related_applications": false,
-  "related_applications": []
+  ]
 }

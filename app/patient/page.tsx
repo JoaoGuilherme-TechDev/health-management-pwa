@@ -4,7 +4,7 @@ import { createClient } from "@/lib/supabase/client"
 import { useEffect, useState } from "react"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
-import { Pill, Calendar, Bell } from "lucide-react"
+import { Pill, Calendar } from "lucide-react"
 import Link from "next/link"
 
 interface Profile {
@@ -21,7 +21,6 @@ export default function PatientDashboard() {
   const [stats, setStats] = useState({
     activeMedications: 0,
     upcomingAppointments: 0,
-    unreadNotifications: 0,
   })
 
   useEffect(() => {
@@ -52,16 +51,9 @@ export default function PatientDashboard() {
           .eq("status", "scheduled")
           .gte("scheduled_at", new Date().toISOString())
 
-        const { count: notifCount } = await supabase
-          .from("notifications")
-          .select("*", { count: "exact" })
-          .eq("user_id", user.id)
-          .eq("is_read", false)
-
         setStats({
           activeMedications: medCount || 0,
           upcomingAppointments: appoCount || 0,
-          unreadNotifications: notifCount || 0,
         })
       }
 
@@ -84,7 +76,7 @@ export default function PatientDashboard() {
       </div>
 
       {/* Stats Cards */}
-      <div className="grid md:grid-cols-3 gap-6">
+      <div className="grid md:grid-cols-2 gap-6">
         <StatCard title="Medicamentos Ativos" value={stats.activeMedications} icon={Pill} href="/patient/medications" />
         <StatCard
           title="Próximas Consultas"
@@ -92,7 +84,6 @@ export default function PatientDashboard() {
           icon={Calendar}
           href="/patient/appointments"
         />
-        <StatCard title="Notificações" value={stats.unreadNotifications} icon={Bell} href="/patient/notifications" />
       </div>
 
       <Card>

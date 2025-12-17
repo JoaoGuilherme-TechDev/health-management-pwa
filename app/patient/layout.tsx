@@ -5,7 +5,7 @@ import type React from "react"
 import { createClient } from "@/lib/supabase/client"
 import { useRouter } from "next/navigation"
 import { useEffect, useState } from "react"
-import { Heart, Home, Pill, Calendar, Bell, Settings, UtensilsCrossed, Activity } from "lucide-react"
+import { Heart, Home, Pill, Calendar, Settings, UtensilsCrossed, Activity } from "lucide-react"
 import Link from "next/link"
 
 export default function PatientLayout({ children }: { children: React.ReactNode }) {
@@ -45,77 +45,6 @@ export default function PatientLayout({ children }: { children: React.ReactNode 
 
     checkAuth()
   }, [router])
-
-  useEffect(() => {
-    if (typeof navigator !== "undefined" && "serviceWorker" in navigator) {
-      navigator.serviceWorker.addEventListener("message", (event) => {
-        if (event.data?.type === "PLAY_ALARM") {
-          console.log("[v0] Reproduzindo alarme para:", event.data.medication)
-          playMedicationAlarm()
-        }
-      })
-    }
-  }, [])
-
-  const playMedicationAlarm = () => {
-    try {
-      // Criar contexto de áudio
-      const audioContext = new (window.AudioContext || (window as any).webkitAudioContext)()
-
-      // Criar oscilador para som de alarme
-      const oscillator = audioContext.createOscillator()
-      const gainNode = audioContext.createGain()
-
-      oscillator.connect(gainNode)
-      gainNode.connect(audioContext.destination)
-
-      // Configurar som de alarme (frequência alta e intermitente)
-      oscillator.type = "sine"
-      oscillator.frequency.setValueAtTime(880, audioContext.currentTime) // Lá5 (880 Hz)
-
-      // Padrão de volume: crescente e decrescente
-      gainNode.gain.setValueAtTime(0, audioContext.currentTime)
-      gainNode.gain.linearRampToValueAtTime(0.3, audioContext.currentTime + 0.1)
-      gainNode.gain.linearRampToValueAtTime(0, audioContext.currentTime + 0.5)
-
-      // Tocar o som
-      oscillator.start(audioContext.currentTime)
-      oscillator.stop(audioContext.currentTime + 0.5)
-
-      // Repetir 3 vezes
-      setTimeout(() => {
-        const osc2 = audioContext.createOscillator()
-        const gain2 = audioContext.createGain()
-        osc2.connect(gain2)
-        gain2.connect(audioContext.destination)
-        osc2.type = "sine"
-        osc2.frequency.setValueAtTime(880, audioContext.currentTime)
-        gain2.gain.setValueAtTime(0, audioContext.currentTime)
-        gain2.gain.linearRampToValueAtTime(0.3, audioContext.currentTime + 0.1)
-        gain2.gain.linearRampToValueAtTime(0, audioContext.currentTime + 0.5)
-        osc2.start(audioContext.currentTime)
-        osc2.stop(audioContext.currentTime + 0.5)
-      }, 600)
-
-      setTimeout(() => {
-        const osc3 = audioContext.createOscillator()
-        const gain3 = audioContext.createGain()
-        osc3.connect(gain3)
-        gain3.connect(audioContext.destination)
-        osc3.type = "sine"
-        osc3.frequency.setValueAtTime(880, audioContext.currentTime)
-        gain3.gain.setValueAtTime(0, audioContext.currentTime)
-        gain3.gain.linearRampToValueAtTime(0.3, audioContext.currentTime + 0.1)
-        gain3.gain.linearRampToValueAtTime(0, audioContext.currentTime + 0.5)
-        osc3.start(audioContext.currentTime)
-        osc3.stop(audioContext.currentTime + 0.5)
-      }, 1200)
-
-      console.log("[v0] Alarme de medicamento tocado com sucesso")
-    } catch (error) {
-      console.error("[v0] Erro ao reproduzir alarme:", error)
-    }
-  }
 
   const handleLogout = async () => {
     const supabase = createClient()
@@ -159,7 +88,6 @@ export default function PatientLayout({ children }: { children: React.ReactNode 
             <NavLink href="/patient/supplements" icon={Pill} label="Suplementos" />
             <NavLink href="/patient/evolution" icon={Activity} label="Evolução Física" />
             <NavLink href="/patient/appointments" icon={Calendar} label="Consultas" />
-            <NavLink href="/patient/notifications" icon={Bell} label="Notificações" />
             <NavLink href="/patient/settings" icon={Settings} label="Configurações" />
           </nav>
         </aside>
@@ -172,7 +100,6 @@ export default function PatientLayout({ children }: { children: React.ReactNode 
             <MobileNavLink href="/patient/supplements" icon={Pill} label="Suplem" />
             <MobileNavLink href="/patient/evolution" icon={Activity} label="Evolução" />
             <MobileNavLink href="/patient/appointments" icon={Calendar} label="Consultas" />
-            <MobileNavLink href="/patient/notifications" icon={Bell} label="Avisos" />
             <MobileNavLink href="/patient/settings" icon={Settings} label="Config" />
           </nav>
         </div>

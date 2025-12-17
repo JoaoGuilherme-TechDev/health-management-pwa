@@ -101,22 +101,6 @@ export function PatientSupplementsTab({ patientId }: PatientSupplementsTabProps)
     })
 
     if (!error) {
-      try {
-        await fetch("/api/notifications/push", {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({
-            user_id: patientId,
-            title: "Novo Suplemento Recomendado",
-            message: `Suplemento adicionado: ${formData.supplement_name} - ${formData.dosage}`,
-            notification_type: "supplement_added",
-            url: "/patient/supplements",
-          }),
-        })
-      } catch (notifError) {
-        console.error("[v0] Erro ao enviar notificação:", notifError)
-      }
-
       setOpen(false)
       setFormData({
         supplement_name: "",

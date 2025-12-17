@@ -105,22 +105,6 @@ export function PatientDietTab({ patientId }: PatientDietTabProps) {
     })
 
     if (!error) {
-      try {
-        await fetch("/api/notifications/push", {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({
-            user_id: patientId,
-            title: "Nova Receita de Dieta",
-            message: `Nova receita adicionada: ${formData.title} - ${getMealTypeLabel(formData.meal_type)}`,
-            notification_type: "diet_added",
-            url: "/patient/diet",
-          }),
-        })
-      } catch (notifError) {
-        console.error("[v0] Erro ao enviar notificação:", notifError)
-      }
-
       setOpen(false)
       setFormData({
         title: "",

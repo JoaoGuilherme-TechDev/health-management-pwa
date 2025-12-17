@@ -7,7 +7,6 @@ import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Textarea } from "@/components/ui/textarea"
-import { useNotifications } from "@/components/push-notification-provider"
 import { LogOut } from "lucide-react"
 import { useRouter } from "next/navigation"
 
@@ -30,7 +29,6 @@ export default function SettingsPage() {
   const [loading, setLoading] = useState(true)
   const [saving, setSaving] = useState(false)
   const [loggingOut, setLoggingOut] = useState(false)
-  const { hasPermission, requestPermission } = useNotifications()
 
   useEffect(() => {
     const loadProfile = async () => {
@@ -181,26 +179,9 @@ export default function SettingsPage() {
       <Card>
         <CardHeader>
           <CardTitle>Configurações do App</CardTitle>
-          <CardDescription>Configure preferências de PWA e notificações</CardDescription>
+          <CardDescription>Configure preferências de PWA</CardDescription>
         </CardHeader>
         <CardContent className="space-y-6">
-          <div className="space-y-4">
-            <h3 className="font-semibold text-foreground">Notificações</h3>
-            <div className="p-4 rounded-lg border border-border bg-muted/30">
-              <p className="text-sm text-muted-foreground mb-3">
-                {hasPermission
-                  ? "Notificações estão ativadas. Você receberá alertas para medicamentos e consultas."
-                  : "Ative as notificações para receber lembretes de medicamentos e alertas de saúde no seu dispositivo."}
-              </p>
-              {!hasPermission && (
-                <Button onClick={requestPermission} variant="outline" className="w-full bg-transparent">
-                  Ativar Notificações
-                </Button>
-              )}
-              {hasPermission && <p className="text-xs text-green-600 dark:text-green-400">✓ Notificações ativadas</p>}
-            </div>
-          </div>
-
           <div className="space-y-4">
             <h3 className="font-semibold text-foreground">Instalar App</h3>
             <div className="p-4 rounded-lg border border-border bg-muted/30">

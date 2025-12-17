@@ -63,7 +63,7 @@ BEGIN
     VALUES (
       NEW.patient_id,
       'Lembrete: Consulta Amanhã',
-      'Você tem uma consulta amanhã às ' || to_char(NEW.scheduled_at, 'HH24:MI') || '. Local: ' || COALESCE(NEW.location, 'Não especificado'),
+      'Você tem uma consulta amanhã às a ' || to_char(NEW.scheduled_at, 'HH24:MI') || '. Local: ' || COALESCE(NEW.location, 'Não especificado'),
       'appointment_reminder',
       NEW.scheduled_at - INTERVAL '24 hours'
     );

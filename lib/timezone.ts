@@ -8,13 +8,39 @@ export function getCurrentBrasiliaTime(): Date {
 export function formatBrasiliaDate(dateString: string, format: "date" | "time" | "full" = "full"): string {
   const date = new Date(dateString)
 
-  const options: Intl.DateTimeFormatOptions = {
-    timeZone: "America/Sao_Paulo",
-    ...(format === "date" || format === "full" ? { year: "numeric", month: "2-digit", day: "2-digit" } : {}),
-    ...(format === "time" || format === "full" ? { hour: "2-digit", minute: "2-digit", hour12: false } : {}),
+  if (format === "date") {
+    return date.toLocaleDateString("pt-BR", {
+      timeZone: "America/Sao_Paulo",
+      year: "numeric",
+      month: "2-digit",
+      day: "2-digit",
+    })
   }
 
-  return date.toLocaleString("pt-BR", options)
+  if (format === "time") {
+    return date.toLocaleTimeString("pt-BR", {
+      timeZone: "America/Sao_Paulo",
+      hour: "2-digit",
+      minute: "2-digit",
+      hour12: false,
+    })
+  }
+
+  const dateStr = date.toLocaleDateString("pt-BR", {
+    timeZone: "America/Sao_Paulo",
+    year: "numeric",
+    month: "2-digit",
+    day: "2-digit",
+  })
+
+  const timeStr = date.toLocaleTimeString("pt-BR", {
+    timeZone: "America/Sao_Paulo",
+    hour: "2-digit",
+    minute: "2-digit",
+    hour12: false,
+  })
+
+  return `${dateStr} às ${timeStr}`
 }
 
 export function addHoursBrasilia(hours: number): Date {
@@ -35,4 +61,71 @@ export function isSameDayBrasilia(date1: string | Date, date2: string | Date): b
   const d1 = new Date(date1).toLocaleDateString("pt-BR", { timeZone: "America/Sao_Paulo" })
   const d2 = new Date(date2).toLocaleDateString("pt-BR", { timeZone: "America/Sao_Paulo" })
   return d1 === d2
+}
+
+export function isDayBeforeBrasilia(appointmentDate: string | Date, todayDate: string | Date): boolean {
+  const appointmentDateStr = new Date(appointmentDate).toLocaleDateString("pt-BR", { timeZone: "America/Sao_Paulo" })
+  const todayDateStr = new Date(todayDate).toLocaleDateString("pt-BR", { timeZone: "America/Sao_Paulo" })
+
+  // Parse DD/MM/YYYY format correctly
+  const [dayA, monthA, yearA] = appointmentDateStr.split("/").map(Number)
+  const [dayT, monthT, yearT] = todayDateStr.split("/").map(Number)
+
+  // Create dates in correct order: year, month-1, day
+  const appointmentUTC = new Date(Date.UTC(yearA, monthA - 1, dayA))
+  const todayUTC = new Date(Date.UTC(yearT, monthT - 1, dayT))
+
+  const timeDiff = appointmentUTC.getTime() - todayUTC.getTime()
+  const dayDiff = timeDiff / (1000 * 60 * 60 * 24)
+
+  // Return true only if appointment is exactly 1 day AFTER today
+  return Math.abs(dayDiff - 1) < 0.01 // Using small tolerance for floating point
+}
+
+export function isExactly24HoursBefore(appointmentDate: string | Date): boolean {
+  const now = getCurrentBrasiliaTime()
+
+  // Get today's date in Brasilia timezone (00:00:00)
+  const todayDate = new Date(now.getFullYear(), now.getMonth(), now.getDate(), 0, 0, 0, 0)
+
+  // Get appointment date in Brasilia timezone (00:00:00)
+  const apptDate = new Date(appointmentDate)
+  const apptDateOnly = new Date(apptDate.getFullYear(), apptDate.getMonth(), apptDate.getDate(), 0, 0, 0, 0)
+
+  // Calculate difference in days
+  const diffInMs = apptDateOnly.getTime() - todayDate.getTime()
+  const diffInDays = diffInMs / (1000 * 60 * 60 * 24)
+
+  const isExactly1DayBefore = diffInDays === 1
+
+  console.log(
+    `[v0] 24h Check - Today: ${todayDate.toLocaleDateString("pt-BR")}, Appointment: ${apptDateOnly.toLocaleDateString("pt-BR")}, DiffDays: ${diffInDays}, Show: ${isExactly1DayBefore}`,
+  )
+
+  return isExactly1DayBefore
+}
+
+export function toBrasiliaTime(date: Date | string): Date {
+  const d = new Date(date)
+  return new Date(d.toLocaleString("en-US", { timeZone: "America/Sao_Paulo" }))
+}
+
+export function getAppointmentTimeStr(appointmentDate: string | Date): string {
+  const date = new Date(appointmentDate)
+  return date.toLocaleTimeString("pt-BR", {
+    timeZone: "America/Sao_Paulo",
+    hour: "2-digit",
+    minute: "2-digit",
+    hour12: false,
+  })
+}
+
+export function formatBrasiliaTime(date: Date | string): string {
+  const d = new Date(date)
+  return d.toLocaleTimeString("pt-BR", {
+    timeZone: "America/Sao_Paulo",
+    hour: "2-digit",
+    minute: "2-digit",
+    hour12: false,
+  })
 }

@@ -9,8 +9,8 @@ import { Textarea } from "@/components/ui/textarea"
 import { createClient } from "@/lib/supabase/client"
 import { Plus, Calendar, Trash2 } from "lucide-react"
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog"
-import { formatBrasiliaDate, toBrasiliaDate } from "@/lib/timezone"
-import { get } from "http"
+import { formatBrasiliaDate } from "@/lib/timezone"
+
 
 export function PatientAppointmentsTab({ patientId }: { patientId: string }) {
   const [appointments, setAppointments] = useState<any[]>([])

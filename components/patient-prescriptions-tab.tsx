@@ -122,22 +122,6 @@ export function PatientPrescriptionsTab({ patientId }: { patientId: string }) {
 
     console.log("[v0] Receita adicionada com sucesso:", data)
 
-    try {
-      await fetch("/api/notifications/push", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          user_id: patientId,
-          title: "Nova Receita Médica",
-          message: `Nova receita médica disponível: ${formData.title}`,
-          notification_type: "prescription_added",
-          url: "/patient/medications",
-        }),
-      })
-    } catch (notifError) {
-      console.error("[v0] Erro ao enviar notificação:", notifError)
-    }
-
     alert("Receita adicionada com sucesso!")
 
     setShowDialog(false)

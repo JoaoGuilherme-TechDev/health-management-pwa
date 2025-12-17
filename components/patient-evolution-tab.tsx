@@ -82,23 +82,6 @@ export function PatientEvolutionTab({ patientId }: { patientId: string }) {
       bone_mass: formData.bone_mass ? Number.parseFloat(formData.bone_mass) : null,
       notes: formData.notes,
     })
-    loadEvolution()
-
-    try {
-      await fetch("/api/notifications/push", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          user_id: patientId,
-          title: "Nova Medição de Bioimpedância",
-          message: `Nova avaliação física registrada${formData.weight ? ` - Peso: ${formData.weight}kg` : ""}`,
-          notification_type: "evolution_added",
-          url: "/patient/evolution",
-        }),
-      })
-    } catch (notifError) {
-      console.error("[v0] Erro ao enviar notificação:", notifError)
-    }
 
     setShowDialog(false)
     setFormData({
@@ -163,7 +146,7 @@ export function PatientEvolutionTab({ patientId }: { patientId: string }) {
                 >
                   <div className="flex items-start justify-between mb-4">
                     <div className="text-sm text-muted-foreground">
-                      {formatBrasiliaDate(evo.measured_at, "datetime")}
+                      {formatBrasiliaDate(evo.measured_at, "date")}
                     </div>
                     <Button
                       variant="ghost"
