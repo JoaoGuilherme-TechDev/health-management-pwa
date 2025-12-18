@@ -5,7 +5,7 @@ import type React from "react"
 import { createClient } from "@/lib/supabase/client"
 import { useRouter } from "next/navigation"
 import { useEffect, useState } from "react"
-import { Heart, Home, Pill, Calendar, Settings, UtensilsCrossed, Activity } from "lucide-react"
+import { Heart, Home, Pill, Calendar, Settings, UtensilsCrossed, Activity, Bell } from "lucide-react"
 import Link from "next/link"
 
 export default function PatientLayout({ children }: { children: React.ReactNode }) {
@@ -70,7 +70,7 @@ export default function PatientLayout({ children }: { children: React.ReactNode 
   return (
     <div className="min-h-screen bg-background">
       {/* Top Navigation - Mobile optimized */}
-      <nav className="sticky top-0 z-50 border-b border-border bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60">
+      <nav className="sticky top-0 z-50 border-b border-border bg-background/95 backdrop-blur supports-backdrop-filter:bg-background/60">
         <div className="mx-auto px-3 sm:px-6 lg:px-8 py-3 sm:py-4 flex items-center justify-between">
           <Link href="/patient" className="flex items-center gap-2">
             <Heart className="h-5 w-5 sm:h-6 sm:w-6 text-primary" />
@@ -84,10 +84,11 @@ export default function PatientLayout({ children }: { children: React.ReactNode 
           <nav className="flex-1 space-y-2 p-6">
             <NavLink href="/patient" icon={Home} label="Painel" />
             <NavLink href="/patient/medications" icon={Pill} label="Medicamentos" />
+            <NavLink href="/patient/appointments" icon={Calendar} label="Consultas" />
             <NavLink href="/patient/diet" icon={UtensilsCrossed} label="Dieta" />
             <NavLink href="/patient/supplements" icon={Pill} label="Suplementos" />
             <NavLink href="/patient/evolution" icon={Activity} label="Evolução Física" />
-            <NavLink href="/patient/appointments" icon={Calendar} label="Consultas" />
+            <NavLink href="/patient/notifications" icon={Bell} label="Notificações" />
             <NavLink href="/patient/settings" icon={Settings} label="Configurações" />
           </nav>
         </aside>
@@ -96,11 +97,13 @@ export default function PatientLayout({ children }: { children: React.ReactNode 
           <nav className="flex items-center overflow-x-auto no-scrollbar mobile-scroll px-2 py-2">
             <MobileNavLink href="/patient" icon={Home} label="Início" />
             <MobileNavLink href="/patient/medications" icon={Pill} label="Remédios" />
+            <MobileNavLink href="/patient/appointments" icon={Calendar} label="Consultas" />
             <MobileNavLink href="/patient/diet" icon={UtensilsCrossed} label="Dieta" />
             <MobileNavLink href="/patient/supplements" icon={Pill} label="Suplem" />
             <MobileNavLink href="/patient/evolution" icon={Activity} label="Evolução" />
-            <MobileNavLink href="/patient/appointments" icon={Calendar} label="Consultas" />
+            <MobileNavLink href="/patient/notifications" icon={Bell} label="Notificações" />
             <MobileNavLink href="/patient/settings" icon={Settings} label="Config" />
+            
           </nav>
         </div>
 
@@ -127,7 +130,8 @@ function MobileNavLink({ href, icon: Icon, label }: { href: string; icon: any; l
   return (
     <Link
       href={href}
-      className="flex-shrink-0 flex flex-col items-center justify-center gap-1 px-3 py-2 min-w-[70px] text-muted-foreground hover:text-foreground transition-colors active:bg-muted/50 rounded-lg"
+      className="shrink-0 flex flex-col items-center justify-center gap-1 px-3 py-2 min-w-17.5 text-muted-foreground hover:text-foreground transition-colors active:bg-muted/50 rounded-lg"
+
     >
       <Icon className="h-5 w-5" />
       <span className="text-[10px] font-medium text-center leading-tight">{label}</span>
