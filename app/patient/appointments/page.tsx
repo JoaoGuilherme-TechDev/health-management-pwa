@@ -5,7 +5,7 @@ import { useEffect, useState } from "react"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
 import { Calendar, MapPin, Clock } from "lucide-react"
-import { format } from "date-fns"
+import { format, parseISO } from "date-fns"
 import { ptBR } from "date-fns/locale"
 
 interface Appointment {
@@ -148,7 +148,7 @@ export default function AppointmentsPage() {
               <CardContent className="space-y-3">
                 <div className="flex items-center gap-2 text-muted-foreground">
                   <Clock className="h-4 w-4" />
-                  <span>{format(new Date(appointment.scheduled_at), "PPP 'às' HH:mm", { locale: ptBR })}</span>
+                  <span>{format(parseISO(appointment.scheduled_at), "PPP 'às' HH:mm", { locale: ptBR })}</span>
                 </div>
                 {appointment.location && (
                   <div className="flex items-center gap-2 text-muted-foreground">

@@ -65,7 +65,7 @@ export default function Home() {
       <section id="recipes" className="py-20 sm:py-32 px-4 sm:px-6 lg:px-8 border-t border-border">
         <div className="mx-auto max-w-6xl">
           <div className="text-center mb-16">
-            <h2 className="text-3xl sm:text-4xl font-bold text-foreground mb-4">Receitas Fitness Saudáveis</h2>
+            <h2 className="text-3xl sm:text-4xl font-bold text-foreground mb-4">Receitas Saudáveis</h2>
             <p className="text-lg text-muted-foreground max-w-2xl mx-auto">
               Refeições nutritivas desenvolvidas para apoiar o crescimento muscular e recuperação
             </p>

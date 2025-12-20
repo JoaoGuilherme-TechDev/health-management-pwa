@@ -6,7 +6,7 @@ import { useEffect, useState } from "react"
 import { Card, CardContent } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
-import { ArrowLeft, User, FileText, Activity, Calendar, Pill, Utensils } from "lucide-react"
+import { ArrowLeft, User, FileText, Activity, Calendar, Pill, Utensils, Dumbbell } from "lucide-react"
 import { PatientInfoTab } from "@/components/patient-info-tab"
 import { PatientMedicationsTab } from "@/components/patient-medications-tab"
 import { PatientAppointmentsTab } from "@/components/patient-appointments-tab"
@@ -147,7 +147,7 @@ export default function PatientDetailsPage() {
                 value="supplements"
                 className="shrink-0 items-center justify-center gap-2 px-4 py-3 min-w-22.5 data-[state=active]:bg-primary data-[state=active]:text-primary-foreground"
               >
-                <Pill className="h-4 w-4 shrink-0" />
+                <Dumbbell className="h-4 w-4 shrink-0" />
                 <span className="text-xs font-medium">Suplem.</span>
               </TabsTrigger>
               <TabsTrigger
