@@ -27,20 +27,20 @@ export default function SupplementsPage() {
   }
 
   const handleDelete = async (id: string) => {
-    if (confirm("Are you sure you want to delete this supplement?")) {
+    if (confirm("Tem certeza de que deseja excluir este suplemento?")) {
       await supabase.from("supplements").delete().eq("id", id)
       loadSupplements()
     }
   }
 
-  if (loading) return <div className="text-center py-12">Loading supplements...</div>
+  if (loading) return <div className="text-center py-12">Carregando suplementos...</div>
 
   return (
     <div className="space-y-8">
       <div className="flex items-center justify-between">
         <div>
-          <h1 className="text-3xl font-bold text-foreground">Manage Supplements</h1>
-          <p className="text-muted-foreground mt-2">Add, edit, or delete recommended supplements</p>
+          <h1 className="text-3xl font-bold text-foreground">Gerenciar Suplementos</h1>
+          <p className="text-muted-foreground mt-2">Adicione, edite ou exclua suplementos recomendados</p>
         </div>
         <Button
           onClick={() => {
@@ -49,7 +49,7 @@ export default function SupplementsPage() {
           }}
         >
           <Plus className="h-4 w-4 mr-2" />
-          Add Supplement
+          Adicionar Suplemento
         </Button>
       </div>
 
@@ -83,7 +83,7 @@ export default function SupplementsPage() {
                 <div className="flex-1">
                   <h3 className="text-xl font-semibold text-foreground mb-2">{supplement.name}</h3>
                   <p className="text-muted-foreground mb-4">{supplement.benefit}</p>
-                  <p className="text-sm font-medium text-foreground">Dosage: {supplement.dosage}</p>
+                  <p className="text-sm font-medium text-foreground">Dosagem: {supplement.dosage}</p>
                 </div>
                 <div className="flex gap-2">
                   <Button
@@ -109,10 +109,10 @@ export default function SupplementsPage() {
       {supplements.length === 0 && !showForm && (
         <Card>
           <CardContent className="pt-12 text-center">
-            <p className="text-muted-foreground mb-4">No supplements yet. Create your first one!</p>
+            <p className="text-muted-foreground mb-4">Ainda não há suplementos. Crie o primeiro!</p>
             <Button onClick={() => setShowForm(true)}>
               <Plus className="h-4 w-4 mr-2" />
-              Add Supplement
+              Adicionar Suplemento
             </Button>
           </CardContent>
         </Card>

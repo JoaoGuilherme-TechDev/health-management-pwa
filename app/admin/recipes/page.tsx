@@ -27,20 +27,20 @@ export default function RecipesPage() {
   }
 
   const handleDelete = async (id: string) => {
-    if (confirm("Are you sure you want to delete this recipe?")) {
+    if (confirm("Tem certeza de que deseja excluir esta receita?")) {
       await supabase.from("recipes").delete().eq("id", id)
       loadRecipes()
     }
   }
 
-  if (loading) return <div className="text-center py-12">Loading recipes...</div>
+  if (loading) return <div className="text-center py-12">Carregando receitas...</div>
 
   return (
     <div className="space-y-8">
       <div className="flex items-center justify-between">
         <div>
-          <h1 className="text-3xl font-bold text-foreground">Manage Recipes</h1>
-          <p className="text-muted-foreground mt-2">Add, edit, or delete fitness recipes</p>
+          <h1 className="text-3xl font-bold text-foreground">Gerenciar Receitas</h1>
+          <p className="text-muted-foreground mt-2">Adicione, edite ou exclua receitas fitness</p>
         </div>
         <Button
           onClick={() => {
@@ -49,7 +49,7 @@ export default function RecipesPage() {
           }}
         >
           <Plus className="h-4 w-4 mr-2" />
-          Add Recipe
+          Adicionar Receita
         </Button>
       </div>
 
@@ -84,8 +84,8 @@ export default function RecipesPage() {
                   <h3 className="text-xl font-semibold text-foreground mb-2">{recipe.title}</h3>
                   <p className="text-muted-foreground mb-4">{recipe.description}</p>
                   <div className="space-y-2">
-                    <p className="text-sm font-medium text-foreground">Ingredients: {recipe.ingredients.length}</p>
-                    <p className="text-sm font-medium text-foreground">Steps: {recipe.preparation.length}</p>
+                    <p className="text-sm font-medium text-foreground">Ingredientes: {recipe.ingredients.length}</p>
+                    <p className="text-sm font-medium text-foreground">Passos: {recipe.preparation.length}</p>
                   </div>
                 </div>
                 <div className="flex gap-2">
@@ -112,10 +112,10 @@ export default function RecipesPage() {
       {recipes.length === 0 && !showForm && (
         <Card>
           <CardContent className="pt-12 text-center">
-            <p className="text-muted-foreground mb-4">No recipes yet. Create your first one!</p>
+            <p className="text-muted-foreground mb-4">Nenhuma receita ainda. Crie a sua primeira!</p>
             <Button onClick={() => setShowForm(true)}>
               <Plus className="h-4 w-4 mr-2" />
-              Add Recipe
+              Adicionar Receita
             </Button>
           </CardContent>
         </Card>

@@ -43,12 +43,12 @@ export default function RecipeForm({ recipe, onSuccess, onCancel }: RecipeFormPr
 
     const ingredientsArray = formData.ingredients
       .split("\n")
-      .map((i) => i.trim())
-      .filter((i) => i)
+      .map((i: string) => i.trim())
+      .filter((i: any) => i)
     const preparationArray = formData.preparation
       .split("\n")
-      .map((p) => p.trim())
-      .filter((p) => p)
+      .map((p: string) => p.trim())
+      .filter((p: any) => p)
 
     const payload = {
       title: formData.title,
@@ -71,7 +71,7 @@ export default function RecipeForm({ recipe, onSuccess, onCancel }: RecipeFormPr
   return (
     <Card>
       <CardHeader className="flex flex-row items-center justify-between space-y-0">
-        <CardTitle>{recipe ? "Edit Recipe" : "Add New Recipe"}</CardTitle>
+        <CardTitle>{recipe ? "Editar Receita" : "Adicionar Nova Receita"}</CardTitle>
         <button onClick={onCancel} className="p-1 hover:bg-muted rounded">
           <X className="h-5 w-5" />
         </button>
@@ -79,32 +79,32 @@ export default function RecipeForm({ recipe, onSuccess, onCancel }: RecipeFormPr
       <CardContent>
         <form onSubmit={handleSubmit} className="space-y-4">
           <div>
-            <label className="text-sm font-medium text-foreground">Title</label>
+            <label className="text-sm font-medium text-foreground">Título</label>
             <Input
               required
               value={formData.title}
               onChange={(e) => setFormData({ ...formData, title: e.target.value })}
-              placeholder="Recipe title"
+              placeholder="Título da receita"
             />
           </div>
 
           <div>
-            <label className="text-sm font-medium text-foreground">Description</label>
+            <label className="text-sm font-medium text-foreground">Descrição</label>
             <Input
               required
               value={formData.description}
               onChange={(e) => setFormData({ ...formData, description: e.target.value })}
-              placeholder="Short description"
+              placeholder="Breve descrição"
             />
           </div>
 
           <div>
-            <label className="text-sm font-medium text-foreground">Image</label>
+            <label className="text-sm font-medium text-foreground">Imagem</label>
             <div className="flex gap-4">
               {formData.image_url && (
                 <img
                   src={formData.image_url || "/placeholder.svg"}
-                  alt="preview"
+                  alt="pré-visualização"
                   className="w-24 h-24 object-cover rounded"
                 />
               )}
@@ -118,33 +118,33 @@ export default function RecipeForm({ recipe, onSuccess, onCancel }: RecipeFormPr
           </div>
 
           <div>
-            <label className="text-sm font-medium text-foreground">Ingredients (one per line)</label>
+            <label className="text-sm font-medium text-foreground">Ingredientes (um por linha)</label>
             <Textarea
               required
               value={formData.ingredients}
               onChange={(e) => setFormData({ ...formData, ingredients: e.target.value })}
-              placeholder="1 cup flour&#10;2 eggs&#10;..."
+              placeholder="1 xícara de farinha&#10;2 ovos&#10;..."
               rows={5}
             />
           </div>
 
           <div>
-            <label className="text-sm font-medium text-foreground">Preparation Steps (one per line)</label>
+            <label className="text-sm font-medium text-foreground">Passos de Preparo (um por linha)</label>
             <Textarea
               required
               value={formData.preparation}
               onChange={(e) => setFormData({ ...formData, preparation: e.target.value })}
-              placeholder="Mix ingredients&#10;Bake for 30 minutes&#10;..."
+              placeholder="Misture os ingredientes&#10;Asse por 30 minutos&#10;..."
               rows={5}
             />
           </div>
 
           <div className="flex gap-2">
             <Button type="submit" disabled={loading}>
-              {loading ? "Saving..." : recipe ? "Update Recipe" : "Add Recipe"}
+              {loading ? "Salvando..." : recipe ? "Atualizar Receita" : "Adicionar Receita"}
             </Button>
             <Button type="button" variant="outline" onClick={onCancel}>
-              Cancel
+              Cancelar
             </Button>
           </div>
         </form>

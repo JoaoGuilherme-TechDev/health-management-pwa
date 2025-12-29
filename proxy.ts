@@ -2,7 +2,7 @@ import { createServerClient } from "@supabase/ssr"
 import { NextResponse, type NextRequest } from "next/server"
 
 export default async function proxy(request: NextRequest) {
-  let supabaseResponse = NextResponse.next({
+  let response = NextResponse.next({
     request,
   })
 
@@ -16,48 +16,54 @@ export default async function proxy(request: NextRequest) {
         },
         setAll(cookiesToSet) {
           cookiesToSet.forEach(({ name, value }) => request.cookies.set(name, value))
-          supabaseResponse = NextResponse.next({
-            request,
-          })
-          cookiesToSet.forEach(({ name, value, options }) => supabaseResponse.cookies.set(name, value, options))
+          cookiesToSet.forEach(({ name, value, options }) => response.cookies.set(name, value, options))
         },
       },
     },
   )
 
-  // Apenas fazer role-based redirects se estiver autenticado
-  if (request.nextUrl.pathname.startsWith("/patient") || request.nextUrl.pathname.startsWith("/admin")) {
-    try {
-      const {
-        data: { user },
-      } = await supabase.auth.getUser()
+  // Refresh session if needed
+  const { data: { session } } = await supabase.auth.getSession()
 
-      if (user) {
-        const { data: profile } = await supabase.from("profiles").select("role").eq("id", user.id).single()
+  // If no session and trying to access protected routes, redirect to login
+  if (!session && (request.nextUrl.pathname.startsWith("/patient") || request.nextUrl.pathname.startsWith("/admin"))) {
+    const url = request.nextUrl.clone()
+    url.pathname = "/auth/login"
+    url.searchParams.set("redirect", request.nextUrl.pathname)
+    return NextResponse.redirect(url)
+  }
 
-        const userRole = profile?.role || "patient"
+  // If session exists, check role-based access
+  if (session) {
+    const { data: profile } = await supabase
+      .from("profiles")
+      .select("role")
+      .eq("id", session.user.id)
+      .single()
 
-        // Redirecionar admin tentando acessar painel de paciente
-        if (userRole === "admin" && request.nextUrl.pathname.startsWith("/patient")) {
-          const url = request.nextUrl.clone()
-          url.pathname = "/admin"
-          return NextResponse.redirect(url)
-        }
+    const userRole = profile?.role || "patient"
 
-        // Redirecionar paciente tentando acessar painel admin
-        if (userRole === "patient" && request.nextUrl.pathname.startsWith("/admin")) {
-          const url = request.nextUrl.clone()
-          url.pathname = "/patient"
-          return NextResponse.redirect(url)
-        }
-      }
-    } catch (err) {
-      // Ignorar erros de sessão - usuário continua logado até pressionar logout
-      console.log("[proxy] Erro de sessão ignorado:", err)
+    // ✅ FIX: Always allow admin to access /admin routes (including patient details)
+    if (userRole === "admin" && request.nextUrl.pathname.startsWith("/admin")) {
+      return response // Allow access to all admin routes
+    }
+
+    // Redirect patient trying to access admin routes
+    if (userRole === "patient" && request.nextUrl.pathname.startsWith("/admin")) {
+      const url = request.nextUrl.clone()
+      url.pathname = "/patient"
+      return NextResponse.redirect(url)
+    }
+
+    // Redirect admin trying to access patient routes
+    if (userRole === "admin" && request.nextUrl.pathname.startsWith("/patient")) {
+      const url = request.nextUrl.clone()
+      url.pathname = "/admin"
+      return NextResponse.redirect(url)
     }
   }
 
-  return supabaseResponse
+  return response
 }
 
 export const config = {

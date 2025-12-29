@@ -59,7 +59,7 @@ export default function SupplementForm({ supplement, onSuccess, onCancel }: Supp
   return (
     <Card>
       <CardHeader className="flex flex-row items-center justify-between space-y-0">
-        <CardTitle>{supplement ? "Edit Supplement" : "Add New Supplement"}</CardTitle>
+        <CardTitle>{supplement ? "Editar Suplemento" : "Adicionar Novo Suplemento"}</CardTitle>
         <button onClick={onCancel} className="p-1 hover:bg-muted rounded">
           <X className="h-5 w-5" />
         </button>
@@ -67,43 +67,44 @@ export default function SupplementForm({ supplement, onSuccess, onCancel }: Supp
       <CardContent>
         <form onSubmit={handleSubmit} className="space-y-4">
           <div>
-            <label className="text-sm font-medium text-foreground">Name</label>
+            <label className="text-sm font-medium text-foreground">Nome</label>
             <Input
               required
               value={formData.name}
               onChange={(e) => setFormData({ ...formData, name: e.target.value })}
-              placeholder="Supplement name"
+              placeholder="Nome do suplemento"
             />
           </div>
 
           <div>
-            <label className="text-sm font-medium text-foreground">Benefit</label>
+            <label className="text-sm font-medium text-foreground">Benefício</label>
             <Input
               required
               value={formData.benefit}
               onChange={(e) => setFormData({ ...formData, benefit: e.target.value })}
-              placeholder="Health benefit"
+              placeholder="Benefício para a saúde"
             />
           </div>
 
           <div>
-            <label className="text-sm font-medium text-foreground">Dosage</label>
+            <label className="text-sm font-medium text-foreground">Dosagem</label>
             <Input
               required
               value={formData.dosage}
               onChange={(e) => setFormData({ ...formData, dosage: e.target.value })}
-              placeholder="e.g., 1000mg daily"
+              placeholder="ex.: 1000mg diários"
             />
           </div>
 
           <div>
-            <label className="text-sm font-medium text-foreground">Image</label>
+            <label className="text-sm font-medium text-foreground">Imagem</label>
             <div className="flex gap-4">
               {formData.image_url && (
                 <img
                   src={formData.image_url || "/placeholder.svg"}
-                  alt="preview"
+                  alt="pré-visualização"
                   className="w-24 h-24 object-cover rounded"
+                  
                 />
               )}
               <input
@@ -111,16 +112,17 @@ export default function SupplementForm({ supplement, onSuccess, onCancel }: Supp
                 accept="image/*"
                 onChange={(e) => e.target.files && handleImageUpload(e.target.files[0])}
                 className="flex-1 p-2 border border-border rounded"
+            
               />
             </div>
           </div>
 
           <div className="flex gap-2">
             <Button type="submit" disabled={loading}>
-              {loading ? "Saving..." : supplement ? "Update Supplement" : "Add Supplement"}
+              {loading ? "Salvando..." : supplement ? "Atualizar Suplemento" : "Adicionar Suplemento"}
             </Button>
             <Button type="button" variant="outline" onClick={onCancel}>
-              Cancel
+              Cancelar
             </Button>
           </div>
         </form>

@@ -98,67 +98,67 @@ export function MedicationDialog({ open, onOpenChange, medication, onSave }: Med
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="max-w-md">
         <DialogHeader>
-          <DialogTitle>{medication ? "Edit Medication" : "Add Medication"}</DialogTitle>
-          <DialogDescription>Enter your medication details below</DialogDescription>
+          <DialogTitle>{medication ? "Editar Medicação" : "Adicionar Medicação"}</DialogTitle>
+          <DialogDescription>Insira os detalhes da sua medicação abaixo</DialogDescription>
         </DialogHeader>
         <form onSubmit={handleSubmit} className="space-y-4">
           <div className="space-y-2">
-            <Label htmlFor="name">Medication Name *</Label>
+            <Label htmlFor="name">Nome da Medicação *</Label>
             <Input
               id="name"
               required
               value={formData.name}
               onChange={(e) => setFormData({ ...formData, name: e.target.value })}
-              placeholder="e.g., Aspirin"
+              placeholder="ex.: Aspirina"
             />
           </div>
 
           <div className="grid grid-cols-2 gap-4">
             <div className="space-y-2">
-              <Label htmlFor="dosage">Dosage *</Label>
+              <Label htmlFor="dosage">Dosagem *</Label>
               <Input
                 id="dosage"
                 required
                 value={formData.dosage}
                 onChange={(e) => setFormData({ ...formData, dosage: e.target.value })}
-                placeholder="e.g., 500mg"
+                placeholder="ex.: 500mg"
               />
             </div>
             <div className="space-y-2">
-              <Label htmlFor="frequency">Frequency *</Label>
+              <Label htmlFor="frequency">Frequência *</Label>
               <Input
                 id="frequency"
                 required
                 value={formData.frequency}
                 onChange={(e) => setFormData({ ...formData, frequency: e.target.value })}
-                placeholder="e.g., Twice daily"
+                placeholder="ex.: Duas vezes ao dia"
               />
             </div>
           </div>
 
           <div className="space-y-2">
-            <Label htmlFor="doctor">Prescribing Doctor</Label>
+            <Label htmlFor="doctor">Médico Prescritor</Label>
             <Input
               id="doctor"
               value={formData.prescribing_doctor}
               onChange={(e) => setFormData({ ...formData, prescribing_doctor: e.target.value })}
-              placeholder="Doctor name"
+              placeholder="Nome do médico"
             />
           </div>
 
           <div className="space-y-2">
-            <Label htmlFor="reason">Reason for Medication</Label>
+            <Label htmlFor="reason">Motivo da Medicação</Label>
             <Textarea
               id="reason"
               value={formData.reason}
               onChange={(e) => setFormData({ ...formData, reason: e.target.value })}
-              placeholder="Why are you taking this medication?"
+              placeholder="Por que você está tomando essa medicação?"
             />
           </div>
 
           <div className="grid grid-cols-2 gap-4">
             <div className="space-y-2">
-              <Label htmlFor="start">Start Date *</Label>
+              <Label htmlFor="start">Data de Início *</Label>
               <Input
                 id="start"
                 type="date"
@@ -168,7 +168,7 @@ export function MedicationDialog({ open, onOpenChange, medication, onSave }: Med
               />
             </div>
             <div className="space-y-2">
-              <Label htmlFor="end">End Date</Label>
+              <Label htmlFor="end">Data de Término</Label>
               <Input
                 id="end"
                 type="date"
@@ -187,16 +187,16 @@ export function MedicationDialog({ open, onOpenChange, medication, onSave }: Med
               className="h-4 w-4 rounded border-border"
             />
             <Label htmlFor="active" className="font-normal cursor-pointer">
-              Mark as active
+              Marcar como ativa
             </Label>
           </div>
 
           <div className="flex gap-3 pt-4">
             <Button type="button" variant="outline" onClick={() => onOpenChange(false)} className="flex-1">
-              Cancel
+              Cancelar
             </Button>
             <Button type="submit" disabled={saving} className="flex-1">
-              {saving ? "Saving..." : "Save Medication"}
+              {saving ? "Salvando..." : "Salvar Medicação"}
             </Button>
           </div>
         </form>
