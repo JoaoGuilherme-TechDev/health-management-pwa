@@ -62,12 +62,6 @@ const notificationConfig: Record<
     bgColor: "bg-orange-100",
     label: "Receita de Dieta",
   },
-  diet_recipe_created: {
-    icon: Utensils,
-    color: "text-amber-600",
-    bgColor: "bg-amber-100",
-    label: "Dieta",
-  },
   prescription_created: {
     icon: FileText,
     color: "text-purple-600",
@@ -248,7 +242,7 @@ export function NotificationsCenter({ notifications, onMarkAsRead, onDelete, loa
       </div>
 
       {/* Notifications List */}
-      <ScrollArea className="h-[500px]">
+      <ScrollArea className="h-125">
         {filteredNotifications.length === 0 ? (
           <div className="flex flex-col items-center justify-center py-12 text-muted-foreground">
             <Bell className="h-12 w-12 mb-4 opacity-50" />
