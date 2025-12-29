@@ -12,6 +12,8 @@ import {
   Check,
   Trash2,
   Filter,
+  Clock,
+  ChefHat,
 } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
@@ -31,7 +33,7 @@ interface NotificationsCenterProps {
   loading?: boolean
 }
 
-// Icon and color mapping for each notification type
+// Updated icon and color mapping for each notification type
 const notificationConfig: Record<
   NotificationType,
   { icon: typeof Pill; color: string; bgColor: string; label: string }
@@ -48,10 +50,22 @@ const notificationConfig: Record<
     bgColor: "bg-green-100",
     label: "Consulta",
   },
-  diet_created: {
-    icon: Utensils,
+  appointment_reminder: {
+    icon: Clock,
+    color: "text-yellow-600",
+    bgColor: "bg-yellow-100",
+    label: "Lembrete",
+  },
+  diet_recipe_created: {
+    icon: ChefHat,
     color: "text-orange-600",
     bgColor: "bg-orange-100",
+    label: "Receita de Dieta",
+  },
+  diet_recipe_created: {
+    icon: Utensils,
+    color: "text-amber-600",
+    bgColor: "bg-amber-100",
     label: "Dieta",
   },
   prescription_created: {
@@ -188,6 +202,7 @@ export function NotificationsCenter({ notifications, onMarkAsRead, onDelete, loa
               Filtrar
             </Button>
           </CollapsibleTrigger>
+          
           <CollapsibleContent className="mt-2 space-y-2">
             <Button
               variant={filter === "all" ? "default" : "outline"}
@@ -233,7 +248,7 @@ export function NotificationsCenter({ notifications, onMarkAsRead, onDelete, loa
       </div>
 
       {/* Notifications List */}
-      <ScrollArea className="h-[400px]">
+      <ScrollArea className="h-[500px]">
         {filteredNotifications.length === 0 ? (
           <div className="flex flex-col items-center justify-center py-12 text-muted-foreground">
             <Bell className="h-12 w-12 mb-4 opacity-50" />

@@ -1,7 +1,6 @@
 "use client"
 
 import type React from "react"
-
 import { createClient } from "@/lib/supabase/client"
 import { useEffect, useState } from "react"
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "@/components/ui/dialog"
@@ -20,6 +19,9 @@ interface Medication {
   start_date: string
   end_date: string | null
   is_active: boolean
+  user_id: string
+  doctor_crm?: string
+  doctor_name?: string
 }
 
 interface MedicationDialogProps {
@@ -27,9 +29,10 @@ interface MedicationDialogProps {
   onOpenChange: (open: boolean) => void
   medication: Medication | null
   onSave: () => void
+  patientId?: string // Add this if dialog is used in admin context
 }
 
-export function MedicationDialog({ open, onOpenChange, medication, onSave }: MedicationDialogProps) {
+export function MedicationDialog({ open, onOpenChange, medication, onSave, patientId }: MedicationDialogProps) {
   const [formData, setFormData] = useState({
     name: "",
     dosage: "",
@@ -38,9 +41,34 @@ export function MedicationDialog({ open, onOpenChange, medication, onSave }: Med
     reason: "",
     start_date: new Date().toISOString().split("T")[0],
     end_date: "",
-    is_active: true,
+    side_effects: "", // Add this field to match your table
   })
   const [saving, setSaving] = useState(false)
+  const [doctorInfo, setDoctorInfo] = useState({ name: "", crm: "" })
+
+  // Load doctor info if creating as admin
+  useEffect(() => {
+    const loadDoctorInfo = async () => {
+      const supabase = createClient()
+      const { data: { user } } = await supabase.auth.getUser()
+      if (user) {
+        const { data: profile } = await supabase
+          .from("profiles")
+          .select("doctor_crm, doctor_full_name, first_name, last_name")
+          .eq("id", user.id)
+          .single()
+
+        if (profile) {
+          const doctorName = profile.doctor_full_name || `${profile.first_name} ${profile.last_name}`
+          setDoctorInfo({
+            name: doctorName,
+            crm: profile.doctor_crm || "",
+          })
+        }
+      }
+    }
+    loadDoctorInfo()
+  }, [])
 
   useEffect(() => {
     if (medication) {
@@ -48,11 +76,11 @@ export function MedicationDialog({ open, onOpenChange, medication, onSave }: Med
         name: medication.name,
         dosage: medication.dosage,
         frequency: medication.frequency,
-        prescribing_doctor: medication.prescribing_doctor,
+        prescribing_doctor: medication.doctor_name || medication.prescribing_doctor || "",
         reason: medication.reason,
         start_date: medication.start_date,
         end_date: medication.end_date || "",
-        is_active: medication.is_active,
+        side_effects: "", // You might need to fetch this separately
       })
     } else {
       setFormData({
@@ -63,7 +91,7 @@ export function MedicationDialog({ open, onOpenChange, medication, onSave }: Med
         reason: "",
         start_date: new Date().toISOString().split("T")[0],
         end_date: "",
-        is_active: true,
+        side_effects: "",
       })
     }
   }, [medication, open])
@@ -73,25 +101,55 @@ export function MedicationDialog({ open, onOpenChange, medication, onSave }: Med
     setSaving(true)
 
     const supabase = createClient()
-    const {
-      data: { user },
-    } = await supabase.auth.getUser()
+    const { data: { user } } = await supabase.auth.getUser()
 
-    if (user) {
-      if (medication) {
-        // Update existing
-        await supabase.from("medications").update(formData).eq("id", medication.id)
-      } else {
-        // Create new
-        await supabase.from("medications").insert({
-          user_id: user.id,
-          ...formData,
-        })
-      }
+    if (!user) {
+      alert("Usuário não autenticado")
+      setSaving(false)
+      return
     }
 
-    setSaving(false)
-    onSave()
+    try {
+      const medicationData = {
+        name: formData.name,
+        dosage: formData.dosage,
+        frequency: formData.frequency || "Não especificada",
+        reason: formData.reason,
+        start_date: formData.start_date,
+        end_date: formData.end_date || null,
+        side_effects: formData.side_effects,
+        // Use patientId if provided (admin context), otherwise use user.id (patient context)
+        user_id: patientId || user.id,
+        doctor_crm: doctorInfo.crm,
+        doctor_name: doctorInfo.name || formData.prescribing_doctor,
+        prescribing_doctor: formData.prescribing_doctor,
+      }
+
+      if (medication) {
+        // Update existing
+        const { error } = await supabase
+          .from("medications")
+          .update(medicationData)
+          .eq("id", medication.id)
+
+        if (error) throw error
+      } else {
+        // Create new - Use the same structure as your main form
+        const { error } = await supabase
+          .from("medications")
+          .insert(medicationData)
+
+        if (error) throw error
+      }
+
+      setSaving(false)
+      onSave()
+      onOpenChange(false)
+    } catch (error: any) {
+      console.error("Error saving medication:", error)
+      alert(`Erro ao salvar medicação: ${error.message}`)
+      setSaving(false)
+    }
   }
 
   return (
@@ -99,7 +157,9 @@ export function MedicationDialog({ open, onOpenChange, medication, onSave }: Med
       <DialogContent className="max-w-md">
         <DialogHeader>
           <DialogTitle>{medication ? "Editar Medicação" : "Adicionar Medicação"}</DialogTitle>
-          <DialogDescription>Insira os detalhes da sua medicação abaixo</DialogDescription>
+          <DialogDescription>
+            {patientId ? "Adicione uma medicação para o paciente" : "Insira os detalhes da sua medicação abaixo"}
+          </DialogDescription>
         </DialogHeader>
         <form onSubmit={handleSubmit} className="space-y-4">
           <div className="space-y-2">
@@ -109,7 +169,7 @@ export function MedicationDialog({ open, onOpenChange, medication, onSave }: Med
               required
               value={formData.name}
               onChange={(e) => setFormData({ ...formData, name: e.target.value })}
-              placeholder="ex.: Aspirina"
+              placeholder="ex.: Paracetamol"
             />
           </div>
 
@@ -131,15 +191,15 @@ export function MedicationDialog({ open, onOpenChange, medication, onSave }: Med
                 required
                 value={formData.frequency}
                 onChange={(e) => setFormData({ ...formData, frequency: e.target.value })}
-                placeholder="ex.: Duas vezes ao dia"
+                placeholder="ex.: 2x ao dia"
               />
             </div>
           </div>
 
           <div className="space-y-2">
-            <Label htmlFor="doctor">Médico Prescritor</Label>
+            <Label htmlFor="prescribing_doctor">Médico Prescritor</Label>
             <Input
-              id="doctor"
+              id="prescribing_doctor"
               value={formData.prescribing_doctor}
               onChange={(e) => setFormData({ ...formData, prescribing_doctor: e.target.value })}
               placeholder="Nome do médico"
@@ -152,15 +212,27 @@ export function MedicationDialog({ open, onOpenChange, medication, onSave }: Med
               id="reason"
               value={formData.reason}
               onChange={(e) => setFormData({ ...formData, reason: e.target.value })}
-              placeholder="Por que você está tomando essa medicação?"
+              placeholder="Por que esta medicação foi prescrita?"
+              rows={2}
+            />
+          </div>
+
+          <div className="space-y-2">
+            <Label htmlFor="side_effects">Efeitos Colaterais</Label>
+            <Textarea
+              id="side_effects"
+              value={formData.side_effects}
+              onChange={(e) => setFormData({ ...formData, side_effects: e.target.value })}
+              placeholder="Quais efeitos colaterais foram observados?"
+              rows={2}
             />
           </div>
 
           <div className="grid grid-cols-2 gap-4">
             <div className="space-y-2">
-              <Label htmlFor="start">Data de Início *</Label>
+              <Label htmlFor="start_date">Data de Início *</Label>
               <Input
-                id="start"
+                id="start_date"
                 type="date"
                 required
                 value={formData.start_date}
@@ -168,9 +240,9 @@ export function MedicationDialog({ open, onOpenChange, medication, onSave }: Med
               />
             </div>
             <div className="space-y-2">
-              <Label htmlFor="end">Data de Término</Label>
+              <Label htmlFor="end_date">Data de Término</Label>
               <Input
-                id="end"
+                id="end_date"
                 type="date"
                 value={formData.end_date}
                 onChange={(e) => setFormData({ ...formData, end_date: e.target.value })}
@@ -178,25 +250,12 @@ export function MedicationDialog({ open, onOpenChange, medication, onSave }: Med
             </div>
           </div>
 
-          <div className="flex items-center gap-2">
-            <input
-              type="checkbox"
-              id="active"
-              checked={formData.is_active}
-              onChange={(e) => setFormData({ ...formData, is_active: e.target.checked })}
-              className="h-4 w-4 rounded border-border"
-            />
-            <Label htmlFor="active" className="font-normal cursor-pointer">
-              Marcar como ativa
-            </Label>
-          </div>
-
           <div className="flex gap-3 pt-4">
             <Button type="button" variant="outline" onClick={() => onOpenChange(false)} className="flex-1">
               Cancelar
             </Button>
             <Button type="submit" disabled={saving} className="flex-1">
-              {saving ? "Salvando..." : "Salvar Medicação"}
+              {saving ? "Salvando..." : medication ? "Atualizar" : "Adicionar"}
             </Button>
           </div>
         </form>

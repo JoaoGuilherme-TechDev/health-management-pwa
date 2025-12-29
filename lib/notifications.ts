@@ -2,13 +2,14 @@ import { createClient } from "@/lib/supabase/server"
 import { formatBrasiliaDate, getCurrentBrasiliaTime } from "@/lib/timezone"
 
 // Notification types
-export type NotificationType =
-  | "medication_created"
-  | "appointment_created"
-  | "diet_created"
-  | "prescription_created"
-  | "supplement_created"
-  | "evolution_created"
+export type NotificationType = 
+  | 'medication_created'
+  | 'appointment_created'
+  | 'appointment_reminder'
+  | 'diet_recipe_created'
+  | 'prescription_created'
+  | 'supplement_created'
+  | 'evolution_created';
 
 // Notification data for creating a notification
 export interface CreateNotificationData {
@@ -18,6 +19,8 @@ export interface CreateNotificationData {
   message: string
   actionUrl?: string
 }
+
+
 
 // Notification returned from database
 export interface Notification {
@@ -76,6 +79,8 @@ export async function getNotifications(userId: string): Promise<Notification[]> 
 
   return data || []
 }
+
+
 
 // Get notifications for a user with optional filters
 export async function getNotificationsWithFilters(
@@ -197,7 +202,7 @@ export async function notifyDietCreated(
 
   return createNotification({
     userId,
-    type: "diet_created",
+    type: "diet_recipe_created",
     title: "Nova Dieta Adicionada",
     message: `${dietTitle}${mealStr}`,
     actionUrl: "/patient/diet",
@@ -266,7 +271,7 @@ export async function dispatchNotification(
       return notifyMedicationCreated(userId, payload.medicationName, payload.dosage)
     case "appointment_created":
       return notifyAppointmentCreated(userId, payload.appointmentTitle, payload.scheduledAt, payload.location)
-    case "diet_created":
+    case "diet_recipe_created":
       return notifyDietCreated(userId, payload.dietTitle, payload.mealType)
     case "prescription_created":
       return notifyPrescriptionCreated(userId, payload.prescriptionTitle, payload.doctorName)

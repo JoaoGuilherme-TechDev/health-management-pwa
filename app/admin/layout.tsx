@@ -72,7 +72,7 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
   return (
     <div className="min-h-screen bg-background">
       {/* Top Navigation - Mobile optimized */}
-      <nav className="sticky top-0 z-50 border-b border-border bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60">
+      <nav className="sticky top-0 z-50 border-b border-border bg-background/95 backdrop-blur supports-backdrop-filter:bg-background/60">
         <div className="mx-auto px-3 sm:px-6 lg:px-8 py-3 sm:py-4 flex items-center justify-between">
           <Link href="/admin" className="flex items-center gap-2">
             <Heart className="h-5 w-5 sm:h-6 sm:w-6 text-primary" />
@@ -126,7 +126,7 @@ function MobileNavLink({ href, icon: Icon, label }: { href: string; icon: any; l
   return (
     <Link
       href={href}
-      className="flex-shrink-0 flex flex-col items-center justify-center gap-1 px-3 py-2.5 min-w-[64px] text-muted-foreground hover:text-foreground transition-colors active:bg-accent/20 rounded-lg touch-manipulation"
+      className="shrink-0 flex flex-col items-center justify-center gap-1 px-3 py-2.5 min-w-16 text-muted-foreground hover:text-foreground transition-colors active:bg-accent/20 rounded-lg touch-manipulation"
     >
       <Icon className="h-5 w-5 shrink-0" />
       <span className="text-[10px] font-medium text-center leading-tight whitespace-nowrap">{label}</span>
