@@ -3,8 +3,9 @@
 import { createClient } from "@/lib/supabase/client"
 import { useEffect, useState } from "react"
 import { Card, CardContent } from "@/components/ui/card"
-import { Pill, Clock } from "lucide-react"
+import { Pill, Clock, AlertCircle } from "lucide-react"
 import { formatBrasiliaDate } from "@/lib/timezone"
+import { Alert, AlertDescription } from "@/components/ui/alert"
 
 interface MedicationSchedule {
   id: string
@@ -28,85 +29,169 @@ interface Medication {
 export default function MedicationsPage() {
   const [medications, setMedications] = useState<Medication[]>([])
   const [loading, setLoading] = useState(true)
+  const [error, setError] = useState<string | null>(null)
 
   const loadMedications = async () => {
-    const supabase = createClient()
-    const {
-      data: { user },
-    } = await supabase.auth.getUser()
+    try {
+      setLoading(true)
+      setError(null)
+      
+      const supabase = createClient()
+      const { data: { user } } = await supabase.auth.getUser()
 
-    if (user) {
-      const { data } = await supabase
+      if (!user) {
+        setError("Usuário não autenticado. Faça login novamente.")
+        setLoading(false)
+        return
+      }
+
+      console.log("Loading medications for user:", user.id)
+
+      // First, try a simple query without the join to isolate issues
+      const { data: medicationsData, error: medicationsError } = await supabase
         .from("medications")
-        .select(`
-          *,
-          medication_schedules (
-            id,
-            scheduled_time
-          )
-        `)
+        .select("*")
         .eq("user_id", user.id)
         .order("created_at", { ascending: false })
 
-      if (data) {
-        setMedications(data)
+      if (medicationsError) {
+        console.error("Error loading medications:", medicationsError)
+        setError(`Erro ao carregar medicamentos: ${medicationsError.message}`)
+        setLoading(false)
+        return
       }
-    }
 
-    setLoading(false)
+      console.log("Found medications:", medicationsData)
+
+      // If no medications found
+      if (!medicationsData || medicationsData.length === 0) {
+        setMedications([])
+        setLoading(false)
+        return
+      }
+
+      // Try to load schedules separately to avoid join issues
+      const medicationIds = medicationsData.map(med => med.id)
+      const { data: schedulesData, error: schedulesError } = await supabase
+        .from("medication_schedules")
+        .select("id, medication_id, scheduled_time")
+        .in("medication_id", medicationIds)
+
+      if (schedulesError) {
+        console.warn("Could not load schedules, continuing without them:", schedulesError)
+      }
+
+      // Combine medications with their schedules
+      const medicationsWithSchedules = medicationsData.map(med => ({
+        ...med,
+        medication_schedules: schedulesData?.filter(s => s.medication_id === med.id) || []
+      }))
+
+      setMedications(medicationsWithSchedules)
+      
+    } catch (error: any) {
+      console.error("Unexpected error:", error)
+      setError(`Erro inesperado: ${error.message}`)
+    } finally {
+      setLoading(false)
+    }
   }
 
   useEffect(() => {
     loadMedications()
 
-    const supabase = createClient()
+    // Set up real-time subscription
+    const setupRealtime = async () => {
+      const supabase = createClient()
+      const { data: { user } } = await supabase.auth.getUser()
+      
+      if (!user) return
 
-    supabase.auth.getUser().then(({ data: { user } }) => {
-      if (user) {
-        const medicationsChannel = supabase
-          .channel(`medications-${user.id}`)
-          .on(
-            "postgres_changes",
-            {
-              event: "*",
-              schema: "public",
-              table: "medications",
-              filter: `user_id=eq.${user.id}`,
-            },
-            () => {
-              console.log("[v0] Medicamento atualizado, recarregando...")
-              loadMedications()
-            },
-          )
-          .subscribe()
+      console.log("Setting up real-time for user:", user.id)
 
-        const schedulesChannel = supabase
-          .channel(`medication-schedules-${user.id}`)
-          .on(
-            "postgres_changes",
-            {
-              event: "*",
-              schema: "public",
-              table: "medication_schedules",
-              filter: `user_id=eq.${user.id}`,
-            },
-            () => {
-              console.log("[v0] Horários atualizados, recarregando...")
-              loadMedications()
-            },
-          )
-          .subscribe()
+      // Subscribe to medications changes
+      const medicationsChannel = supabase
+        .channel(`patient-medications-${user.id}`) // Fixed channel name
+        .on(
+          "postgres_changes",
+          {
+            event: "*",
+            schema: "public",
+            table: "medications",
+            filter: `user_id=eq.${user.id}`,
+          },
+          () => {
+            console.log("Medications updated, reloading...")
+            loadMedications()
+          }
+        )
+        .subscribe((status) => {
+          console.log("Medications channel status:", status)
+        })
 
-        return () => {
-          supabase.removeChannel(medicationsChannel)
-          supabase.removeChannel(schedulesChannel)
-        }
+      // Subscribe to medication_schedules changes
+      const schedulesChannel = supabase
+        .channel(`patient-medication-schedules-${user.id}`) // Fixed channel name
+        .on(
+          "postgres_changes",
+          {
+            event: "*",
+            schema: "public",
+            table: "medication_schedules",
+            filter: `user_id=eq.${user.id}`,
+          },
+          () => {
+            console.log("Medication schedules updated, reloading...")
+            loadMedications()
+          }
+        )
+        .subscribe((status) => {
+          console.log("Schedules channel status:", status)
+        })
+
+      return () => {
+        console.log("Cleaning up channels")
+        supabase.removeChannel(medicationsChannel)
+        supabase.removeChannel(schedulesChannel)
       }
-    })
+    }
+
+    const cleanup = setupRealtime()
+    
+    return () => {
+      if (cleanup) {
+        cleanup.then(cleanupFn => {
+          if (cleanupFn) cleanupFn()
+        })
+      }
+    }
   }, [])
 
   if (loading) {
-    return <div className="text-center py-12">Carregando medicamentos...</div>
+    return (
+      <div className="flex flex-col items-center justify-center py-12">
+        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary mb-4"></div>
+        <p className="text-muted-foreground">Carregando medicamentos...</p>
+      </div>
+    )
+  }
+
+  if (error) {
+    return (
+      <div className="space-y-6">
+        <div>
+          <h1 className="text-3xl font-bold text-foreground">Medicamentos</h1>
+          <p className="text-muted-foreground mt-1">Visualize seus medicamentos e dosagens prescritas pelo seu médico</p>
+        </div>
+        <Alert variant="destructive">
+          <AlertCircle className="h-4 w-4" />
+          <AlertDescription>{error}</AlertDescription>
+        </Alert>
+        <Button onClick={loadMedications} className="mt-4">
+          Tentar novamente
+        </Button>
+      </div>
+    )
   }
 
   return (
@@ -186,3 +271,6 @@ export default function MedicationsPage() {
     </div>
   )
 }
+
+// Add the missing Button component import
+import { Button } from "@/components/ui/button"
