@@ -1,36 +1,34 @@
-import type React from "react"
+// app/layout.tsx
+import type { Metadata, Viewport } from "next"
 import { Geist, Geist_Mono } from "next/font/google"
 import "./globals.css"
 import ClientLayout from "./clientLayout"
 
-const geist = Geist({ subsets: ["latin"] })
-const geistMono = Geist_Mono({ subsets: ["latin"] })
+const geist = Geist({ 
+  subsets: ["latin"],
+  display: 'swap',
+})
 
-export const metadata = {
+const geistMono = Geist_Mono({ 
+  subsets: ["latin"],
+  display: 'swap',
+})
+
+export const metadata: Metadata = {
   title: "HealthCare+ - Gerenciamento de Saúde",
   description: "Sistema completo de gerenciamento de saúde para pacientes e profissionais médicos.",
   generator: "v0.app",
   manifest: "/manifest.json",
   icons: {
     icon: [
-      {
-        url: "/icon-light-32x32.png",
-        media: "(prefers-color-scheme: light)",
-      },
-      {
-        url: "/icon-dark-32x32.png",
-        media: "(prefers-color-scheme: dark)",
-      },
-      {
-        url: "/icon.svg",
-        type: "image/svg+xml",
-      },
+      { url: "/favicon.ico", sizes: "any" },
+      { url: "/icon.svg", type: "image/svg+xml" },
     ],
     apple: "/apple-icon.png",
   },
 }
 
-export const viewport = {
+export const viewport: Viewport = {
   themeColor: [
     { media: "(prefers-color-scheme: light)", color: "#ffffff" },
     { media: "(prefers-color-scheme: dark)", color: "#000000" },
@@ -47,13 +45,16 @@ export default function RootLayout({
   children: React.ReactNode
 }>) {
   return (
-    <html lang="pt-BR" className={`${geist.className} ${geistMono.className}`}>
+    <html lang="pt-BR" className={`${geist.className}`}>
       <head>
         <link rel="manifest" href="/manifest.json" />
         <meta name="apple-mobile-web-app-capable" content="yes" />
         <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
         <meta name="apple-mobile-web-app-title" content="HealthCare+" />
         <link rel="apple-touch-icon" href="/apple-icon.png" />
+        {/* Fallback para favicon */}
+        <link rel="icon" href="/favicon.ico" sizes="any" />
+        <link rel="icon" href="/icon.svg" type="image/svg+xml" />
       </head>
       <ClientLayout>{children}</ClientLayout>
     </html>
