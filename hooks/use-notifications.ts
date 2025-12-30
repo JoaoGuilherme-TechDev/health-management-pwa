@@ -9,7 +9,7 @@ export function useNotifications(userId: string | null) {
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
 
-  const supabase = createClient()
+  const supabaseClient = createClient()
 
   // Fetch notifications
   const fetchNotifications = useCallback(async () => {
@@ -21,7 +21,7 @@ export function useNotifications(userId: string | null) {
 
     try {
       setLoading(true)
-      const { data, error } = await supabase
+      const { data, error } = await supabaseClient
         .from("notifications")
         .select("*")
         .eq("user_id", userId)
@@ -35,12 +35,12 @@ export function useNotifications(userId: string | null) {
     } finally {
       setLoading(false)
     }
-  }, [userId, supabase])
+  }, [userId, supabaseClient])
 
   // Mark as read
   const markAsRead = useCallback(
     async (notificationId: string) => {
-      const { error } = await supabase
+      const { error } = await supabaseClient
         .from("notifications")
         .update({ is_read: true, read_at: new Date().toISOString() })
         .eq("id", notificationId)
@@ -49,13 +49,13 @@ export function useNotifications(userId: string | null) {
         setNotifications((prev) => prev.map((n) => (n.id === notificationId ? { ...n, is_read: true } : n)))
       }
     },
-    [supabase],
+    [supabaseClient],
   )
 
   // Delete notification
   const deleteNotification = useCallback(
     async (notificationId: string) => {
-      const { error } = await supabase.from("notifications").delete().eq("id", notificationId)
+      const { error } = await supabaseClient.from("notifications").delete().eq("id", notificationId)
 
       if (!error) {
         setNotifications((prev) => prev.filter((n) => n.id !== notificationId))
@@ -63,7 +63,7 @@ export function useNotifications(userId: string | null) {
 
       return !error
     },
-    [supabase],
+    [supabaseClient],
   )
 
   // Initial fetch
@@ -75,7 +75,7 @@ export function useNotifications(userId: string | null) {
   useEffect(() => {
     if (!userId) return
 
-    const channel = supabase
+    const channel = supabaseClient
       .channel("notifications-changes")
       .on(
         "postgres_changes",
@@ -100,9 +100,9 @@ export function useNotifications(userId: string | null) {
       .subscribe()
 
     return () => {
-      supabase.removeChannel(channel)
+      supabaseClient.removeChannel(channel)
     }
-  }, [userId, supabase])
+  }, [userId, supabaseClient])
 
   const unreadCount = notifications.filter((n) => !n.is_read).length
 

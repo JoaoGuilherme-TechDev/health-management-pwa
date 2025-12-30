@@ -1,0 +1,34 @@
+"use client"
+
+import { useEffect } from "react"
+import { Analytics } from "@vercel/analytics/next"
+import Script from "next/script"
+
+export default function ClientLayout({
+  children,
+}: Readonly<{
+  children: React.ReactNode
+}>) {
+  useEffect(() => {
+    if ("serviceWorker" in navigator) {
+      window.addEventListener("load", () => {
+        navigator.serviceWorker
+          .register("/service-worker.js")
+          .then((registration) => {
+            console.log("Service Worker registrado com escopo:", registration.scope)
+          })
+          .catch((error) => {
+            console.error("Falha ao registrar Service Worker:", error)
+          })
+      })
+    }
+  }, [])
+
+  return (
+    <body className="font-sans antialiased">
+      {children}
+      <Analytics />
+      <Script src="/register-sw.js" strategy="afterInteractive" />
+    </body>
+  )
+}

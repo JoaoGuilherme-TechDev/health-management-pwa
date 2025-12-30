@@ -1,14 +1,12 @@
 import type React from "react"
-import type { Metadata } from "next"
 import { Geist, Geist_Mono } from "next/font/google"
-import { Analytics } from "@vercel/analytics/next"
 import "./globals.css"
-import Script from "next/script"
+import ClientLayout from "./clientLayout"
 
-const _geist = Geist({ subsets: ["latin"] })
-const _geistMono = Geist_Mono({ subsets: ["latin"] })
+const geist = Geist({ subsets: ["latin"] })
+const geistMono = Geist_Mono({ subsets: ["latin"] })
 
-export const metadata: Metadata = {
+export const metadata = {
   title: "HealthCare+ - Gerenciamento de Saúde",
   description: "Sistema completo de gerenciamento de saúde para pacientes e profissionais médicos.",
   generator: "v0.app",
@@ -49,7 +47,7 @@ export default function RootLayout({
   children: React.ReactNode
 }>) {
   return (
-    <html lang="pt-BR">
+    <html lang="pt-BR" className={`${geist.className} ${geistMono.className}`}>
       <head>
         <link rel="manifest" href="/manifest.json" />
         <meta name="apple-mobile-web-app-capable" content="yes" />
@@ -57,11 +55,7 @@ export default function RootLayout({
         <meta name="apple-mobile-web-app-title" content="HealthCare+" />
         <link rel="apple-touch-icon" href="/apple-icon.png" />
       </head>
-      <body className={`font-sans antialiased`}>
-        {children}
-        <Analytics />
-        <Script src="/register-sw.js" strategy="afterInteractive" />
-      </body>
+      <ClientLayout>{children}</ClientLayout>
     </html>
   )
 }

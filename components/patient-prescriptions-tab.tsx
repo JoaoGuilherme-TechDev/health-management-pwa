@@ -10,6 +10,7 @@ import { createClient } from "@/lib/supabase/client"
 import { Plus, FileText, Trash2, ExternalLink } from "lucide-react"
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog"
 import { formatBrasiliaDate } from "@/lib/timezone"
+import { pushNotifications } from "@/lib/push-notifications"
 
 export function PatientPrescriptionsTab({ patientId }: { patientId: string }) {
   const [prescriptions, setPrescriptions] = useState<any[]>([])
@@ -63,180 +64,180 @@ export function PatientPrescriptionsTab({ patientId }: { patientId: string }) {
   }
 
   const handleFileUpload = async (file: File) => {
-  setUploading(true);
-  const supabase = createClient();
-  
-  // Obtenha o usuário atual
-  const { data: { user } } = await supabase.auth.getUser();
-  
-  if (!user) {
-    alert("Usuário não autenticado");
-    setUploading(false);
-    return;
-  }
-
-  const timestamp = Date.now();
-  const fileExt = file.name.split('.').pop();
-  const fileName = `${timestamp}-${Math.random().toString(36).substring(2)}.${fileExt}`;
-  
-  // Inclua o user_id no caminho para facilitar políticas RLS
-  const filePath = `prescriptions/${patientId}/${user.id}/${fileName}`;
-
-  console.log("[v0] Fazendo upload para:", filePath);
-  console.log("[v0] Usuário:", user.id);
-
-  try {
-    const { data, error } = await supabase.storage
-      .from("prescriptions")
-      .upload(filePath, file, {
-        cacheControl: '3600',
-        upsert: false
-      });
-
-    if (error) {
-      console.error("[v0] Erro detalhado no upload:", {
-        message: error.message,
-        name: error.name,
-        stack: error.stack
-      });
-      
-      if (error.message.includes("row-level security")) {
-        alert("Erro de permissão: Verifique as políticas do bucket 'prescriptions' no Supabase.");
-      } else {
-        alert(`Erro ao fazer upload: ${error.message}`);
-      }
-      return;
-    }
-
-    console.log("[v0] Upload bem-sucedido:", data);
-
-    // Obtenha a URL pública
-    const { data: urlData } = supabase.storage
-      .from("prescriptions")
-      .getPublicUrl(filePath);
-
-    if (urlData?.publicUrl) {
-      console.log("[v0] URL pública gerada:", urlData.publicUrl);
-      setFormData({ ...formData, prescription_file_url: urlData.publicUrl });
-    } else {
-      alert("Erro ao gerar URL pública do arquivo");
-    }
-  } catch (err) {
-    console.error("[v0] Exceção no upload:", err);
-    alert("Erro inesperado ao fazer upload do arquivo");
-  }
-  setUploading(false);
-};
-
-  const handleAdd = async () => {
-  console.log("[v0] Iniciando adição de receita...")
-  const supabase = createClient()
-  
-  // 1. Primeiro valide se há arquivo
-  if (!formData.prescription_file_url) {
-    alert("Por favor, faça o upload da receita médica antes de adicionar.")
-    return
-  }
-
-  const { data: { user }, error: authError } = await supabase.auth.getUser()
-  
-  if (authError || !user) {
-    console.error("[v0] Erro de autenticação:", authError)
-    alert("Erro: Usuário não autenticado")
-    return
-  }
-
-  console.log("[v0] Usuário atual:", {
-    id: user.id,
-    email: user.email
-  })
-
-  // 2. Prepare os dados SEM a URL inicialmente (para debug)
-  const dataToInsert = {
-    patient_id: patientId,
-    doctor_id: user.id,
-    title: formData.title,
-    description: formData.description || null,
-    valid_until: formData.valid_until || null,
-    notes: formData.notes || null,
-    prescription_file_url: formData.prescription_file_url,
-    created_at: new Date().toISOString(),
-    updated_at: new Date().toISOString()
-  }
-
-  console.log("[v0] Dados a inserir:", JSON.stringify(dataToInsert, null, 2))
-
-  try {
-    // 3. Tente inserir sem a URL primeiro para testar
-    const testData = { ...dataToInsert, prescription_file_url: null }
-    const { error: testError } = await supabase
-      .from("medical_prescriptions")
-      .insert(testData)
-      .select()
-
-    if (!testError) {
-      console.log("[v0] Teste de inserção sem URL funcionou")
-      // Delete o registro de teste
-      await supabase.from("medical_prescriptions").delete().eq('patient_id', patientId).eq('title', formData.title + " (TEST)")
-    }
-
-    // 4. Agora tente com a URL real
-    const { data, error } = await supabase
-      .from("medical_prescriptions")
-      .insert(dataToInsert)
-      .select()
-
-    console.log("[v0] Resposta completa:", { data, error })
-
-    if (error) {
-      console.error("[v0] Erro detalhado:", {
-        code: error.code,
-        message: error.message,
-        details: error.details,
-        hint: error.hint
-      })
-      
-      // 5. Se o erro for de RLS, verifique se o bucket está correto
-      if (error.message.includes("row-level security")) {
-        // Verifique se a URL do arquivo está no formato correto
-        console.log("[v0] URL do arquivo:", formData.prescription_file_url)
-        
-        // Verifique se o arquivo realmente existe no storage
-        const { data: fileData, error: fileError } = await supabase
-          .storage
-          .from('prescriptions')
-          .list(`prescriptions/${patientId}/`)
-        
-        if (!fileError) {
-          console.log("[v0] Arquivos no storage:", fileData)
-        }
-      }
-      
-      alert(`Erro ao adicionar receita: ${error.message}`)
+    setUploading(true)
+    const supabase = createClient()
+    
+    // Obtenha o usuário atual
+    const { data: { user } } = await supabase.auth.getUser()
+    
+    if (!user) {
+      alert("Usuário não autenticado")
+      setUploading(false)
       return
     }
 
-    if (data && data.length > 0) {
-      console.log("[v0] Receita adicionada com sucesso:", data[0])
-      alert("Receita adicionada com sucesso!")
-      
-      setShowDialog(false)
-      setFormData({
-        title: "",
-        description: "",
-        valid_until: "",
-        notes: "",
-        prescription_file_url: "",
-      })
-      loadPrescriptions()
-    } else {
-      alert("Erro: Nenhum dado retornado após inserção")
+    const timestamp = Date.now()
+    const fileExt = file.name.split('.').pop()
+    const fileName = `${timestamp}-${Math.random().toString(36).substring(2)}.${fileExt}`
+    const filePath = `prescriptions/${patientId}/${user.id}/${fileName}`
+
+    console.log("[v0] Fazendo upload para:", filePath)
+    console.log("[v0] Usuário:", user.id)
+
+    try {
+      const { data, error } = await supabase.storage
+        .from("prescriptions")
+        .upload(filePath, file, {
+          cacheControl: '3600',
+          upsert: false
+        })
+
+      if (error) {
+        console.error("[v0] Erro detalhado no upload:", {
+          message: error.message,
+          name: error.name,
+          stack: error.stack
+        })
+        
+        if (error.message.includes("row-level security")) {
+          alert("Erro de permissão: Verifique as políticas do bucket 'prescriptions' no Supabase.")
+        } else {
+          alert(`Erro ao fazer upload: ${error.message}`)
+        }
+        return
+      }
+
+      console.log("[v0] Upload bem-sucedido:", data)
+
+      // Obtenha a URL pública
+      const { data: urlData } = supabase.storage
+        .from("prescriptions")
+        .getPublicUrl(filePath)
+
+      if (urlData?.publicUrl) {
+        console.log("[v0] URL pública gerada:", urlData.publicUrl)
+        setFormData({ ...formData, prescription_file_url: urlData.publicUrl })
+      } else {
+        alert("Erro ao gerar URL pública do arquivo")
+      }
+    } catch (err) {
+      console.error("[v0] Exceção no upload:", err)
+      alert("Erro inesperado ao fazer upload do arquivo")
+    } finally {
+      setUploading(false)
     }
-  } catch (err) {
-    console.error("[v0] Exceção:", err)
-    alert("Erro inesperado ao adicionar receita")
   }
-}
+
+  const handleAdd = async () => {
+    console.log("[v0] Iniciando adição de receita...")
+    const supabase = createClient()
+    
+    // 1. Primeiro valide se há arquivo
+    if (!formData.prescription_file_url) {
+      alert("Por favor, faça o upload da receita médica antes de adicionar.")
+      return
+    }
+
+    const { data: { user }, error: authError } = await supabase.auth.getUser()
+    
+    if (authError || !user) {
+      console.error("[v0] Erro de autenticação:", authError)
+      alert("Erro: Usuário não autenticado")
+      return
+    }
+
+    console.log("[v0] Usuário atual:", {
+      id: user.id,
+      email: user.email
+    })
+
+    // 2. Prepare os dados
+    const dataToInsert = {
+      patient_id: patientId,
+      doctor_id: user.id,
+      title: formData.title,
+      description: formData.description || null,
+      valid_until: formData.valid_until || null,
+      notes: formData.notes || null,
+      prescription_file_url: formData.prescription_file_url,
+      created_at: new Date().toISOString(),
+      updated_at: new Date().toISOString()
+    }
+
+    console.log("[v0] Dados a inserir:", JSON.stringify(dataToInsert, null, 2))
+
+    try {
+      // 3. Inserir a prescrição
+      const { data, error } = await supabase
+        .from("medical_prescriptions")
+        .insert(dataToInsert)
+        .select()
+
+      console.log("[v0] Resposta completa:", { data, error })
+
+      if (error) {
+        console.error("[v0] Erro detalhado:", {
+          code: error.code,
+          message: error.message,
+          details: error.details,
+          hint: error.hint
+        })
+        
+        // 4. Se o erro for de RLS, verifique se o bucket está correto
+        if (error.message.includes("row-level security")) {
+          console.log("[v0] URL do arquivo:", formData.prescription_file_url)
+          
+          // Verifique se o arquivo realmente existe no storage
+          const { data: fileData, error: fileError } = await supabase
+            .storage
+            .from('prescriptions')
+            .list(`prescriptions/${patientId}/`)
+          
+          if (!fileError) {
+            console.log("[v0] Arquivos no storage:", fileData)
+          }
+        }
+        
+        alert(`Erro ao adicionar receita: ${error.message}`)
+        return
+      }
+
+      if (data && data.length > 0) {
+        console.log("[v0] Receita adicionada com sucesso:", data[0])
+        
+        // 5. Enviar notificação push APÓS a inserção bem-sucedida
+        try {
+          const result = await pushNotifications.sendNewPrescription(patientId, formData.title)
+          
+          if (result.skipped) {
+            console.log("Notificação push não enviada:", result.reason)
+          } else {
+            console.log("Notificação push enviada com sucesso")
+          }
+        } catch (notificationError) {
+          console.error("Erro ao enviar notificação push:", notificationError)
+          // Não interrompe o fluxo principal, apenas loga o erro
+        }
+
+        alert("Receita adicionada com sucesso!")
+        
+        setShowDialog(false)
+        setFormData({
+          title: "",
+          description: "",
+          valid_until: "",
+          notes: "",
+          prescription_file_url: "",
+        })
+        loadPrescriptions()
+      } else {
+        alert("Erro: Nenhum dado retornado após inserção")
+      }
+    } catch (err) {
+      console.error("[v0] Exceção:", err)
+      alert("Erro inesperado ao adicionar receita")
+    }
+  }
 
   const handleDelete = async (id: string) => {
     if (!confirm("Tem certeza que deseja remover esta receita? Esta ação não pode ser desfeita.")) {
@@ -356,7 +357,7 @@ export function PatientPrescriptionsTab({ patientId }: { patientId: string }) {
                 <Input
                   type="file"
                   accept=".pdf,.png,.jpg,.jpeg"
-                  onChange={(e) => e.target.files && handleFileUpload(e.target.files[0])}
+                  onChange={(e) => e.target.files && e.target.files[0] && handleFileUpload(e.target.files[0])}
                   disabled={uploading}
                   className="flex-1"
                 />
