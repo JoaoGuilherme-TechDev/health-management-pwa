@@ -1,6 +1,7 @@
+// app/clientLayout.tsx
 "use client"
 
-import { useEffect } from "react"
+import { useEffect, useState } from "react"
 import { Analytics } from "@vercel/analytics/next"
 import Script from "next/script"
 
@@ -9,8 +10,12 @@ export default function ClientLayout({
 }: Readonly<{
   children: React.ReactNode
 }>) {
+  const [isClient, setIsClient] = useState(false)
+
   useEffect(() => {
-    if ("serviceWorker" in navigator) {
+    setIsClient(true)
+    
+    if ("serviceWorker" in navigator && process.env.NODE_ENV === "production") {
       window.addEventListener("load", () => {
         navigator.serviceWorker
           .register("/service-worker.js")
@@ -28,7 +33,9 @@ export default function ClientLayout({
     <body className="font-sans antialiased">
       {children}
       <Analytics />
-      <Script src="/register-sw.js" strategy="afterInteractive" />
+      {isClient && (
+        <Script src="/register-sw.js" strategy="afterInteractive" />
+      )}
     </body>
   )
 }

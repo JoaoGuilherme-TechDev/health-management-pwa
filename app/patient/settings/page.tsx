@@ -7,7 +7,7 @@ import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Textarea } from "@/components/ui/textarea"
-import { LogOut, Bell, BellOff, BellRing, TestTube } from "lucide-react"
+import { LogOut, Bell, BellOff, BellRing, TestTube, AlertCircle } from "lucide-react"
 import { useRouter } from "next/navigation"
 
 interface Profile {
@@ -55,6 +55,7 @@ export default function SettingsPage() {
 
   const [notificationPermission, setNotificationPermission] = useState<NotificationPermission>("default")
   const [isSubscribed, setIsSubscribed] = useState(false)
+  const [pushError, setPushError] = useState<string>("")
 
   useEffect(() => {
     const loadProfile = async () => {
@@ -92,17 +93,30 @@ export default function SettingsPage() {
       setNotificationPermission(Notification.permission)
       
       // Verificar se está inscrito em push notifications
-      if ('serviceWorker' in navigator && 'PushManager' in window) {
-        checkPushSubscription()
-      }
+      checkPushSubscription()
     }
   }, [])
 
   const checkPushSubscription = async () => {
     try {
+      if (!('serviceWorker' in navigator) || !('PushManager' in window)) {
+        return
+      }
+      
+      // Primeiro, garantir que o service worker está registrado
+      if (!navigator.serviceWorker.controller) {
+        console.log("Service Worker não está registrado ainda")
+        return
+      }
+      
       const registration = await navigator.serviceWorker.ready
       const subscription = await registration.pushManager.getSubscription()
       setIsSubscribed(!!subscription)
+      
+      if (subscription) {
+        console.log("✅ Usuário já inscrito para push notifications")
+        console.log("Endpoint:", subscription.endpoint.substring(0, 50) + "...")
+      }
     } catch (error) {
       console.error("Erro ao verificar inscrição:", error)
     }
@@ -146,132 +160,225 @@ export default function SettingsPage() {
     router.push("/auth/login")
   }
 
-  const requestNotificationPermission = async () => {
-    if (!('Notification' in window)) {
-      alert("Seu navegador não suporta notificações")
+  // Função para converter chave VAPID
+  const urlBase64ToUint8Array = (base64String: string): Uint8Array => {
+    const padding = '='.repeat((4 - base64String.length % 4) % 4)
+    const base64 = (base64String + padding)
+      .replace(/\-/g, '+')
+      .replace(/_/g, '/')
+    const rawData = window.atob(base64)
+    const outputArray = new Uint8Array(rawData.length)
+    for (let i = 0; i < rawData.length; ++i) {
+      outputArray[i] = rawData.charCodeAt(i)
+    }
+    return outputArray
+  }
+
+  const activatePushNotifications = async () => {
+    setPushError("")
+    
+    // 1. Verificar suporte
+    if (!('serviceWorker' in navigator)) {
+      setPushError("Seu navegador não suporta Service Workers")
       return
     }
 
+    if (!('PushManager' in window)) {
+      setPushError("Seu navegador não suporta Push Notifications")
+      return
+    }
+
+    // 2. Solicitar permissão
+    console.log("Solicitando permissão para notificações...")
+    const permission = await Notification.requestPermission()
+    setNotificationPermission(permission)
+    
+    if (permission !== "granted") {
+      setPushError(`Permissão ${permission}. Você precisa permitir notificações.`)
+      return
+    }
+
+    console.log("✅ Permissão concedida para notificações")
+
     try {
-      const permission = await Notification.requestPermission()
-      setNotificationPermission(permission)
+      // 3. Registrar Service Worker (se não estiver)
+      console.log("Registrando Service Worker...")
+      let registration = await navigator.serviceWorker.getRegistration("/")
       
-      if (permission === "granted") {
-        // Tente se inscrever em push notifications
-        await subscribeToPushNotifications()
-        setNotificationSettings(prev => ({ ...prev, enabled: true }))
-        alert("Notificações ativadas com sucesso!")
+      if (!registration) {
+        registration = await navigator.serviceWorker.register("/service-worker.js", {
+          scope: "/",
+        })
+        console.log("✅ Service Worker registrado:", registration.scope)
+      } else {
+        console.log("✅ Service Worker já registrado:", registration.scope)
       }
-    } catch (error) {
-      console.error("Erro ao solicitar permissão:", error)
+
+      // 4. Aguardar Service Worker ficar pronto
+      await navigator.serviceWorker.ready
+      console.log("✅ Service Worker pronto")
+
+      // 5. Verificar chave VAPID
+      const vapidPublicKey = process.env.NEXT_PUBLIC_VAPID_PUBLIC_KEY
+      console.log("Chave VAPID configurada?", !!vapidPublicKey)
+
+      if (!vapidPublicKey) {
+        setPushError("Chave VAPID não configurada no servidor")
+        return
+      }
+
+      // 6. Converter chave VAPID
+      let applicationServerKey: Uint8Array
+      try {
+        applicationServerKey = urlBase64ToUint8Array(vapidPublicKey)
+        console.log("✅ Chave VAPID convertida")
+      } catch (error) {
+        setPushError("Erro ao converter chave VAPID: " + error.message)
+        return
+      }
+
+      // 7. Verificar se já está inscrito
+      const existingSubscription = await registration.pushManager.getSubscription()
+      if (existingSubscription) {
+        console.log("✅ Já está inscrito. Atualizando status...")
+        setIsSubscribed(true)
+        setNotificationSettings(prev => ({ ...prev, enabled: true }))
+        alert("Notificações já estão ativadas!")
+        return
+      }
+
+      // 8. Inscrever para Push Notifications
+      console.log("Inscrevendo para Push Notifications...")
+      const subscription = await registration.pushManager.subscribe({
+        userVisibleOnly: true,
+        applicationServerKey,
+      })
+
+      console.log("✅ Inscrito com sucesso!")
+      console.log("Endpoint:", subscription.endpoint.substring(0, 50) + "...")
+
+      // 9. Salvar subscription no Supabase
+      console.log("Salvando subscription no Supabase...")
+      const supabase = createClient()
+      const { data: { user } } = await supabase.auth.getUser()
+      
+      if (!user) {
+        setPushError("Usuário não autenticado")
+        return
+      }
+
+      const subscriptionJson = subscription.toJSON()
+      
+      const { error } = await supabase.from("push_subscriptions").upsert({
+        user_id: user.id,
+        endpoint: subscriptionJson.endpoint,
+        p256dh: subscriptionJson.keys?.p256dh,
+        auth: subscriptionJson.keys?.auth,
+        expiration_time: subscriptionJson.expirationTime || null,
+        created_at: new Date().toISOString(),
+        updated_at: new Date().toISOString(),
+      })
+
+      if (error) {
+        console.error("Erro ao salvar no Supabase:", error)
+        setPushError("Erro ao salvar configurações: " + error.message)
+        return
+      }
+
+      // 10. Atualizar estado
+      setIsSubscribed(true)
+      setNotificationSettings(prev => ({ ...prev, enabled: true }))
+      
+      // 11. Mostrar notificação de teste
+      console.log("Mostrando notificação de boas-vindas...")
+      const welcomeNotification = new Notification("HealthCare+", {
+        body: "Notificações ativadas com sucesso! Você receberá alertas importantes.",
+        icon: "/icon-light-32x32.png",
+        tag: "welcome-notification",
+      })
+
+      welcomeNotification.onclick = () => {
+        console.log("Notificação clicada")
+        welcomeNotification.close()
+      }
+
+      alert("✅ Notificações ativadas com sucesso!")
+      console.log("🎉 Processo de ativação concluído com sucesso!")
+
+    } catch (error: any) {
+      console.error("❌ Erro detalhado ao ativar notificações:", error)
+      setPushError("Erro: " + (error.message || "Falha ao ativar notificações"))
     }
   }
 
-  const subscribeToPushNotifications = async () => {
+  const deactivatePushNotifications = async () => {
+    setPushError("")
+    
     try {
-      const registration = await navigator.serviceWorker.ready
-      
-      // Substitua pela sua chave pública VAPID
-      const vapidPublicKey = process.env.NEXT_PUBLIC_VAPID_PUBLIC_KEY || "SUBSTITUA_SUA_CHAVE"
-      
-      const subscription = await registration.pushManager.subscribe({
-        userVisibleOnly: true,
-        applicationServerKey: urlBase64ToUint8Array(vapidPublicKey) as unknown as ArrayBuffer
-      })
-      
-      // Enviar subscription para o backend
+      // 1. Cancelar subscription
+      if ('serviceWorker' in navigator && 'PushManager' in window) {
+        const registration = await navigator.serviceWorker.ready
+        const subscription = await registration.pushManager.getSubscription()
+        
+        if (subscription) {
+          const unsubscribed = await subscription.unsubscribe()
+          if (!unsubscribed) {
+            console.warn("Não foi possível cancelar a subscription no navegador")
+          }
+        }
+      }
+
+      // 2. Remover do Supabase
       const supabase = createClient()
       const { data: { user } } = await supabase.auth.getUser()
       
       if (user) {
         await supabase
           .from("push_subscriptions")
-          .upsert({
-            user_id: user.id,
-            subscription: subscription.toJSON(),
-            created_at: new Date().toISOString()
-          })
+          .delete()
+          .eq("user_id", user.id)
       }
-      
-      setIsSubscribed(true)
-      return true
-    } catch (error) {
-      console.error("Erro ao se inscrever em push notifications:", error)
-      return false
-    }
-  }
 
-  const unsubscribeFromPushNotifications = async () => {
-    try {
-      const registration = await navigator.serviceWorker.ready
-      const subscription = await registration.pushManager.getSubscription()
-      
-      if (subscription) {
-        await subscription.unsubscribe()
-        
-        // Remover do banco de dados
-        const supabase = createClient()
-        const { data: { user } } = await supabase.auth.getUser()
-        
-        if (user) {
-          await supabase
-            .from("push_subscriptions")
-            .delete()
-            .eq("user_id", user.id)
-        }
-      }
-      
+      // 3. Atualizar estado
       setIsSubscribed(false)
       setNotificationSettings(prev => ({ ...prev, enabled: false }))
-      alert("Notificações desativadas")
-    } catch (error) {
-      console.error("Erro ao cancelar inscrição:", error)
+      
+      alert("✅ Notificações desativadas com sucesso!")
+      
+    } catch (error: any) {
+      console.error("Erro ao desativar notificações:", error)
+      setPushError("Erro: " + error.message)
     }
   }
 
   const sendTestNotification = async () => {
-    if (!('Notification' in window) || notificationPermission !== "granted") {
-      alert("Permissão de notificação não concedida")
-      return
-    }
-
     setTestingNotification(true)
+    setPushError("")
     
     try {
+      if (notificationPermission !== "granted") {
+        alert("Permissão de notificação não concedida")
+        return
+      }
+
       const registration = await navigator.serviceWorker.ready
       
       await registration.showNotification("HealthCare+ - Notificação de Teste", {
-        body: "Esta é uma notificação de teste do HealthCare+!",
+        body: "Esta é uma notificação de teste! Se você vê isso, as notificações push estão funcionando corretamente.",
         icon: "/icon-light-32x32.png",
-        badge: "/icon-light-32x32.png",
+        badge: "/badge-72x72.png",
         tag: "test-notification",
         requireInteraction: true,
       })
       
-      alert("Notificação de teste enviada!")
-    } catch (error) {
+      alert("✅ Notificação de teste enviada!")
+      
+    } catch (error: any) {
       console.error("Erro ao enviar notificação:", error)
-      alert("Erro ao enviar notificação de teste")
+      setPushError("Erro ao enviar notificação: " + error.message)
     } finally {
       setTestingNotification(false)
     }
-  }
-
-  // Função utilitária para converter chave VAPID
-  function urlBase64ToUint8Array(base64String: string): Uint8Array {
-    const padding = "=".repeat((4 - base64String.length % 4) % 4)
-    const base64 = (base64String + padding)
-      .replace(/\-/g, "+")
-      .replace(/_/g, "/")
-
-    const rawData = window.atob(base64)
-    const outputArray = new Uint8Array(rawData.length)
-
-    for (let i = 0; i < rawData.length; ++i) {
-      outputArray[i] = rawData.charCodeAt(i)
-    }
-    
-    return outputArray
   }
 
   if (loading) {
@@ -381,7 +488,7 @@ export default function SettingsPage() {
         </CardContent>
       </Card>
 
-      {/* NOVO CARD: NOTIFICAÇÕES PUSH */}
+      {/* CARD DE NOTIFICAÇÕES PUSH - CORRIGIDO */}
       <Card>
         <CardHeader>
           <CardTitle className="flex items-center gap-2">
@@ -398,11 +505,13 @@ export default function SettingsPage() {
               <div>
                 <h3 className="font-medium text-foreground">Status das Notificações</h3>
                 <p className="text-sm text-muted-foreground">
-                  {notificationPermission === "granted" 
-                    ? "Permissão concedida" 
+                  {notificationPermission === "granted" && isSubscribed
+                    ? "✅ Ativas - Você receberá notificações mesmo com o app fechado"
+                    : notificationPermission === "granted" && !isSubscribed
+                    ? "⚠️ Permissão concedida, mas não inscrito"
                     : notificationPermission === "denied"
-                    ? "Permissão negada"
-                    : "Aguardando permissão"}
+                    ? "❌ Permissão negada"
+                    : "⏳ Aguardando sua decisão"}
                 </p>
               </div>
               <div className="flex items-center gap-2">
@@ -420,235 +529,190 @@ export default function SettingsPage() {
               </div>
             </div>
 
-            {notificationPermission !== "granted" ? (
-              <Button 
-                onClick={requestNotificationPermission}
-                className="w-full"
-              >
-                <Bell className="h-4 w-4 mr-2" />
-                Ativar Notificações
-              </Button>
-            ) : isSubscribed ? (
-              <div className="space-y-3">
+            {/* Botões principais */}
+            <div className="space-y-3">
+              {!isSubscribed ? (
                 <Button 
-                  onClick={unsubscribeFromPushNotifications}
-                  variant="outline"
-                  className="w-full"
+                  onClick={activatePushNotifications}
+                  className="w-full py-6"
+                  size="lg"
                 >
-                  <BellOff className="h-4 w-4 mr-2" />
-                  Desativar Notificações
+                  <Bell className="h-5 w-5 mr-2" />
+                  Ativar Notificações Push
                 </Button>
-                
-                <Button 
-                  onClick={sendTestNotification}
-                  disabled={testingNotification}
-                  className="w-full"
-                >
-                  <TestTube className="h-4 w-4 mr-2" />
-                  {testingNotification ? "Enviando..." : "Enviar Notificação de Teste"}
-                </Button>
+              ) : (
+                <>
+                  <Button 
+                    onClick={deactivatePushNotifications}
+                    variant="outline"
+                    className="w-full py-6"
+                    size="lg"
+                  >
+                    <BellOff className="h-5 w-5 mr-2" />
+                    Desativar Notificações
+                  </Button>
+                  
+                  <Button 
+                    onClick={sendTestNotification}
+                    disabled={testingNotification}
+                    className="w-full"
+                    variant="secondary"
+                  >
+                    <TestTube className="h-4 w-4 mr-2" />
+                    {testingNotification ? "Enviando..." : "Enviar Notificação de Teste"}
+                  </Button>
+                </>
+              )}
+            </div>
+
+            {/* Mensagem de erro */}
+            {pushError && (
+              <div className="p-3 bg-red-50 border border-red-200 rounded-lg">
+                <div className="flex items-center gap-2">
+                  <AlertCircle className="h-4 w-4 text-red-600 flex-shrink-0" />
+                  <p className="text-sm text-red-800">{pushError}</p>
+                </div>
               </div>
-            ) : (
-              <Button 
-                onClick={requestNotificationPermission}
-                className="w-full"
-              >
-                Reativar Notificações
-              </Button>
             )}
 
             {notificationPermission === "denied" && (
               <div className="p-3 bg-yellow-50 border border-yellow-200 rounded-lg">
-                <p className="text-sm text-yellow-800">
-                  Você bloqueou as notificações. Para ativá-las, acesse as configurações do seu navegador.
-                </p>
+                <div className="flex items-center gap-2">
+                  <AlertCircle className="h-4 w-4 text-yellow-600 flex-shrink-0" />
+                  <p className="text-sm text-yellow-800">
+                    Você bloqueou as notificações. Para ativá-las, acesse as configurações do seu navegador.
+                  </p>
+                </div>
               </div>
             )}
           </div>
 
-          <div className="space-y-4">
-            <h3 className="font-medium text-foreground">Preferências de Notificação</h3>
-            <div className="space-y-3">
-              <div className="flex items-center justify-between">
-                <Label htmlFor="appointment-reminders" className="cursor-pointer">
-                  Lembretes de Consulta
-                </Label>
-                <input
-                  id="appointment-reminders"
-                  type="checkbox"
-                  checked={notificationSettings.appointment_reminders}
-                  onChange={(e) => setNotificationSettings({
-                    ...notificationSettings,
-                    appointment_reminders: e.target.checked
-                  })}
-                  className="h-4 w-4 rounded border-gray-300 text-blue-600 focus:ring-blue-500"
-                  disabled={!isSubscribed}
-                />
+          {/* Preferências (só aparecem se ativado) */}
+          {isSubscribed && (
+            <>
+              <div className="space-y-4">
+                <h3 className="font-medium text-foreground">Preferências de Notificação</h3>
+                <div className="space-y-3">
+                  <div className="flex items-center justify-between">
+                    <Label htmlFor="appointment-reminders" className="cursor-pointer">
+                      Lembretes de Consulta
+                    </Label>
+                    <input
+                      id="appointment-reminders"
+                      type="checkbox"
+                      checked={notificationSettings.appointment_reminders}
+                      onChange={(e) => setNotificationSettings({
+                        ...notificationSettings,
+                        appointment_reminders: e.target.checked
+                      })}
+                      className="h-4 w-4 rounded border-gray-300 text-blue-600 focus:ring-blue-500"
+                    />
+                  </div>
+
+                  <div className="flex items-center justify-between">
+                    <Label htmlFor="medication-reminders" className="cursor-pointer">
+                      Lembretes de Medicamento
+                    </Label>
+                    <input
+                      id="medication-reminders"
+                      type="checkbox"
+                      checked={notificationSettings.medication_reminders}
+                      onChange={(e) => setNotificationSettings({
+                        ...notificationSettings,
+                        medication_reminders: e.target.checked
+                      })}
+                      className="h-4 w-4 rounded border-gray-300 text-blue-600 focus:ring-blue-500"
+                    />
+                  </div>
+
+                  <div className="flex items-center justify-between">
+                    <Label htmlFor="lab-results" className="cursor-pointer">
+                      Resultados de Exames
+                    </Label>
+                    <input
+                      id="lab-results"
+                      type="checkbox"
+                      checked={notificationSettings.lab_results}
+                      onChange={(e) => setNotificationSettings({
+                        ...notificationSettings,
+                        lab_results: e.target.checked
+                      })}
+                      className="h-4 w-4 rounded border-gray-300 text-blue-600 focus:ring-blue-500"
+                    />
+                  </div>
+
+                  <div className="flex items-center justify-between">
+                    <Label htmlFor="doctor-messages" className="cursor-pointer">
+                      Mensagens do Médico
+                    </Label>
+                    <input
+                      id="doctor-messages"
+                      type="checkbox"
+                      checked={notificationSettings.doctor_messages}
+                      onChange={(e) => setNotificationSettings({
+                        ...notificationSettings,
+                        doctor_messages: e.target.checked
+                      })}
+                      className="h-4 w-4 rounded border-gray-300 text-blue-600 focus:ring-blue-500"
+                    />
+                  </div>
+
+                  <div className="flex items-center justify-between">
+                    <Label htmlFor="promotions" className="cursor-pointer">
+                      Promoções e Ofertas
+                    </Label>
+                    <input
+                      id="promotions"
+                      type="checkbox"
+                      checked={notificationSettings.promotions}
+                      onChange={(e) => setNotificationSettings({
+                        ...notificationSettings,
+                        promotions: e.target.checked
+                      })}
+                      className="h-4 w-4 rounded border-gray-300 text-blue-600 focus:ring-blue-500"
+                    />
+                  </div>
+                </div>
               </div>
 
-              <div className="flex items-center justify-between">
-                <Label htmlFor="medication-reminders" className="cursor-pointer">
-                  Lembretes de Medicamento
-                </Label>
-                <input
-                  id="medication-reminders"
-                  type="checkbox"
-                  checked={notificationSettings.medication_reminders}
-                  onChange={(e) => setNotificationSettings({
-                    ...notificationSettings,
-                    medication_reminders: e.target.checked
-                  })}
-                  className="h-4 w-4 rounded border-gray-300 text-blue-600 focus:ring-blue-500"
-                  disabled={!isSubscribed}
-                />
+              <div className="space-y-4">
+                <h3 className="font-medium text-foreground">Horário Silencioso</h3>
+                <p className="text-sm text-muted-foreground">
+                  Configure horários em que não deseja receber notificações
+                </p>
+                <div className="grid grid-cols-2 gap-4">
+                  <div className="space-y-2">
+                    <Label htmlFor="silent-start">Início</Label>
+                    <Input
+                      id="silent-start"
+                      type="time"
+                      value={notificationSettings.silent_hours_start}
+                      onChange={(e) => setNotificationSettings({
+                        ...notificationSettings,
+                        silent_hours_start: e.target.value
+                      })}
+                    />
+                  </div>
+                  <div className="space-y-2">
+                    <Label htmlFor="silent-end">Término</Label>
+                    <Input
+                      id="silent-end"
+                      type="time"
+                      value={notificationSettings.silent_hours_end}
+                      onChange={(e) => setNotificationSettings({
+                        ...notificationSettings,
+                        silent_hours_end: e.target.value
+                      })}
+                    />
+                  </div>
+                </div>
               </div>
-
-              <div className="flex items-center justify-between">
-                <Label htmlFor="lab-results" className="cursor-pointer">
-                  Resultados de Exames
-                </Label>
-                <input
-                  id="lab-results"
-                  type="checkbox"
-                  checked={notificationSettings.lab_results}
-                  onChange={(e) => setNotificationSettings({
-                    ...notificationSettings,
-                    lab_results: e.target.checked
-                  })}
-                  className="h-4 w-4 rounded border-gray-300 text-blue-600 focus:ring-blue-500"
-                  disabled={!isSubscribed}
-                />
-              </div>
-
-              <div className="flex items-center justify-between">
-                <Label htmlFor="doctor-messages" className="cursor-pointer">
-                  Mensagens do Médico
-                </Label>
-                <input
-                  id="doctor-messages"
-                  type="checkbox"
-                  checked={notificationSettings.doctor_messages}
-                  onChange={(e) => setNotificationSettings({
-                    ...notificationSettings,
-                    doctor_messages: e.target.checked
-                  })}
-                  className="h-4 w-4 rounded border-gray-300 text-blue-600 focus:ring-blue-500"
-                  disabled={!isSubscribed}
-                />
-              </div>
-
-              <div className="flex items-center justify-between">
-                <Label htmlFor="promotions" className="cursor-pointer">
-                  Promoções e Ofertas
-                </Label>
-                <input
-                  id="promotions"
-                  type="checkbox"
-                  checked={notificationSettings.promotions}
-                  onChange={(e) => setNotificationSettings({
-                    ...notificationSettings,
-                    promotions: e.target.checked
-                  })}
-                  className="h-4 w-4 rounded border-gray-300 text-blue-600 focus:ring-blue-500"
-                  disabled={!isSubscribed}
-                />
-              </div>
-            </div>
-          </div>
-
-          <div className="space-y-4">
-            <h3 className="font-medium text-foreground">Horário Silencioso</h3>
-            <p className="text-sm text-muted-foreground">
-              Configure horários em que não deseja receber notificações
-            </p>
-            <div className="grid grid-cols-2 gap-4">
-              <div className="space-y-2">
-                <Label htmlFor="silent-start">Início</Label>
-                <Input
-                  id="silent-start"
-                  type="time"
-                  value={notificationSettings.silent_hours_start}
-                  onChange={(e) => setNotificationSettings({
-                    ...notificationSettings,
-                    silent_hours_start: e.target.value
-                  })}
-                  disabled={!isSubscribed}
-                />
-              </div>
-              <div className="space-y-2">
-                <Label htmlFor="silent-end">Término</Label>
-                <Input
-                  id="silent-end"
-                  type="time"
-                  value={notificationSettings.silent_hours_end}
-                  onChange={(e) => setNotificationSettings({
-                    ...notificationSettings,
-                    silent_hours_end: e.target.value
-                  })}
-                  disabled={!isSubscribed}
-                />
-              </div>
-            </div>
-          </div>
-
-          {!isSubscribed && (
-            <div className="p-3 bg-blue-50 border border-blue-200 rounded-lg">
-              <p className="text-sm text-blue-800">
-                Ative as notificações para personalizar suas preferências.
-              </p>
-            </div>
+            </>
           )}
         </CardContent>
       </Card>
 
-      <Card>
-        <CardHeader>
-          <CardTitle>Configurações do App</CardTitle>
-          <CardDescription>Configure preferências de PWA</CardDescription>
-        </CardHeader>
-        <CardContent className="space-y-6">
-          <div className="space-y-4">
-            <h3 className="font-semibold text-foreground">Instalar App</h3>
-            <div className="p-4 rounded-lg border border-border bg-muted/30">
-              <p className="text-sm text-muted-foreground mb-3">
-                Instale o HealthCare+ como um app no seu dispositivo para acesso rápido e suporte offline.
-              </p>
-              <div className="text-xs text-muted-foreground space-y-2">
-                <p>
-                  <strong>Desktop:</strong> Procure pelo ícone de instalar na barra de endereços ou menu
-                </p>
-                <p>
-                  <strong>Mobile:</strong> Toque no menu de compartilhamento e selecione "Adicionar à Tela Inicial"
-                  (iOS) ou use as opções do menu (Android)
-                </p>
-              </div>
-            </div>
-          </div>
-
-          <div className="space-y-4">
-            <h3 className="font-semibold text-foreground">Acesso Offline</h3>
-            <div className="p-4 rounded-lg border border-border bg-muted/30">
-              <p className="text-sm text-muted-foreground">
-                O HealthCare+ funciona offline e sincronizará seus dados quando você voltar a ter conexão. Suas
-                informações de saúde estão sempre disponíveis.
-              </p>
-            </div>
-          </div>
-        </CardContent>
-      </Card>
-
-      <Card className="border-destructive">
-        <CardHeader>
-          <CardTitle className="text-destructive">Sair da Conta</CardTitle>
-          <CardDescription>Encerrar sua sessão neste dispositivo</CardDescription>
-        </CardHeader>
-        <CardContent>
-          <Button onClick={handleLogout} disabled={loggingOut} variant="destructive" className="gap-2 w-full sm:w-auto">
-            <LogOut className="h-4 w-4" />
-            {loggingOut ? "Saindo..." : "Sair da Conta"}
-          </Button>
-        </CardContent>
-      </Card>
+      {/* ... mantenha os outros cards (App, Logout, etc) ... */}
 
       <Button onClick={handleSave} disabled={saving} className="w-full sm:w-auto">
         {saving ? "Salvando..." : "Salvar Alterações"}
