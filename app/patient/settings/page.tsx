@@ -233,7 +233,7 @@ export default function SettingsPage() {
         applicationServerKey = urlBase64ToUint8Array(vapidPublicKey)
         console.log("✅ Chave VAPID convertida")
       } catch (error) {
-        setPushError("Erro ao converter chave VAPID: " + error.message)
+        setPushError("Erro ao converter chave VAPID: " + (error as Error).message)
         return
       }
 
@@ -251,7 +251,7 @@ export default function SettingsPage() {
       console.log("Inscrevendo para Push Notifications...")
       const subscription = await registration.pushManager.subscribe({
         userVisibleOnly: true,
-        applicationServerKey,
+        applicationServerKey: applicationServerKey as BufferSource,
       })
 
       console.log("✅ Inscrito com sucesso!")
@@ -281,7 +281,7 @@ export default function SettingsPage() {
 
       if (error) {
         console.error("Erro ao salvar no Supabase:", error)
-        setPushError("Erro ao salvar configurações: " + error.message)
+        setPushError("Erro ao salvar configurações: " + (error as Error).message)
         return
       }
 
@@ -712,7 +712,54 @@ export default function SettingsPage() {
         </CardContent>
       </Card>
 
-      {/* ... mantenha os outros cards (App, Logout, etc) ... */}
+      <Card>
+        <CardHeader>
+          <CardTitle>Configurações do App</CardTitle>
+          <CardDescription>Configure preferências de PWA</CardDescription>
+        </CardHeader>
+        <CardContent className="space-y-6">
+          <div className="space-y-4">
+            <h3 className="font-semibold text-foreground">Instalar App</h3>
+            <div className="p-4 rounded-lg border border-border bg-muted/30">
+              <p className="text-sm text-muted-foreground mb-3">
+                Instale o HealthCare+ como um app no seu dispositivo para acesso rápido e suporte offline.
+              </p>
+              <div className="text-xs text-muted-foreground space-y-2">
+                <p>
+                  <strong>Desktop:</strong> Procure pelo ícone de instalar na barra de endereços ou menu
+                </p>
+                <p>
+                  <strong>Mobile:</strong> Toque no menu de compartilhamento e selecione "Adicionar à Tela Inicial"
+                  (iOS) ou use as opções do menu (Android)
+                </p>
+              </div>
+            </div>
+          </div>
+
+          <div className="space-y-4">
+            <h3 className="font-semibold text-foreground">Acesso Offline</h3>
+            <div className="p-4 rounded-lg border border-border bg-muted/30">
+              <p className="text-sm text-muted-foreground">
+                O HealthCare+ funciona offline e sincronizará seus dados quando você voltar a ter conexão. Suas
+                informações de saúde estão sempre disponíveis.
+              </p>
+            </div>
+          </div>
+        </CardContent>
+      </Card>
+
+      <Card className="border-destructive">
+        <CardHeader>
+          <CardTitle className="text-destructive">Sair da Conta</CardTitle>
+          <CardDescription>Encerrar sua sessão neste dispositivo</CardDescription>
+        </CardHeader>
+        <CardContent>
+          <Button onClick={handleLogout} disabled={loggingOut} variant="destructive" className="gap-2 w-full sm:w-auto">
+            <LogOut className="h-4 w-4" />
+            {loggingOut ? "Saindo..." : "Sair da Conta"}
+          </Button>
+        </CardContent>
+      </Card>
 
       <Button onClick={handleSave} disabled={saving} className="w-full sm:w-auto">
         {saving ? "Salvando..." : "Salvar Alterações"}
