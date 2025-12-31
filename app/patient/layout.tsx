@@ -5,7 +5,8 @@ import type React from "react"
 import { createClient } from "@/lib/supabase/client"
 import { useRouter } from "next/navigation"
 import { useEffect, useState } from "react"
-import { Heart, Home, Pill, Calendar, Settings, UtensilsCrossed, Activity, Bell, Dumbbell, ChefHat, FileText } from "lucide-react"
+import { Button } from "@/components/ui/button"
+import { Heart, Home, Pill, Calendar, Settings, UtensilsCrossed, Activity, Bell, Dumbbell,  FileText, LogOut } from "lucide-react"
 import Link from "next/link"
 
 export default function PatientLayout({ children }: { children: React.ReactNode }) {
@@ -76,6 +77,9 @@ export default function PatientLayout({ children }: { children: React.ReactNode 
             <Heart className="h-5 w-5 sm:h-6 sm:w-6 text-primary" />
             <span className="text-base sm:text-xl font-bold text-foreground">HealthCare+</span>
           </Link>
+          <Button onClick={handleLogout} variant="destructive" className="gap-2">
+            <LogOut className="h-4 w-4" />
+          </Button>
         </div>
       </nav>
 

@@ -181,7 +181,7 @@ export default function PrescriptionsPage() {
                             rel="noopener noreferrer"
                             className="flex items-center gap-3 p-3 bg-green-50 dark:bg-green-950 rounded-lg hover:bg-green-100 dark:hover:bg-green-900 transition-colors"
                           >
-                            <ExternalLink className="h-5 w-5 text-green-600 dark:text-green-400 flex-shrink-0" />
+                            <ExternalLink className="h-5 w-5 text-green-600 dark:text-green-400 shrink-0" />
                             <div>
                               <p className="text-sm font-medium text-green-900 dark:text-green-100">
                                 Ver Documento da Receita
@@ -196,7 +196,7 @@ export default function PrescriptionsPage() {
 
                       {pres.valid_until && (
                         <div className="flex items-center gap-3 p-3 bg-amber-50 dark:bg-amber-950 rounded-lg">
-                          <Calendar className="h-5 w-5 text-amber-600 dark:text-amber-400 flex-shrink-0" />
+                          <Calendar className="h-5 w-5 text-amber-600 dark:text-amber-400 shrink-0" />
                           <div>
                             <p className="text-sm font-medium text-amber-900 dark:text-amber-100">
                               {isValid ? "Válida até" : "Expirou em"}

@@ -6,8 +6,10 @@ import { createClient } from "@/lib/supabase/client"
 
 import { useRouter } from "next/navigation"
 import { useEffect, useState } from "react"
+import { Button } from "@/components/ui/button"
 import { Heart, LogOut, Home, Users, Settings, Utensils, Pill, Bell, Dumbbell } from "lucide-react"
 import Link from "next/link"
+
 
 export default function AdminLayout({ children }: { children: React.ReactNode }) {
   const [isLoading, setIsLoading] = useState(true)
@@ -78,6 +80,9 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
             <Heart className="h-5 w-5 sm:h-6 sm:w-6 text-primary" />
             <span className="text-base sm:text-xl font-bold text-foreground">HealthCare+ Admin</span>
           </Link>
+          <Button onClick={handleLogout} variant="destructive" className="gap-2">
+            <LogOut className="h-4 w-4" />
+          </Button>
         </div>
       </nav>
 
