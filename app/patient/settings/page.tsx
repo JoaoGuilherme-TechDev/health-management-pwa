@@ -56,6 +56,7 @@ export default function SettingsPage() {
   const [notificationPermission, setNotificationPermission] = useState<NotificationPermission>("default")
   const [isSubscribed, setIsSubscribed] = useState(false)
   const [pushError, setPushError] = useState<string>("")
+  const [isSecureContext, setIsSecureContext] = useState(false)
 
   useEffect(() => {
     const loadProfile = async () => {
@@ -94,6 +95,28 @@ export default function SettingsPage() {
       
       // Verificar se está inscrito em push notifications
       checkPushSubscription()
+    }
+
+    // Verificar contexto seguro
+    const hostname = window.location.hostname
+    const isLocalhost = hostname === 'localhost' || 
+                       hostname === '127.0.0.1' ||
+                       hostname.startsWith('192.168.') ||
+                       hostname.startsWith('10.0.') ||
+                       hostname.startsWith('172.16.')
+    const isHttps = window.location.protocol === 'https:'
+    
+    setIsSecureContext(isHttps || isLocalhost)
+    
+    // Avisar se estiver em contexto inseguro
+    const isPublicIp = /^\d+\.\d+\.\d+\.\d+$/.test(hostname) && 
+                      !hostname.startsWith('192.168.') &&
+                      !hostname.startsWith('10.0.') &&
+                      !hostname.startsWith('172.16.')
+    
+    if (isPublicIp && window.location.protocol === 'http:') {
+      console.warn("⚠️ AVISO: Service Workers não funcionam com IPs públicos em HTTP")
+      console.warn("   Acesse por http://localhost:3000 para notificações funcionarem")
     }
   }, [])
 
@@ -160,208 +183,219 @@ export default function SettingsPage() {
     router.push("/auth/login")
   }
 
-  // Função corrigida para retornar Uint8Array (que é um BufferSource)
-const urlBase64ToUint8Array = (base64String: string): Uint8Array => {
-  const padding = '='.repeat((4 - (base64String.length % 4)) % 4);
-  const base64 = (base64String + padding)
-    .replace(/\-/g, '+')
-    .replace(/_/g, '/');
+  // Função corrigida para retornar Uint8Array
+  const urlBase64ToUint8Array = (base64String: string): Uint8Array => {
+    const padding = '='.repeat((4 - (base64String.length % 4)) % 4)
+    const base64 = (base64String + padding)
+      .replace(/\-/g, '+')
+      .replace(/_/g, '/')
 
-  const rawData = window.atob(base64);
-  const outputArray = new Uint8Array(rawData.length);
+    const rawData = window.atob(base64)
+    const outputArray = new Uint8Array(rawData.length)
 
-  for (let i = 0; i < rawData.length; ++i) {
-    outputArray[i] = rawData.charCodeAt(i);
+    for (let i = 0; i < rawData.length; ++i) {
+      outputArray[i] = rawData.charCodeAt(i)
+    }
+    
+    return outputArray
   }
-  
-  return outputArray;
-};
 
-const activatePushNotifications = async () => {
-  setPushError("");
-  
-  try {
-    console.log("🔔 Iniciando ativação de notificações push...");
+  const activatePushNotifications = async () => {
+    setPushError("")
     
-    // ===== 1. VERIFICAÇÕES INICIAIS =====
-    console.log("1. Verificando suporte do navegador...");
-    
-    if (!('serviceWorker' in navigator)) {
-      throw new Error("❌ Service Workers não são suportados pelo seu navegador.");
-    }
-    
-    if (!('PushManager' in window)) {
-      throw new Error("❌ Push Notifications não são suportados pelo seu navegador.");
-    }
-    
-    if (!('Notification' in window)) {
-      throw new Error("❌ Notificações não são suportadas pelo seu navegador.");
-    }
-    
-    // ===== 2. SOLICITAR PERMISSÃO =====
-    console.log("2. Solicitando permissão...");
-    const permission = await Notification.requestPermission();
-    setNotificationPermission(permission);
-    
-    if (permission !== "granted") {
-      throw new Error(`Permissão ${permission}. Você precisa permitir notificações.`);
-    }
-    console.log("✅ Permissão concedida!");
-    
-    // ===== 3. REGISTRAR SERVICE WORKER =====
-    console.log("3. Registrando Service Worker...");
-    
-    // Remover registros antigos primeiro
-    const existingRegistrations = await navigator.serviceWorker.getRegistrations();
-    for (const registration of existingRegistrations) {
-      await registration.unregister();
-      console.log("🗑️ Service Worker antigo removido");
-    }
-    
-    // Registrar novo service worker
-    let registration: ServiceWorkerRegistration;
     try {
-      registration = await navigator.serviceWorker.register('/sw.js', {
-        scope: '/',
-      });
-      console.log("✅ Service Worker registrado:", registration.scope);
-    } catch (swError: any) {
-      console.error("❌ Erro ao registrar Service Worker:", swError);
-      throw new Error(`Falha ao registrar Service Worker: ${swError.message}`);
-    }
-    
-    // Aguardar ativação
-    await new Promise<void>((resolve) => {
-      if (registration.active) {
-        resolve();
-      } else if (registration.installing) {
-        registration.installing.addEventListener('statechange', () => {
-          if (registration.active) {
-            resolve();
-          }
-        });
-      } else {
-        // Timeout de segurança
-        setTimeout(resolve, 2000);
-      }
-    });
-    
-    console.log("✅ Service Worker ativo e pronto!");
-    
-    // ===== 4. OBTER E CONVERTER CHAVE VAPID =====
-    console.log("4. Obtendo chave VAPID...");
-    
-    // Aqui está o segredo: Next.js substitui isso em tempo de build
-    const vapidPublicKey = process.env.NEXT_PUBLIC_VAPID_PUBLIC_KEY;
-    
-    if (!vapidPublicKey) {
-      console.error("❌ Chave VAPID não encontrada no ambiente.");
-      console.log("Verifique se você tem no .env.local:");
-      console.log("NEXT_PUBLIC_VAPID_PUBLIC_KEY=sua-chave-aqui");
-      throw new Error("Chave VAPID não configurada. Contate o administrador.");
-    }
-    
-    console.log("📋 Chave VAPID encontrada, tamanho:", vapidPublicKey.length);
-    console.log("Primeiros 10 chars:", vapidPublicKey.substring(0, 10));
-    
-    // ===== 5. FUNÇÃO DE CONVERSÃO CORRIGIDA =====
-    console.log("5. Convertendo chave VAPID...");
-    
-    // Versão ROBUSTA da função de conversão
-    const convertVapidKey = (base64String: string): ArrayBuffer => {
-      try {
-        // 1. Garantir que seja base64 URL safe
-        let base64 = base64String
-          .replace(/-/g, '+')
-          .replace(/_/g, '/');
+      console.log("🔔 Iniciando ativação de notificações push...")
+      
+      // ===== VERIFICAÇÃO DE CONTEXTO SEGURO =====
+      const hostname = window.location.hostname
+      const protocol = window.location.protocol
+      
+      const isLocalhost = hostname === 'localhost' || 
+                         hostname === '127.0.0.1' ||
+                         hostname.startsWith('192.168.') ||
+                         hostname.startsWith('10.0.') ||
+                         hostname.startsWith('172.16.')
+      
+      const isHttps = protocol === 'https:'
+      
+      console.log("Contexto atual:", {
+        hostname,
+        protocol,
+        isLocalhost,
+        isHttps,
+        isSecureContext: window.isSecureContext
+      })
+      
+      // Service Workers só funcionam em HTTPS ou localhost/private IP
+      if (!isHttps && !isLocalhost) {
+        const isPublicIp = /^\d+\.\d+\.\d+\.\d+$/.test(hostname) && 
+                          !hostname.startsWith('192.168.') &&
+                          !hostname.startsWith('10.0.') &&
+                          !hostname.startsWith('172.16.')
         
-        // 2. Adicionar padding se necessário
-        const padding = '='.repeat((4 - (base64.length % 4)) % 4);
-        base64 += padding;
-        
-        // 3. Decodificar base64
-        const rawData = atob(base64);
-        
-        // 4. Criar ArrayBuffer (não Uint8Array diretamente)
-        const buffer = new ArrayBuffer(rawData.length);
-        const view = new Uint8Array(buffer);
-        
-        // 5. Preencher com dados
-        for (let i = 0; i < rawData.length; ++i) {
-          view[i] = rawData.charCodeAt(i);
+        if (isPublicIp) {
+          const localhostUrl = `http://localhost:${window.location.port || 3000}`
+          throw new Error(
+            `Service Workers NÃO funcionam com IPs públicos em HTTP.\n\n` +
+            `Você está acessando: http://${hostname}:${window.location.port || 3000}\n\n` +
+            `Para notificações funcionarem:\n` +
+            `1. Acesse por: ${localhostUrl}\n` +
+            `2. Ou configure HTTPS no servidor\n` +
+            `3. Ou use um nome de domínio local`
+          )
         }
-        
-        console.log("✅ Conversão bem sucedida!");
-        console.log("Tamanho do buffer:", buffer.byteLength);
-        
-        return buffer;
-      } catch (error: any) {
-        console.error("❌ Erro na conversão da chave VAPID:", error);
-        throw new Error(`Chave VAPID inválida: ${error.message}`);
       }
-    };
-    
-    const applicationServerKey = convertVapidKey(vapidPublicKey);
-    
-    // ===== 6. VERIFICAR SE JÁ ESTÁ INSCRITO =====
-    console.log("6. Verificando inscrição existente...");
-    let subscription = await registration.pushManager.getSubscription();
-    
-    if (subscription) {
-      console.log("✅ Já inscrito. Recriando inscrição...");
-      await subscription.unsubscribe();
-      subscription = null;
-    }
-    
-    // ===== 7. CRIAR NOVA INSCRIÇÃO =====
-    console.log("7. Criando nova inscrição...");
-    
-    try {
-      // Aqui está a correção do tipo: applicationServerKey já é ArrayBuffer
-      subscription = await registration.pushManager.subscribe({
-        userVisibleOnly: true,
-        applicationServerKey: applicationServerKey,
-      });
       
-      console.log("🎉 INSCRIÇÃO CRIADA COM SUCESSO!");
-      console.log("Endpoint:", subscription.endpoint);
+      // ===== VERIFICAÇÕES DE SUPORTE =====
+      console.log("1. Verificando suporte do navegador...")
       
-      // Verificar dados da inscrição
-      const subscriptionJson = subscription.toJSON();
-      console.log("Tem p256dh?", !!subscriptionJson.keys?.p256dh);
-      console.log("Tem auth?", !!subscriptionJson.keys?.auth);
+      if (!('serviceWorker' in navigator)) {
+        // Diagnosticar o motivo
+        const diagnostics = {
+          isSecureContext: window.isSecureContext,
+          userAgent: (navigator as any).userAgent,
+          isPrivateMode: (navigator as any).userAgent.includes('Incognito') || 
+                        (navigator as any).userAgent.includes('Private')
+        }
+        console.log("Diagnóstico:", diagnostics)
+        
+        throw new Error(
+          "Service Workers não são suportados neste contexto.\n" +
+          "Possíveis causas:\n" +
+          "• Navegador muito antigo\n" +
+          "• Contexto inseguro (HTTP em IP público)\n" +
+          "• Modo de navegação privada\n" +
+          "• Extensões bloqueando\n\n" +
+          "Tente:\n" +
+          "• Usar Chrome/Firefox atualizado\n" +
+          "• Acessar por http://localhost:3000\n" +
+          "• Desativar modo privado\n" +
+          "• Desativar extensões de bloqueio"
+        )
+      }
+
+      if (!('PushManager' in window)) {
+        throw new Error("Seu navegador não suporta Push Notifications")
+      }
+
+      // ===== SOLICITAR PERMISSÃO =====
+      console.log("2. Solicitando permissão...")
+      const permission = await Notification.requestPermission()
+      setNotificationPermission(permission)
       
-    } catch (subscribeError: any) {
-      console.error("❌ ERRO NA INSCRIÇÃO:", subscribeError);
+      if (permission !== "granted") {
+        throw new Error(`Permissão ${permission}. Você precisa permitir notificações.`)
+      }
+      console.log("✅ Permissão concedida")
+
+      // ===== REGISTRAR SERVICE WORKER =====
+      console.log("3. Registrando Service Worker...")
       
-      // Debug detalhado
-      console.log("Tipo de applicationServerKey:", typeof applicationServerKey);
-      console.log("É ArrayBuffer?", applicationServerKey instanceof ArrayBuffer);
-      console.log("É BufferSource?", applicationServerKey instanceof ArrayBuffer || 
-                   (applicationServerKey as any) instanceof Uint8Array);
+      // Tentar diferentes caminhos
+      const swPaths = ['/service-worker.js', '/sw.js']
+      let registration: ServiceWorkerRegistration | null = null
+      let lastError: Error | null = null
       
-      throw new Error(`Não foi possível criar inscrição: ${subscribeError.message}`);
-    }
-    
-    // ===== 8. SALVAR NO BANCO DE DADOS =====
-    console.log("8. Salvando no Supabase...");
-    
-    if (!subscription) {
-      throw new Error("Inscrição não criada.");
-    }
-    
-    const supabase = createClient();
-    const { data: { user } } = await supabase.auth.getUser();
-    
-    if (!user) {
-      throw new Error("Usuário não autenticado.");
-    }
-    
-    const subscriptionJson = subscription.toJSON();
-    
-    const { error: dbError } = await supabase
-      .from("push_subscriptions")
-      .upsert({
+      for (const swPath of swPaths) {
+        try {
+          console.log(`Tentando registrar: ${swPath}`)
+          registration = await navigator.serviceWorker.register(swPath, {
+            scope: '/',
+            updateViaCache: 'none'
+          })
+          console.log(`✅ Service Worker registrado: ${swPath}`)
+          console.log("Scope:", registration.scope)
+          break
+        } catch (error: any) {
+          console.log(`❌ Falha em ${swPath}:`, error.message)
+          lastError = error
+        }
+      }
+      
+      if (!registration) {
+        throw new Error(
+          `Não foi possível registrar Service Worker.\n` +
+          `Último erro: ${lastError?.message}`
+        )
+      }
+
+      // Aguardar ativação
+      await new Promise<void>((resolve) => {
+        if (registration!.active) {
+          resolve()
+        } else if (registration!.installing) {
+          registration!.installing.addEventListener('statechange', () => {
+            if (registration!.active) {
+              resolve()
+            }
+          })
+        } else {
+          setTimeout(resolve, 1000)
+        }
+      })
+
+      console.log("4. Service Worker ativo e pronto")
+
+      // ===== VERIFICAR E CONVERTER CHAVE VAPID =====
+      const vapidPublicKey = process.env.NEXT_PUBLIC_VAPID_PUBLIC_KEY
+      
+      if (!vapidPublicKey) {
+        throw new Error("Chave VAPID não configurada. Configure NEXT_PUBLIC_VAPID_PUBLIC_KEY no .env.local")
+      }
+
+      console.log("5. Convertendo chave VAPID...")
+      
+      const applicationServerKey = urlBase64ToUint8Array(vapidPublicKey)
+      console.log("✅ Chave convertida, tamanho:", applicationServerKey.length)
+
+      // ===== VERIFICAR INSCRIÇÃO EXISTENTE =====
+      console.log("6. Verificando inscrição existente...")
+      let subscription = await registration.pushManager.getSubscription()
+      
+      if (subscription) {
+        console.log("✅ Já inscrito. Atualizando status...")
+        setIsSubscribed(true)
+        setNotificationSettings(prev => ({ ...prev, enabled: true }))
+        alert("Notificações já estão ativadas!")
+        return
+      }
+
+      // ===== CRIAR NOVA INSCRIÇÃO =====
+      console.log("7. Criando nova inscrição...")
+      try {
+        subscription = await registration.pushManager.subscribe({
+          userVisibleOnly: true,
+          applicationServerKey: applicationServerKey as BufferSource
+        })
+        
+        console.log("✅ Inscrito com sucesso!")
+        console.log("Endpoint:", subscription.endpoint)
+        
+        const subscriptionJson = subscription.toJSON()
+        console.log("Tem p256dh?", !!subscriptionJson.keys?.p256dh)
+        console.log("Tem auth?", !!subscriptionJson.keys?.auth)
+        
+      } catch (subscribeError: any) {
+        console.error("❌ Erro na inscrição:", subscribeError)
+        
+        console.log("applicationServerKey é Uint8Array?", applicationServerKey instanceof Uint8Array)
+        console.log("applicationServerKey byteLength:", applicationServerKey.byteLength)
+        
+        throw new Error(`Falha ao criar inscrição: ${subscribeError.message}`)
+      }
+
+      // ===== SALVAR NO SUPABASE =====
+      console.log("8. Salvando no Supabase...")
+      const supabase = createClient()
+      const { data: { user } } = await supabase.auth.getUser()
+      
+      if (!user) {
+        throw new Error("Usuário não autenticado")
+      }
+
+      const subscriptionJson = subscription.toJSON()
+      
+      const { error } = await supabase.from("push_subscriptions").upsert({
         user_id: user.id,
         endpoint: subscriptionJson.endpoint,
         p256dh: subscriptionJson.keys?.p256dh,
@@ -369,60 +403,44 @@ const activatePushNotifications = async () => {
         expiration_time: subscriptionJson.expirationTime || null,
         created_at: new Date().toISOString(),
         updated_at: new Date().toISOString(),
-      });
-    
-    if (dbError) {
-      console.error("❌ Erro ao salvar no banco:", dbError);
-      throw new Error(`Falha ao salvar: ${dbError.message}`);
+      })
+
+      if (error) {
+        console.error("Erro ao salvar no Supabase:", error)
+        throw new Error("Erro ao salvar: " + error.message)
+      }
+
+      // ===== ATUALIZAR ESTADO =====
+      setIsSubscribed(true)
+      setNotificationSettings(prev => ({ ...prev, enabled: true }))
+      
+      // ===== NOTIFICAÇÃO DE SUCESSO =====
+      console.log("9. Mostrando notificação de sucesso...")
+      
+      try {
+        await registration.showNotification("HealthCare+", {
+          body: "Notificações push ativadas com sucesso!",
+          icon: "/icon-light-32x32.png",
+          badge: "/badge-72x72.png",
+          tag: "activation-success",
+          requireInteraction: true,
+        })
+      } catch (notifError) {
+        // Fallback
+        new Notification("HealthCare+", {
+          body: "Notificações ativadas com sucesso!",
+          icon: "/icon-light-32x32.png",
+        })
+      }
+
+      console.log("🎉 Processo concluído com sucesso!")
+      alert("✅ Notificações push ativadas com sucesso!")
+
+    } catch (error: any) {
+      console.error("❌ Erro:", error)
+      setPushError(error.message || "Erro ao ativar notificações")
     }
-    
-    console.log("✅ Salvo no banco de dados!");
-    
-    // ===== 9. ATUALIZAR ESTADO =====
-    setIsSubscribed(true);
-    setNotificationSettings(prev => ({ ...prev, enabled: true }));
-    
-    // ===== 10. NOTIFICAÇÃO DE SUCESSO =====
-    console.log("10. Mostrando notificação de sucesso...");
-    
-    try {
-      await registration.showNotification("HealthCare+ - Notificações Ativadas", {
-        body: "Agora você receberá notificações importantes!",
-        icon: "/icon-light-32x32.png",
-        badge: "/badge-72x72.png",
-        tag: "activation-success",
-        requireInteraction: true,
-      });
-    } catch (notifError) {
-      console.warn("Não foi possível mostrar notificação:", notifError);
-      // Fallback
-      new Notification("HealthCare+", {
-        body: "Notificações ativadas com sucesso!",
-        icon: "/icon-light-32x32.png",
-      });
-    }
-    
-    console.log("🎉🎉🎉 TUDO FUNCIONANDO PERFEITAMENTE! 🎉🎉🎉");
-    alert("✅ Notificações push ativadas com sucesso!");
-    
-  } catch (error: any) {
-    console.error("❌❌❌ ERRO FINAL:", error);
-    console.error("Stack trace:", error.stack);
-    
-    // Mensagem amigável
-    let userMessage = error.message;
-    
-    if (error.message.includes("chave") || error.message.includes("VAPID")) {
-      userMessage = "Problema na configuração das chaves. Contate o suporte.";
-    } else if (error.message.includes("Service Worker")) {
-      userMessage = "Seu navegador não suporta esta funcionalidade. Tente Chrome ou Firefox atualizado.";
-    } else if (error.message.includes("inscrição") || error.message.includes("subscribe")) {
-      userMessage = "Não foi possível criar a inscrição. Tente novamente ou contate o suporte.";
-    }
-    
-    setPushError(userMessage);
   }
-};
 
   const deactivatePushNotifications = async () => {
     setPushError("")
@@ -460,7 +478,7 @@ const activatePushNotifications = async () => {
       
     } catch (error: any) {
       console.error("Erro ao desativar notificações:", error)
-      setPushError("Erro: " + (error as Error).message)
+      setPushError("Erro: " + error.message)
     }
   }
 
@@ -488,9 +506,37 @@ const activatePushNotifications = async () => {
       
     } catch (error: any) {
       console.error("Erro ao enviar notificação:", error)
-      setPushError("Erro ao enviar notificação: " + (error as Error).message)
+      setPushError("Erro ao enviar notificação: " + error.message)
     } finally {
       setTestingNotification(false)
+    }
+  }
+
+  // Botão de diagnóstico
+  const runDiagnostics = () => {
+    console.log("=== DIAGNÓSTICO COMPLETO ===")
+    console.log("URL:", window.location.href)
+    console.log("Hostname:", window.location.hostname)
+    console.log("Protocol:", window.location.protocol)
+    console.log("isSecureContext:", window.isSecureContext)
+    console.log("User Agent:", navigator.userAgent)
+    console.log("Service Worker in navigator:", 'serviceWorker' in navigator)
+    console.log("PushManager in window:", 'PushManager' in window)
+    console.log("Notification in window:", 'Notification' in window)
+    console.log("Notification.permission:", Notification.permission)
+    console.log("isSubscribed:", isSubscribed)
+    console.log("VAPID Key configured:", !!process.env.NEXT_PUBLIC_VAPID_PUBLIC_KEY)
+    
+    const hostname = window.location.hostname
+    const isLocalhost = hostname === 'localhost' || hostname === '127.0.0.1'
+    
+    if (!isLocalhost && window.location.protocol !== 'https:') {
+      const localhostUrl = `http://localhost:${window.location.port || 3000}`
+      alert(
+        `Para notificações push funcionarem:\n\n` +
+        `Acesse por: ${localhostUrl}\n\n` +
+        `IPs públicos não suportam Service Workers em HTTP.`
+      )
     }
   }
 
@@ -676,6 +722,16 @@ const activatePushNotifications = async () => {
                   </Button>
                 </>
               )}
+              
+              {/* Botão de diagnóstico */}
+              <Button 
+                onClick={runDiagnostics}
+                variant="outline"
+                className="w-full"
+              >
+                <AlertCircle className="h-4 w-4 mr-2" />
+                Diagnosticar Problema
+              </Button>
             </div>
 
             {/* Mensagem de erro */}
@@ -683,7 +739,7 @@ const activatePushNotifications = async () => {
               <div className="p-3 bg-red-50 border border-red-200 rounded-lg">
                 <div className="flex items-center gap-2">
                   <AlertCircle className="h-4 w-4 text-red-600 flex-shrink-0" />
-                  <p className="text-sm text-red-800">{pushError}</p>
+                  <p className="text-sm text-red-800 whitespace-pre-line">{pushError}</p>
                 </div>
               </div>
             )}

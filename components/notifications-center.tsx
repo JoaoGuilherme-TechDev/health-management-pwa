@@ -99,7 +99,8 @@ function NotificationItem({
   }
 
   const Icon = config.icon
-  const createdAt = formatBrasiliaDate(notification.created_at, "full")
+  const createdAt = `${formatBrasiliaDate(notification.created_at, "date")} às ${formatBrasiliaDate(notification.created_at, "time")}`
+
 
   return (
     <div

@@ -7,6 +7,7 @@ import { Badge } from "@/components/ui/badge"
 import { Calendar, MapPin, Clock } from "lucide-react"
 import { format, parseISO } from "date-fns"
 import { ptBR } from "date-fns/locale"
+import { formatBrasiliaDate } from "@/lib/timezone"
 
 interface Appointment {
   id: string
@@ -148,7 +149,8 @@ export default function AppointmentsPage() {
               <CardContent className="space-y-3">
                 <div className="flex items-center gap-2 text-muted-foreground">
                   <Clock className="h-4 w-4" />
-                  <span>{format(parseISO(appointment.scheduled_at), "PPP 'às' HH:mm", { locale: ptBR })}</span>
+                  <span>Consulta Agendada para {formatBrasiliaDate(appointment.scheduled_at, "date")} às {" "}
+                    {formatBrasiliaDate(appointment.scheduled_at, "time")}</span> 
                 </div>
                 {appointment.location && (
                   <div className="flex items-center gap-2 text-muted-foreground">

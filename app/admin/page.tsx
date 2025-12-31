@@ -59,6 +59,33 @@ export default function AdminDashboard() {
 
       <Card>
         <CardHeader>
+          <CardTitle>Ações de Gerenciamento</CardTitle>
+          <CardDescription>Acesso rápido às funções administrativas comuns</CardDescription>
+        </CardHeader>
+        <CardContent>
+          <div className="grid sm:grid-cols-2 gap-4">
+            <a
+              href="/admin/patients"
+              className="p-4 rounded-lg border border-border hover:border-primary transition-colors cursor-pointer"
+            >
+              <Users className="h-6 w-6 text-primary mb-2" />
+              <h3 className="font-semibold text-foreground mb-1">Gerenciar Pacientes</h3>
+              <p className="text-sm text-muted-foreground">Visualizar e gerenciar todas as contas de pacientes</p>
+            </a>
+            <a
+              href="/admin/settings"
+              className="p-4 rounded-lg border border-border hover:border-primary transition-colors cursor-pointer"
+            >
+              <Activity className="h-6 w-6 text-primary mb-2" />
+              <h3 className="font-semibold text-foreground mb-1">Configurações</h3>
+              <p className="text-sm text-muted-foreground">Configurar preferências administrativas</p>
+            </a>
+          </div>
+        </CardContent>
+      </Card>
+
+      <Card>
+        <CardHeader>
           <CardTitle>Visão Geral do Sistema</CardTitle>
           <CardDescription>Métricas principais e status do sistema</CardDescription>
         </CardHeader>
@@ -92,33 +119,6 @@ export default function AdminDashboard() {
                 </div>
               </div>
             </div>
-          </div>
-        </CardContent>
-      </Card>
-
-      <Card>
-        <CardHeader>
-          <CardTitle>Ações de Gerenciamento</CardTitle>
-          <CardDescription>Acesso rápido às funções administrativas comuns</CardDescription>
-        </CardHeader>
-        <CardContent>
-          <div className="grid sm:grid-cols-2 gap-4">
-            <a
-              href="/admin/patients"
-              className="p-4 rounded-lg border border-border hover:border-primary transition-colors cursor-pointer"
-            >
-              <Users className="h-6 w-6 text-primary mb-2" />
-              <h3 className="font-semibold text-foreground mb-1">Gerenciar Pacientes</h3>
-              <p className="text-sm text-muted-foreground">Visualizar e gerenciar todas as contas de pacientes</p>
-            </a>
-            <a
-              href="/admin/settings"
-              className="p-4 rounded-lg border border-border hover:border-primary transition-colors cursor-pointer"
-            >
-              <Activity className="h-6 w-6 text-primary mb-2" />
-              <h3 className="font-semibold text-foreground mb-1">Configurações</h3>
-              <p className="text-sm text-muted-foreground">Configurar preferências administrativas</p>
-            </a>
           </div>
         </CardContent>
       </Card>

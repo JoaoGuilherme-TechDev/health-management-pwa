@@ -6,7 +6,7 @@ import { createClient } from "@/lib/supabase/client"
 
 import { useRouter } from "next/navigation"
 import { useEffect, useState } from "react"
-import { Heart, LogOut, Home, Users, Settings, Utensils, Pill } from "lucide-react"
+import { Heart, LogOut, Home, Users, Settings, Utensils, Pill, Bell, Dumbbell } from "lucide-react"
 import Link from "next/link"
 
 export default function AdminLayout({ children }: { children: React.ReactNode }) {
@@ -88,7 +88,7 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
             <NavLink href="/admin" icon={Home} label="Painel" />
             <NavLink href="/admin/patients" icon={Users} label="Pacientes" />
             <NavLink href="/admin/recipes" icon={Utensils} label="Recomendações Receitas" />
-            <NavLink href="/admin/supplements" icon={Pill} label="Recomendações Suplementos" />
+            <NavLink href="/admin/supplements" icon={Dumbbell} label="Recomendações Suplementos" />
             <NavLink href="/admin/settings" icon={Settings} label="Configurações" />
           </nav>
         </aside>
@@ -98,7 +98,7 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
             <MobileNavLink href="/admin" icon={Home} label="Painel" />
             <MobileNavLink href="/admin/patients" icon={Users} label="Pacientes" />
             <MobileNavLink href="/admin/recipes" icon={Utensils} label="Receitas" />
-            <MobileNavLink href="/admin/supplements" icon={Pill} label="Suplementos" />
+            <MobileNavLink href="/admin/supplements" icon={Dumbbell} label="Suplementos" />
             <MobileNavLink href="/admin/settings" icon={Settings} label="Configurações" />
           </nav>
         </div>

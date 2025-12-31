@@ -1,3 +1,4 @@
+// components/patient-prescriptions-tab.tsx
 "use client"
 
 import { useEffect, useState } from "react"
@@ -11,6 +12,7 @@ import { Plus, FileText, Trash2, ExternalLink } from "lucide-react"
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog"
 import { formatBrasiliaDate } from "@/lib/timezone"
 import { pushNotifications } from "@/lib/push-notifications"
+import { notifyPrescriptionCreated } from "@/lib/notifications"
 
 export function PatientPrescriptionsTab({ patientId }: { patientId: string }) {
   const [prescriptions, setPrescriptions] = useState<any[]>([])
@@ -67,7 +69,6 @@ export function PatientPrescriptionsTab({ patientId }: { patientId: string }) {
     setUploading(true)
     const supabase = createClient()
     
-    // Obtenha o usuário atual
     const { data: { user } } = await supabase.auth.getUser()
     
     if (!user) {
@@ -82,7 +83,6 @@ export function PatientPrescriptionsTab({ patientId }: { patientId: string }) {
     const filePath = `prescriptions/${patientId}/${user.id}/${fileName}`
 
     console.log("[v0] Fazendo upload para:", filePath)
-    console.log("[v0] Usuário:", user.id)
 
     try {
       const { data, error } = await supabase.storage
@@ -93,11 +93,7 @@ export function PatientPrescriptionsTab({ patientId }: { patientId: string }) {
         })
 
       if (error) {
-        console.error("[v0] Erro detalhado no upload:", {
-          message: error.message,
-          name: error.name,
-          stack: error.stack
-        })
+        console.error("[v0] Erro detalhado no upload:", error)
         
         if (error.message.includes("row-level security")) {
           alert("Erro de permissão: Verifique as políticas do bucket 'prescriptions' no Supabase.")
@@ -109,7 +105,6 @@ export function PatientPrescriptionsTab({ patientId }: { patientId: string }) {
 
       console.log("[v0] Upload bem-sucedido:", data)
 
-      // Obtenha a URL pública
       const { data: urlData } = supabase.storage
         .from("prescriptions")
         .getPublicUrl(filePath)
@@ -132,7 +127,6 @@ export function PatientPrescriptionsTab({ patientId }: { patientId: string }) {
     console.log("[v0] Iniciando adição de receita...")
     const supabase = createClient()
     
-    // 1. Primeiro valide se há arquivo
     if (!formData.prescription_file_url) {
       alert("Por favor, faça o upload da receita médica antes de adicionar.")
       return
@@ -146,12 +140,18 @@ export function PatientPrescriptionsTab({ patientId }: { patientId: string }) {
       return
     }
 
-    console.log("[v0] Usuário atual:", {
-      id: user.id,
-      email: user.email
-    })
+    // Get doctor's name for notification
+    const { data: profile } = await supabase
+      .from("profiles")
+      .select("first_name, last_name, doctor_full_name")
+      .eq("id", user.id)
+      .single()
 
-    // 2. Prepare os dados
+    const doctorName = profile?.doctor_full_name || 
+                       `${profile?.first_name || ''} ${profile?.last_name || ''}`.trim() ||
+                       user.email ||
+                       "Médico"
+
     const dataToInsert = {
       patient_id: patientId,
       doctor_id: user.id,
@@ -167,7 +167,6 @@ export function PatientPrescriptionsTab({ patientId }: { patientId: string }) {
     console.log("[v0] Dados a inserir:", JSON.stringify(dataToInsert, null, 2))
 
     try {
-      // 3. Inserir a prescrição
       const { data, error } = await supabase
         .from("medical_prescriptions")
         .insert(dataToInsert)
@@ -176,28 +175,7 @@ export function PatientPrescriptionsTab({ patientId }: { patientId: string }) {
       console.log("[v0] Resposta completa:", { data, error })
 
       if (error) {
-        console.error("[v0] Erro detalhado:", {
-          code: error.code,
-          message: error.message,
-          details: error.details,
-          hint: error.hint
-        })
-        
-        // 4. Se o erro for de RLS, verifique se o bucket está correto
-        if (error.message.includes("row-level security")) {
-          console.log("[v0] URL do arquivo:", formData.prescription_file_url)
-          
-          // Verifique se o arquivo realmente existe no storage
-          const { data: fileData, error: fileError } = await supabase
-            .storage
-            .from('prescriptions')
-            .list(`prescriptions/${patientId}/`)
-          
-          if (!fileError) {
-            console.log("[v0] Arquivos no storage:", fileData)
-          }
-        }
-        
+        console.error("[v0] Erro detalhado:", error)
         alert(`Erro ao adicionar receita: ${error.message}`)
         return
       }
@@ -205,7 +183,24 @@ export function PatientPrescriptionsTab({ patientId }: { patientId: string }) {
       if (data && data.length > 0) {
         console.log("[v0] Receita adicionada com sucesso:", data[0])
         
-        // 5. Enviar notificação push APÓS a inserção bem-sucedida
+        // Create notification for the patient
+        try {
+          const notification = await notifyPrescriptionCreated(
+            patientId,
+            formData.title,
+            doctorName
+          )
+          
+          if (notification) {
+            console.log("Notificação criada com sucesso:", notification)
+          } else {
+            console.warn("Não foi possível criar a notificação. Verifique se a tabela notifications existe.")
+          }
+        } catch (notificationError) {
+          console.error("Erro ao criar notificação:", notificationError)
+        }
+
+        // Send push notification
         try {
           const result = await pushNotifications.sendNewPrescription(patientId, formData.title)
           
@@ -214,9 +209,8 @@ export function PatientPrescriptionsTab({ patientId }: { patientId: string }) {
           } else {
             console.log("Notificação push enviada com sucesso")
           }
-        } catch (notificationError) {
-          console.error("Erro ao enviar notificação push:", notificationError)
-          // Não interrompe o fluxo principal, apenas loga o erro
+        } catch (pushError) {
+          console.error("Erro ao enviar notificação push:", pushError)
         }
 
         alert("Receita adicionada com sucesso!")

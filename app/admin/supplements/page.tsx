@@ -19,7 +19,7 @@ export default function SupplementsPage() {
   }, [])
 
   const loadSupplements = async () => {
-    const { data, error } = await supabase.from("supplements").select("*").order("created_at", { ascending: false })
+    const { data, error } = await supabase.from("supplement_catalog").select("*").order("created_at", { ascending: false })
     if (!error) {
       setSupplements(data || [])
     }
@@ -28,7 +28,7 @@ export default function SupplementsPage() {
 
   const handleDelete = async (id: string) => {
     if (confirm("Tem certeza de que deseja excluir este suplemento?")) {
-      await supabase.from("supplements").delete().eq("id", id)
+      await supabase.from("supplement_catalog").delete().eq("id", id)
       loadSupplements()
     }
   }

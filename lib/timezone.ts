@@ -5,43 +5,106 @@ export function getCurrentBrasiliaTime(): Date {
   return brasiliaTime
 }
 
-export function formatBrasiliaDate(dateString: string, format: "date" | "time" | "full" = "full"): string {
-  const date = new Date(dateString)
+export function formatBrasiliaDateAppointment(dateString: string, format: "date" | "time" | "full" = "full"): string {
+  // 1. Removemos qualquer informação de fuso horário da string (Z ou +/-03:00)
+  // 2. Adicionamos 'Z' no final para forçar o JS a ler como UTC "puro"
+  // Isso evita que o sistema tente ajustar o horário para o fuso local do servidor/navegador.
+  const cleanDateString = dateString.replace(/Z$|[+-]\d{2}:?\d{2}$/, "");
+  const date = new Date(cleanDateString + "Z");
+
+  // Usamos timeZone: "UTC" para garantir que a formatação use os valores originais
+  const options: Intl.DateTimeFormatOptions = {
+    timeZone: "UTC",
+  };
+
+  if (format === "full") {
+    return date.toLocaleString("pt-BR", { ...options, hour12: false });
+  }
 
   if (format === "date") {
     return date.toLocaleDateString("pt-BR", {
-      timeZone: "America/Sao_Paulo",
+      ...options,
       year: "numeric",
       month: "2-digit",
       day: "2-digit",
-    })
+    });
   }
 
   if (format === "time") {
     return date.toLocaleTimeString("pt-BR", {
-      timeZone: "America/Sao_Paulo",
+      ...options,
       hour: "2-digit",
       minute: "2-digit",
       hour12: false,
-    })
+    });
   }
 
+  // Formato customizado
   const dateStr = date.toLocaleDateString("pt-BR", {
-    timeZone: "America/Sao_Paulo",
+    ...options,
     year: "numeric",
     month: "2-digit",
     day: "2-digit",
-  })
+  });
 
   const timeStr = date.toLocaleTimeString("pt-BR", {
-    timeZone: "America/Sao_Paulo",
+    ...options,
     hour: "2-digit",
     minute: "2-digit",
     hour12: false,
-  })
-
-  return `${dateStr} às ${timeStr}`
+  });
+  
+  return `${dateStr} às ${timeStr}`;
 }
+
+export function formatBrasiliaDate(dateString: string, format: "date" | "time" | "full" = "full"): string {
+  const date = new Date(dateString)
+
+  const options: Intl.DateTimeFormatOptions = {
+    timeZone: "America/Sao_Paulo",
+  };
+
+  if (format === "full") {
+    return date.toLocaleString("pt-BR", { ...options, hour12: false });
+  }
+
+  if (format === "date") {
+    return date.toLocaleDateString("pt-BR", {
+      ...options,
+      year: "numeric",
+      month: "2-digit",
+      day: "2-digit",
+    });
+  }
+
+  if (format === "time") {
+    return date.toLocaleTimeString("pt-BR", {
+      ...options,
+      hour: "2-digit",
+      minute: "2-digit",
+      hour12: false,
+    });
+  }
+
+  // Formato customizado
+  const dateStr = date.toLocaleDateString("pt-BR", {
+    ...options,
+    year: "numeric",
+    month: "2-digit",
+    day: "2-digit",
+  });
+
+  const timeStr = date.toLocaleTimeString("pt-BR", {
+    ...options,
+    hour: "2-digit",
+    minute: "2-digit",
+    hour12: false,
+  });
+  
+  return `${dateStr} às ${timeStr}`;
+}
+
+
 
 export function addHoursBrasilia(hours: number): Date {
   const now = getCurrentBrasiliaTime()
@@ -120,12 +183,3 @@ export function getAppointmentTimeStr(appointmentDate: string | Date): string {
   })
 }
 
-export function formatBrasiliaTime(date: Date | string): string {
-  const d = new Date(date)
-  return d.toLocaleTimeString("pt-BR", {
-    timeZone: "America/Sao_Paulo",
-    hour: "2-digit",
-    minute: "2-digit",
-    hour12: false,
-  })
-}

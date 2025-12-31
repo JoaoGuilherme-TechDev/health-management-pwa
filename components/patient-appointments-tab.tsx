@@ -14,7 +14,7 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog"
-import { formatBrasiliaDate } from "@/lib/timezone"
+import {formatBrasiliaDateAppointment } from "@/lib/timezone"
 
 export function PatientAppointmentsTab({ patientId }: { patientId: string }) {
   const [appointments, setAppointments] = useState<any[]>([])
@@ -225,8 +225,8 @@ export function PatientAppointmentsTab({ patientId }: { patientId: string }) {
                       )}
                       <p className="text-sm text-muted-foreground mt-2">
                         <Calendar className="h-3 w-3 inline mr-1" />
-                        {formatBrasiliaDate(apt.scheduled_at, "date")} às{" "}
-                        {formatBrasiliaDate(apt.scheduled_at, "time")}
+                        {formatBrasiliaDateAppointment(apt.scheduled_at, "date")} às{" "}
+                        {formatBrasiliaDateAppointment(apt.scheduled_at, "time")}
                       </p>
                       {apt.location && (
                         <p className="text-sm text-muted-foreground">
