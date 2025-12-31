@@ -11,7 +11,7 @@ export default function NotificationsPage() {
   const [userId, setUserId] = useState<string | null>(null)
   const [loading, setLoading] = useState(true)
 
-  const { notifications, loading: notificationsLoading, markAsRead, deleteNotification } = useNotifications(userId)
+  const { notifications, loading: notificationsLoading, markAsRead, deleteNotification } = useNotifications(userId ?? undefined)
 
   useEffect(() => {
     const getUser = async () => {
