@@ -1,4 +1,3 @@
-// lib/push-notifications.ts
 import { createClient } from "@/lib/supabase/client"
 
 interface NotificationPayload {
@@ -15,17 +14,31 @@ export class PushNotificationService {
   // Enviar notificação para um paciente
   async sendToPatient(payload: NotificationPayload) {
     try {
-      console.log("🚀 Starting push notification for patient:", payload.patientId)
-      console.log("📦 Payload:", payload)
+      console.log("🚀 [PUSH] Starting push notification for patient:", payload.patientId)
       
-      // Remove role check temporarily for debugging
-      // const { data: userData } = await this.supabase.auth.getUser()
-      // const { data: profile } = await this.supabase.from("profiles").select("role").eq("id", userData.user?.id).single()
-      // if (profile?.role !== "admin" && profile?.role !== "doctor") {
-      //   throw new Error("Apenas médicos podem enviar notificações")
-      // }
+      // FIRST: Send via API for cross-device push
+      const apiResult = await this.sendViaAPI(payload)
+      
+      // SECOND: Send local notification for immediate feedback (like test button)
+      const localResult = await this.sendLocalNotification(payload)
+      
+      // THIRD: Store in database for notification center
+      await this.storeInDatabase(payload)
+      
+      return {
+        apiSuccess: apiResult,
+        localSuccess: localResult,
+        message: "Notificação enviada"
+      }
+    } catch (error) {
+      console.error("❌ [PUSH] Error sending notification:", error)
+      throw error
+    }
+  }
 
-      // Enviar via API route
+  // Send via API (for push to other devices)
+  private async sendViaAPI(payload: NotificationPayload): Promise<boolean> {
+    try {
       const response = await fetch("/api/push/send", {
         method: "POST",
         headers: {
@@ -35,25 +48,89 @@ export class PushNotificationService {
           patientId: payload.patientId,
           title: payload.title,
           body: payload.body,
-          url: payload.url || "/patient",
+          url: payload.url || "/notifications",
           type: payload.type || "general",
         }),
       })
 
-      console.log("📡 API Response status:", response.status)
-
       if (!response.ok) {
         const errorText = await response.text()
-        console.error("❌ Push API error response:", errorText)
-        throw new Error(`Falha ao enviar notificação: ${response.status}`)
+        console.error("❌ [PUSH] API error:", response.status, errorText)
+        return false
       }
 
       const result = await response.json()
-      console.log("✅ Push notification sent successfully:", result)
-      return result
+      console.log("✅ [PUSH] API success:", result)
+      return true
     } catch (error) {
-      console.error("❌ Erro ao enviar notificação push:", error)
-      throw error
+      console.error("❌ [PUSH] API failed:", error)
+      return false
+    }
+  }
+
+  // Send local notification (like test button)
+  private async sendLocalNotification(payload: NotificationPayload): Promise<boolean> {
+    try {
+      // Check if we can send local notifications
+      if (typeof window === 'undefined') return false
+      if (!('Notification' in window) || Notification.permission !== 'granted') {
+        return false
+      }
+
+      if (!('serviceWorker' in navigator)) {
+        return false
+      }
+
+      const registration = await navigator.serviceWorker.ready
+      const uniqueTag = `local-${Date.now()}`
+
+      await registration.showNotification(payload.title, {
+        body: payload.body || payload.title,
+        icon: "/icon-light-32x32.png",
+        badge: "/badge-72x72.png",
+        tag: uniqueTag,
+        requireInteraction: true,
+        timestamp: Date.now(),
+        data: {
+          type: payload.type || "general",
+          url: payload.url || "/notifications",
+          patientId: payload.patientId,
+          source: "local"
+        }
+      })
+
+      console.log("✅ [PUSH] Local notification shown")
+      return true
+    } catch (error) {
+      console.error("❌ [PUSH] Local notification failed:", error)
+      return false
+    }
+  }
+
+  // Store in database
+  private async storeInDatabase(payload: NotificationPayload): Promise<void> {
+    try {
+      const notificationType = payload.type || "general"
+      
+      await this.supabase.from("notifications").insert({
+        title: payload.title,
+        message: payload.body || payload.title,
+        notification_type: notificationType,
+        user_id: payload.patientId,
+        data: {
+          type: notificationType,
+          patientId: payload.patientId,
+          url: payload.url || "/notifications",
+          timestamp: new Date().toISOString()
+        },
+        is_read: false,
+        created_at: new Date().toISOString(),
+        updated_at: new Date().toISOString()
+      })
+      
+      console.log("✅ [PUSH] Stored in database")
+    } catch (error) {
+      console.error("❌ [PUSH] Database storage failed:", error)
     }
   }
 

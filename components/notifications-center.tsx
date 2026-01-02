@@ -174,38 +174,60 @@ export function NotificationsCenter({
   const [internalLoading, setInternalLoading] = useState(false)
 
   const supabase = createClient()
+const fetchNotifications = useCallback(async () => {
+  if (!autoRefresh) return
 
-  const fetchNotifications = useCallback(async () => {
-    if (!autoRefresh) return
+  try {
+    const {
+      data: { user },
+    } = await supabase.auth.getUser()
+    if (!user) return
 
-    try {
-      const {
-        data: { user },
-      } = await supabase.auth.getUser()
-      if (!user) return
+    setInternalLoading(true)
 
-      setInternalLoading(true)
+    // Fetch notifications for the current user
+    const { data, error } = await supabase
+      .from("notifications")
+      .select("*")
+      .eq("user_id", user.id)
+      .order("created_at", { ascending: false })
 
-      const { data, error } = await supabase
-        .from("notifications")
-        .select("*")
-        .eq("user_id", user.id)
-        .order("created_at", { ascending: false })
-
-      if (error) {
-        console.error("[v0] Error fetching notifications:", error)
-        return
-      }
-
-      if (data) {
-        onNotificationsChange?.(data)
-      }
-    } catch (error) {
-      console.error("[v0] Error in fetchNotifications:", error)
-    } finally {
-      setInternalLoading(false)
+    if (error) {
+      console.error("[v0] Error fetching notifications:", error)
+      return
     }
-  }, [supabase, onNotificationsChange, autoRefresh])
+
+    if (data) {
+      // Transform the data to match your Notification type
+      const transformedNotifications = data.map(notification => {
+        // Handle missing columns by checking if they exist
+        const hasReadAt = notification.hasOwnProperty('read_at')
+        const hasActionUrl = notification.hasOwnProperty('action_url')
+        
+        return {
+          id: notification.id,
+          title: notification.title,
+          message: notification.message || notification.body || "",
+          notification_type: (notification.notification_type || notification.type || "general") as NotificationType,
+          user_id: notification.user_id,
+          data: notification.data || {},
+          is_read: notification.is_read || false,
+          created_at: notification.created_at,
+          updated_at: notification.updated_at || notification.created_at,
+          // Only include if column exists in database
+          ...(hasReadAt && { read_at: notification.read_at }),
+          ...(hasActionUrl && { action_url: notification.action_url })
+        } as Notification
+      })
+      
+      onNotificationsChange?.(transformedNotifications)
+    }
+  } catch (error) {
+    console.error("[v0] Error in fetchNotifications:", error)
+  } finally {
+    setInternalLoading(false)
+  }
+}, [supabase, onNotificationsChange, autoRefresh])
 
   useEffect(() => {
     if (!autoRefresh) return
