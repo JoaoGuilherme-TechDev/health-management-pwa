@@ -19,6 +19,7 @@ import {
 } from "@/components/ui/dialog"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { Plus, Trash2, Utensils } from "lucide-react"
+import { NotificationService } from "@/lib/notification-service" // Add this import
 
 interface PatientDietTabProps {
   patientId: string
@@ -105,13 +106,10 @@ export function PatientDietTab({ patientId }: PatientDietTabProps) {
     })
 
     if (!error) {
+      // Use NotificationService instead of individual functions
       try {
-        const { notifyDietCreated } = await import("@/lib/notifications")
-        const { pushNotifications } = await import("@/lib/push-notifications")
-
-        await notifyDietCreated(patientId, formData.title)
-
-        await pushNotifications.sendNewDiet(patientId, formData.title)
+        await NotificationService.sendDietNotification(patientId, formData.title)
+        console.log("Diet notification sent successfully")
       } catch (notificationError) {
         console.error("Erro ao enviar notificações:", notificationError)
       }

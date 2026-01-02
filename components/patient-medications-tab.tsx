@@ -12,6 +12,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/u
 import { Badge } from "@/components/ui/badge"
 import { formatBrasiliaDate } from "@/lib/timezone"
 import { Alert, AlertDescription } from "@/components/ui/alert"
+import { NotificationService } from "@/lib/notification-service" // Add this import
 
 export function PatientMedicationsTab({ patientId }: { patientId: string }) {
   const [medications, setMedications] = useState<any[]>([])
@@ -216,13 +217,10 @@ export function PatientMedicationsTab({ patientId }: { patientId: string }) {
 
       alert("Medicamento e horários adicionados com sucesso!")
 
+      // Use NotificationService instead of individual functions
       try {
-        const { notifyMedicationCreated } = await import("@/lib/notifications")
-        const { pushNotifications } = await import("@/lib/push-notifications")
-
-        await notifyMedicationCreated(patientId, formData.name)
-
-        await pushNotifications.sendNewMedication(patientId, formData.name)
+        await NotificationService.sendMedicationNotification(patientId, formData.name)
+        console.log("Medication notification sent successfully")
       } catch (notificationError) {
         console.error("Erro ao enviar notificações:", notificationError)
       }

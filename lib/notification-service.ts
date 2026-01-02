@@ -7,7 +7,8 @@ import {
   notifyMedicationCreated,
   notifyDietCreated,
   notifySuplementCreated,
-  Notification
+  Notification,
+  notifyEvolutionCreated
 } from "@/lib/notifications"
 
 export class NotificationService {
@@ -59,6 +60,22 @@ export class NotificationService {
       return null
     }
   }
+
+  // Add this method to the NotificationService class in lib/notification-service.ts
+static async sendEvolutionNotification(
+  userId: string,
+  measurementDetails: string,
+  sendPush: boolean = true
+): Promise<Notification | null> {
+  try {
+    const notification = await notifyEvolutionCreated(userId, measurementDetails, sendPush)
+    console.log("NotificationService: Evolution notification sent:", notification)
+    return notification
+  } catch (error) {
+    console.error("Error sending evolution notification:", error)
+    return null
+  }
+}
 
   static async sendDietNotification(
     userId: string,

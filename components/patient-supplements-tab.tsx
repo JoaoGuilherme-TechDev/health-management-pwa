@@ -19,6 +19,7 @@ import {
   DialogTrigger,
 } from "@/components/ui/dialog"
 import { Plus, Trash2, Pill } from "lucide-react"
+import { NotificationService } from "@/lib/notification-service" // Add this import
 
 interface PatientSupplementsTabProps {
   patientId: string
@@ -101,13 +102,10 @@ export function PatientSupplementsTab({ patientId }: PatientSupplementsTabProps)
     })
 
     if (!error) {
+      // Use NotificationService instead of individual functions
       try {
-        const { notifySuplementCreated } = await import("@/lib/notifications")
-        const { pushNotifications } = await import("@/lib/push-notifications")
-
-        await notifySuplementCreated(patientId, formData.supplement_name)
-
-        await pushNotifications.sendNewSupplement(patientId, formData.supplement_name)
+        await NotificationService.sendSupplementNotification(patientId, formData.supplement_name)
+        console.log("Supplement notification sent successfully")
       } catch (notificationError) {
         console.error("Erro ao enviar notificações:", notificationError)
       }

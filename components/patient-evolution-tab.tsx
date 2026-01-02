@@ -10,9 +10,9 @@ import { createClient } from "@/lib/supabase/client"
 import { Plus, TrendingUp, Trash2 } from "lucide-react"
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog"
 import { formatBrasiliaDate } from "@/lib/timezone"
+import { NotificationService } from "@/lib/notification-service"
 
 export function PatientEvolutionTab({ patientId }: { patientId: string }) {
-
   const [evolution, setEvolution] = useState<any[]>([])
   const [loading, setLoading] = useState(true)
   const [showDialog, setShowDialog] = useState(false)
@@ -68,35 +68,82 @@ export function PatientEvolutionTab({ patientId }: { patientId: string }) {
   }
 
   const handleAdd = async () => {
-    const supabase = createClient()
-    await supabase.from("physical_evolution").insert({
-      user_id: patientId,
-      weight: formData.weight ? Number.parseFloat(formData.weight) : null,
-      height: formData.height ? Number.parseFloat(formData.height) : null,
-      muscle_mass: formData.muscle_mass ? Number.parseFloat(formData.muscle_mass) : null,
-      body_fat_percentage: formData.body_fat_percentage ? Number.parseFloat(formData.body_fat_percentage) : null,
-      visceral_fat: formData.visceral_fat ? Number.parseFloat(formData.visceral_fat) : null,
-      metabolic_age: formData.metabolic_age ? Number.parseInt(formData.metabolic_age) : null,
-      bmr: formData.bmr ? Number.parseFloat(formData.bmr) : null,
-      body_water_percentage: formData.body_water_percentage ? Number.parseFloat(formData.body_water_percentage) : null,
-      bone_mass: formData.bone_mass ? Number.parseFloat(formData.bone_mass) : null,
-      notes: formData.notes,
-    })
+    try {
+      const supabase = createClient()
+      
+      // Create evolution record
+      const { data: evolutionData, error } = await supabase.from("physical_evolution").insert({
+        user_id: patientId,
+        weight: formData.weight ? Number.parseFloat(formData.weight) : null,
+        height: formData.height ? Number.parseFloat(formData.height) : null,
+        muscle_mass: formData.muscle_mass ? Number.parseFloat(formData.muscle_mass) : null,
+        body_fat_percentage: formData.body_fat_percentage ? Number.parseFloat(formData.body_fat_percentage) : null,
+        visceral_fat: formData.visceral_fat ? Number.parseFloat(formData.visceral_fat) : null,
+        metabolic_age: formData.metabolic_age ? Number.parseInt(formData.metabolic_age) : null,
+        bmr: formData.bmr ? Number.parseFloat(formData.bmr) : null,
+        body_water_percentage: formData.body_water_percentage ? Number.parseFloat(formData.body_water_percentage) : null,
+        bone_mass: formData.bone_mass ? Number.parseFloat(formData.bone_mass) : null,
+        notes: formData.notes,
+      }).select().single()
 
-    setShowDialog(false)
-    setFormData({
-      weight: "",
-      height: "",
-      muscle_mass: "",
-      body_fat_percentage: "",
-      visceral_fat: "",
-      metabolic_age: "",
-      bmr: "",
-      body_water_percentage: "",
-      bone_mass: "",
-      notes: "",
-    })
-    loadEvolution()
+      if (error) {
+        console.error("Erro ao adicionar evolução:", error)
+        alert(`Erro ao adicionar medição: ${error.message}`)
+        return
+      }
+
+      console.log("Evolução adicionada com sucesso:", evolutionData)
+
+      // Create notification for evolution
+      try {
+        // Create a meaningful message for the evolution notification
+        let measurementDetails = "Nova medição de evolução física registrada"
+        
+        if (formData.weight || formData.body_fat_percentage) {
+          const parts = []
+          if (formData.weight) parts.push(`Peso: ${formData.weight}kg`)
+          if (formData.body_fat_percentage) parts.push(`Gordura: ${formData.body_fat_percentage}%`)
+          if (parts.length > 0) {
+            measurementDetails = parts.join(" • ")
+          }
+        }
+
+        // Use NotificationService for evolution notification (just like other components)
+        const notification = await NotificationService.sendEvolutionNotification(
+          patientId,
+          measurementDetails,
+          true // sendPush
+        )
+        
+        if (notification) {
+          console.log("Evolution notification sent successfully:", notification)
+        } else {
+          console.warn("Failed to create evolution notification")
+        }
+      } catch (notificationError) {
+        console.error("Erro ao enviar notificações:", notificationError)
+      }
+
+      alert("Medição registrada com sucesso!")
+
+      setShowDialog(false)
+      setFormData({
+        weight: "",
+        height: "",
+        muscle_mass: "",
+        body_fat_percentage: "",
+        visceral_fat: "",
+        metabolic_age: "",
+        bmr: "",
+        body_water_percentage: "",
+        bone_mass: "",
+        notes: "",
+      })
+      loadEvolution()
+    } catch (error: any) {
+      console.error("Erro inesperado ao adicionar evolução:", error)
+      alert(`Erro: ${error.message}`)
+    }
   }
 
   const handleDelete = async (id: string) => {
