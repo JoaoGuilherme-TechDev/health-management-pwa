@@ -11,32 +11,77 @@ interface NotificationPayload {
 export class PushNotificationService {
   private supabase = createClient()
 
-  // Enviar notificação para um paciente
+  // Check if current user is a doctor
+  private async isDoctor(): Promise<boolean> {
+    try {
+      const { data: { user } } = await this.supabase.auth.getUser()
+      if (!user) return false
+      
+      const { data: profile } = await this.supabase
+        .from("profiles")
+        .select("role")
+        .eq("id", user.id)
+        .single()
+      
+      return profile?.role === "doctor" || profile?.role === "admin"
+    } catch (error) {
+      console.error("Error checking user role:", error)
+      return false
+    }
+  }
+
+  // Enviar notificação para um paciente (DOCTORS ONLY)
   async sendToPatient(payload: NotificationPayload) {
     try {
-      console.log("🚀 [PUSH] Starting push notification for patient:", payload.patientId)
+      console.log("🚀 [PUSH] Doctor sending push notification to patient:", payload.patientId)
       
-      // FIRST: Send via API for cross-device push
+      // Check if current user is a doctor
+      const isDoctor = await this.isDoctor()
+      if (!isDoctor) {
+        console.error("❌ [PUSH] Only doctors can send push notifications")
+        throw new Error("Apenas médicos podem enviar notificações para pacientes")
+      }
+
+      // Get doctor info
+      const { data: { user: doctor } } = await this.supabase.auth.getUser()
+      if (!doctor) {
+        throw new Error("Médico não autenticado")
+      }
+
+      // Get patient info
+      const { data: patient } = await this.supabase
+        .from("profiles")
+        .select("first_name, last_name, email")
+        .eq("id", payload.patientId)
+        .single()
+
+      if (!patient) {
+        throw new Error("Paciente não encontrado")
+      }
+
+      console.log(`👨‍⚕️ Doctor ${doctor.id} → Patient ${payload.patientId} (${patient.first_name} ${patient.last_name})`)
+
+      // Store notification in database (for patient's notification center)
+      await this.storeInDatabase(payload, doctor.id)
+      
+      // Send push notification via API
       const apiResult = await this.sendViaAPI(payload)
       
-      // SECOND: Send local notification for immediate feedback (like test button)
-      const localResult = await this.sendLocalNotification(payload)
-      
-      // THIRD: Store in database for notification center
-      await this.storeInDatabase(payload)
+      console.log("✅ [PUSH] Notification sent successfully")
       
       return {
+        success: true,
+        patient: `${patient.first_name} ${patient.last_name}`,
         apiSuccess: apiResult,
-        localSuccess: localResult,
-        message: "Notificação enviada"
+        message: "Notificação enviada ao paciente"
       }
-    } catch (error) {
+    } catch (error: any) {
       console.error("❌ [PUSH] Error sending notification:", error)
       throw error
     }
   }
 
-  // Send via API (for push to other devices)
+  // Send via API (for push to patient's devices)
   private async sendViaAPI(payload: NotificationPayload): Promise<boolean> {
     try {
       const response = await fetch("/api/push/send", {
@@ -50,6 +95,8 @@ export class PushNotificationService {
           body: payload.body,
           url: payload.url || "/notifications",
           type: payload.type || "general",
+          // Add doctor info if needed
+          doctorId: (await this.supabase.auth.getUser()).data.user?.id
         }),
       })
 
@@ -68,47 +115,8 @@ export class PushNotificationService {
     }
   }
 
-  // Send local notification (like test button)
-  private async sendLocalNotification(payload: NotificationPayload): Promise<boolean> {
-    try {
-      // Check if we can send local notifications
-      if (typeof window === 'undefined') return false
-      if (!('Notification' in window) || Notification.permission !== 'granted') {
-        return false
-      }
-
-      if (!('serviceWorker' in navigator)) {
-        return false
-      }
-
-      const registration = await navigator.serviceWorker.ready
-      const uniqueTag = `local-${Date.now()}`
-
-      await registration.showNotification(payload.title, {
-        body: payload.body || payload.title,
-        icon: "/icon-light-32x32.png",
-        badge: "/badge-72x72.png",
-        tag: uniqueTag,
-        requireInteraction: true,
-        timestamp: Date.now(),
-        data: {
-          type: payload.type || "general",
-          url: payload.url || "/notifications",
-          patientId: payload.patientId,
-          source: "local"
-        }
-      })
-
-      console.log("✅ [PUSH] Local notification shown")
-      return true
-    } catch (error) {
-      console.error("❌ [PUSH] Local notification failed:", error)
-      return false
-    }
-  }
-
-  // Store in database
-  private async storeInDatabase(payload: NotificationPayload): Promise<void> {
+  // Store in database for patient's notification center
+  private async storeInDatabase(payload: NotificationPayload, doctorId: string): Promise<void> {
     try {
       const notificationType = payload.type || "general"
       
@@ -116,25 +124,28 @@ export class PushNotificationService {
         title: payload.title,
         message: payload.body || payload.title,
         notification_type: notificationType,
-        user_id: payload.patientId,
+        user_id: payload.patientId, // Store with PATIENT'S ID
         data: {
           type: notificationType,
           patientId: payload.patientId,
+          doctorId: doctorId,
           url: payload.url || "/notifications",
-          timestamp: new Date().toISOString()
+          timestamp: new Date().toISOString(),
+          fromDoctor: true
         },
         is_read: false,
         created_at: new Date().toISOString(),
         updated_at: new Date().toISOString()
       })
       
-      console.log("✅ [PUSH] Stored in database")
+      console.log("✅ [PUSH] Stored in patient's notification database")
     } catch (error) {
       console.error("❌ [PUSH] Database storage failed:", error)
+      throw error
     }
   }
 
-  // Enviar notificação de nova prescrição
+  // Enviar notificação de nova prescrição (DOCTOR ONLY)
   async sendNewPrescription(patientId: string, prescriptionTitle: string) {
     return this.sendToPatient({
       patientId,
@@ -190,6 +201,16 @@ export class PushNotificationService {
       body: `Você recebeu uma recomendação: ${supplementName}`,
       url: `/patient`,
       type: "supplement",
+    })
+  }
+
+  async sendNewEvolution(patientId: string, evolutionTitle: string) {
+    return this.sendToPatient({
+      patientId,
+      title: "📈 Nova Evolução Registrada",
+      body: `Sua evolução foi atualizada: ${evolutionTitle}`,
+      url: `/patient/evolutions`,
+      type: "evolution",
     })
   }
 }

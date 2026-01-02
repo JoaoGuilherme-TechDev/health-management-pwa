@@ -18,7 +18,7 @@ webPush.setVapidDetails(
 
 export async function POST(request: Request) {
   try {
-    console.log("📱 [PUSH API] Received request")
+    console.log("📱 [PUSH API] Received doctor's push request")
     
     const body = await request.json()
     const { 
@@ -26,10 +26,11 @@ export async function POST(request: Request) {
       title,
       body: message,
       url = "/notifications",
-      type = "general"
+      type = "general",
+      doctorId
     } = body
 
-    // Validate
+    // Validate - must have patientId
     if (!patientId || !title) {
       return NextResponse.json(
         { error: "patientId and title are required" },
@@ -37,38 +38,55 @@ export async function POST(request: Request) {
       )
     }
 
-    console.log(`📤 [PUSH API] Sending: "${title}" to patient ${patientId}`)
+    console.log(`📤 [PUSH API] Doctor ${doctorId || 'unknown'} → Patient ${patientId}: "${title}"`)
 
     // Get Supabase client
     const supabase = await createClient()
+
+    // Verify doctor is authenticated (optional but recommended)
+    if (doctorId) {
+      const { data: doctorProfile } = await supabase
+        .from("profiles")
+        .select("role")
+        .eq("id", doctorId)
+        .single()
+      
+      if (doctorProfile?.role !== "doctor" && doctorProfile?.role !== "admin") {
+        console.error("❌ [PUSH API] Unauthorized: Only doctors can send push notifications")
+        return NextResponse.json(
+          { error: "Apenas médicos podem enviar notificações" },
+          { status: 403 }
+        )
+      }
+    }
 
     // Get patient's push subscriptions
     const { data: subscriptions, error: queryError } = await supabase
       .from("push_subscriptions")
       .select("*")
-      .eq("user_id", patientId)
+      .eq("user_id", patientId) // ONLY for the patient
       .not("endpoint", "is", null)
 
     if (queryError) {
-      console.error("❌ [PUSH API] Error fetching subscriptions:", queryError)
+      console.error("❌ [PUSH API] Error fetching patient subscriptions:", queryError)
       return NextResponse.json(
-        { error: "Failed to fetch subscriptions" },
+        { error: "Failed to fetch patient's subscriptions" },
         { status: 500 }
       )
     }
 
     if (!subscriptions || subscriptions.length === 0) {
-      console.log("⚠️ [PUSH API] No subscriptions found")
+      console.log("⚠️ [PUSH API] Patient has no push subscriptions")
       return NextResponse.json({
         success: false,
-        message: "Patient has no push subscriptions",
-        suggestion: "Ask the patient to enable push notifications"
+        message: "Paciente não tem notificações push ativadas",
+        suggestion: "Peça ao paciente para ativar notificações em Configurações"
       })
     }
 
-    console.log(`📨 [PUSH API] Found ${subscriptions.length} subscription(s)`)
+    console.log(`📨 [PUSH API] Found ${subscriptions.length} subscription(s) for patient`)
 
-    // Send to each subscription
+    // Send to each of patient's subscriptions
     const results = []
     for (const subscription of subscriptions) {
       try {
@@ -85,11 +103,13 @@ export async function POST(request: Request) {
           body: message || title,
           icon: "/icon-light-32x32.png",
           badge: "/badge-72x72.png",
-          tag: `push-${Date.now()}`,
+          tag: `doctor-push-${Date.now()}`,
           data: {
             url,
             type,
             patientId,
+            doctorId,
+            fromDoctor: true,
             timestamp: new Date().toISOString()
           }
         })
@@ -110,7 +130,7 @@ export async function POST(request: Request) {
 
     return NextResponse.json({
       success: true,
-      message: `Push notifications sent: ${successful} successful, ${failed} failed`,
+      message: `Notificações enviadas ao paciente: ${successful} bem-sucedidas, ${failed} falhas`,
       results
     })
 
