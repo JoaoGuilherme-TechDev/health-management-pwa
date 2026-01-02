@@ -101,6 +101,17 @@ export function PatientSupplementsTab({ patientId }: PatientSupplementsTabProps)
     })
 
     if (!error) {
+      try {
+        const { notifySuplementCreated } = await import("@/lib/notifications")
+        const { pushNotifications } = await import("@/lib/push-notifications")
+
+        await notifySuplementCreated(patientId, formData.supplement_name)
+
+        await pushNotifications.sendNewSupplement(patientId, formData.supplement_name)
+      } catch (notificationError) {
+        console.error("Erro ao enviar notificações:", notificationError)
+      }
+
       setOpen(false)
       setFormData({
         supplement_name: "",

@@ -105,6 +105,17 @@ export function PatientDietTab({ patientId }: PatientDietTabProps) {
     })
 
     if (!error) {
+      try {
+        const { notifyDietCreated } = await import("@/lib/notifications")
+        const { pushNotifications } = await import("@/lib/push-notifications")
+
+        await notifyDietCreated(patientId, formData.title)
+
+        await pushNotifications.sendNewDiet(patientId, formData.title)
+      } catch (notificationError) {
+        console.error("Erro ao enviar notificações:", notificationError)
+      }
+
       setOpen(false)
       setFormData({
         title: "",

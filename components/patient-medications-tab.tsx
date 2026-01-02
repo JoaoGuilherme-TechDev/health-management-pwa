@@ -67,9 +67,9 @@ export function PatientMedicationsTab({ patientId }: { patientId: string }) {
     try {
       setLoading(true)
       setError(null)
-      
+
       const supabase = createClient()
-      
+
       // First, try without the join to see if basic medications load
       const { data: basicData, error: basicError } = await supabase
         .from("medications")
@@ -89,23 +89,25 @@ export function PatientMedicationsTab({ patientId }: { patientId: string }) {
         const { data: schedulesData, error: schedulesError } = await supabase
           .from("medication_schedules")
           .select("*")
-          .in("medication_id", basicData.map(m => m.id))
+          .in(
+            "medication_id",
+            basicData.map((m) => m.id),
+          )
 
         if (schedulesError) {
           console.error("Erro ao carregar horários:", schedulesError)
         }
 
         // Combine data
-        const combinedData = basicData.map(med => ({
+        const combinedData = basicData.map((med) => ({
           ...med,
-          medication_schedules: schedulesData?.filter(s => s.medication_id === med.id) || []
+          medication_schedules: schedulesData?.filter((s) => s.medication_id === med.id) || [],
         }))
 
         setMedications(combinedData)
       } else {
         setMedications(basicData || [])
       }
-      
     } catch (error: any) {
       console.error("Erro ao carregar medicamentos:", error)
       setError(`Erro ao carregar medicamentos: ${error.message}`)
@@ -118,8 +120,10 @@ export function PatientMedicationsTab({ patientId }: { patientId: string }) {
   const loadDoctorInfo = async () => {
     try {
       const supabase = createClient()
-      const { data: { user } } = await supabase.auth.getUser()
-      
+      const {
+        data: { user },
+      } = await supabase.auth.getUser()
+
       if (user) {
         const { data: profile, error: profileError } = await supabase
           .from("profiles")
@@ -202,9 +206,7 @@ export function PatientMedicationsTab({ patientId }: { patientId: string }) {
           days_of_week: [0, 1, 2, 3, 4, 5, 6],
         }))
 
-        const { error: scheduleError } = await supabase
-          .from("medication_schedules")
-          .insert(schedulesToInsert)
+        const { error: scheduleError } = await supabase.from("medication_schedules").insert(schedulesToInsert)
 
         if (scheduleError) {
           console.error("Erro ao adicionar horários:", scheduleError)
@@ -213,6 +215,18 @@ export function PatientMedicationsTab({ patientId }: { patientId: string }) {
       }
 
       alert("Medicamento e horários adicionados com sucesso!")
+
+      try {
+        const { notifyMedicationCreated } = await import("@/lib/notifications")
+        const { pushNotifications } = await import("@/lib/push-notifications")
+
+        await notifyMedicationCreated(patientId, formData.name)
+
+        await pushNotifications.sendNewMedication(patientId, formData.name)
+      } catch (notificationError) {
+        console.error("Erro ao enviar notificações:", notificationError)
+      }
+
       setShowDialog(false)
       setFormData({
         name: "",
@@ -224,7 +238,6 @@ export function PatientMedicationsTab({ patientId }: { patientId: string }) {
       })
       setSchedules(["08:00"])
       loadMedications()
-      
     } catch (error: any) {
       console.error("Erro inesperado:", error)
       alert(`Erro: ${error.message}`)
@@ -362,8 +375,8 @@ export function PatientMedicationsTab({ patientId }: { patientId: string }) {
             <div className="grid md:grid-cols-2 gap-4">
               <div>
                 <Label>Nome do Medicamento *</Label>
-                <Input 
-                  value={formData.name} 
+                <Input
+                  value={formData.name}
                   onChange={(e) => setFormData({ ...formData, name: e.target.value })}
                   required
                 />

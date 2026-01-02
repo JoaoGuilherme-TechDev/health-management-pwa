@@ -4,7 +4,7 @@ interface NotificationPayload {
   title: string
   body?: string
   url?: string
-  type?: "prescription" | "appointment" | "diet" | "general"
+  type?: "prescription" | "appointment" | "diet" | "medication" | "supplement" | "general"
   patientId: string
 }
 
@@ -16,11 +16,7 @@ export class PushNotificationService {
     try {
       // Verificar se é admin/médico
       const { data: userData } = await this.supabase.auth.getUser()
-      const { data: profile } = await this.supabase
-        .from("profiles")
-        .select("role")
-        .eq("id", userData.user?.id)
-        .single()
+      const { data: profile } = await this.supabase.from("profiles").select("role").eq("id", userData.user?.id).single()
 
       if (profile?.role !== "admin" && profile?.role !== "doctor") {
         throw new Error("Apenas médicos podem enviar notificações")
@@ -64,9 +60,8 @@ export class PushNotificationService {
     })
   }
 
-  // Enviar notificação de nova consulta
-  async sendNewAppointment(patientId: string, appointmentDate: Date) {
-    const formattedDate = appointmentDate.toLocaleDateString("pt-BR", {
+  async sendNewAppointment(patientId: string, appointmentTitle: string, appointmentDate: string) {
+    const formattedDate = new Date(appointmentDate).toLocaleDateString("pt-BR", {
       weekday: "long",
       day: "numeric",
       month: "long",
@@ -77,20 +72,39 @@ export class PushNotificationService {
     return this.sendToPatient({
       patientId,
       title: "📅 Nova Consulta Agendada",
-      body: `Você tem uma consulta marcada para ${formattedDate}`,
+      body: `${appointmentTitle} • ${formattedDate}`,
       url: `/patient/appointments`,
       type: "appointment",
     })
   }
 
-  // Enviar notificação de nova dieta
+  async sendNewMedication(patientId: string, medicationName: string) {
+    return this.sendToPatient({
+      patientId,
+      title: "💊 Novo Medicamento Prescrito",
+      body: `Você recebeu um novo medicamento: ${medicationName}`,
+      url: `/patient/medications`,
+      type: "medication",
+    })
+  }
+
   async sendNewDiet(patientId: string, dietTitle: string) {
     return this.sendToPatient({
       patientId,
-      title: "🥗 Nova Recomendação de Dieta",
-      body: `Você recebeu uma nova dieta: ${dietTitle}`,
+      title: "🥗 Nova Receita de Dieta",
+      body: `Você recebeu uma nova receita: ${dietTitle}`,
       url: `/patient/diet`,
       type: "diet",
+    })
+  }
+
+  async sendNewSupplement(patientId: string, supplementName: string) {
+    return this.sendToPatient({
+      patientId,
+      title: "💪 Novo Suplemento Recomendado",
+      body: `Você recebeu uma recomendação: ${supplementName}`,
+      url: `/patient`,
+      type: "supplement",
     })
   }
 }

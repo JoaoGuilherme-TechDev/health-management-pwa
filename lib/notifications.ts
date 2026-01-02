@@ -4,14 +4,14 @@
 import { createClient } from "@/lib/supabase/client"
 
 // Notification types
-export type NotificationType = 
-  | 'medication_created'
-  | 'appointment_created'
-  | 'appointment_reminder'
-  | 'diet_recipe_created'
-  | 'prescription_created'
-  | 'supplement_created'
-  | 'evolution_created';
+export type NotificationType =
+  | "medication_created"
+  | "appointment_created"
+  | "appointment_reminder"
+  | "diet_recipe_created"
+  | "prescription_created"
+  | "supplement_created"
+  | "evolution_created"
 
 export interface Notification {
   id: string
@@ -36,7 +36,7 @@ export interface CreateNotificationData {
 // Create a notification in the database
 export async function createNotification(data: CreateNotificationData): Promise<Notification | null> {
   const supabase = createClient()
-  
+
   console.log("Creating notification with data:", data)
 
   const { data: notification, error } = await supabase
@@ -122,7 +122,7 @@ export async function notifyPrescriptionCreated(
   doctorName?: string,
 ): Promise<Notification | null> {
   console.log("notifyPrescriptionCreated called with:", { userId, prescriptionTitle, doctorName })
-  
+
   const doctorStr = doctorName ? ` - Dr(a). ${doctorName}` : ""
 
   const result = await createNotification({
@@ -134,5 +134,57 @@ export async function notifyPrescriptionCreated(
   })
 
   console.log("notifyPrescriptionCreated result:", result)
+  return result
+}
+
+export async function notifyAppointmentCreated(
+  userId: string,
+  appointmentTitle: string,
+  appointmentDate: string,
+): Promise<Notification | null> {
+  const result = await createNotification({
+    userId,
+    type: "appointment_created",
+    title: "Nova Consulta Agendada",
+    message: `${appointmentTitle} - ${new Date(appointmentDate).toLocaleDateString("pt-BR")}`,
+    actionUrl: "/patient/appointments",
+  })
+
+  return result
+}
+
+export async function notifyMedicationCreated(userId: string, medicationName: string): Promise<Notification | null> {
+  const result = await createNotification({
+    userId,
+    type: "medication_created",
+    title: "Novo Medicamento Prescrito",
+    message: `${medicationName}`,
+    actionUrl: "/patient/medications",
+  })
+
+  return result
+}
+
+export async function notifyDietCreated(userId: string, dietTitle: string): Promise<Notification | null> {
+  const result = await createNotification({
+    userId,
+    type: "diet_recipe_created",
+    title: "Nova Receita de Dieta",
+    message: `${dietTitle}`,
+    actionUrl: "/patient/diet",
+  })
+
+  return result
+}
+
+export async function notifySuplementCreated(userId: string, supplementName: string): Promise<Notification | null> {
+  const result = await createNotification({
+    userId,
+    type: "supplement_created",
+    title: "Novo Suplemento Recomendado",
+    message: `${supplementName}`,
+    actionUrl: "/patient",
+  })
+
   return result
 }
