@@ -1,102 +1,86 @@
-// public/service-worker.js
+// Listen for push events
 self.addEventListener('push', function(event) {
-  console.log('Service Worker: Push received')
-  
-  if (!event.data) {
-    console.error('Push event but no data')
-    return
-  }
+  if (!event.data) return
 
-  let data
   try {
-    data = event.data.json()
-    console.log('Push data:', data)
+    const data = event.data.json()
+    
+    const options = {
+      body: data.body || 'Nova notificação',
+      icon: data.icon || '/icon-light-32x32.png',
+      badge: data.badge || '/badge-72x72.png',
+      tag: data.tag || 'default-tag',
+      data: data.data || {},
+      timestamp: data.timestamp || Date.now(),
+      actions: data.actions || [],
+      requireInteraction: data.requireInteraction || false,
+      vibrate: data.vibrate || [200, 100, 200],
+      silent: data.silent || false
+    }
+
+    event.waitUntil(
+      self.registration.showNotification(data.title || 'HealthCare+', options)
+    )
   } catch (error) {
     console.error('Error parsing push data:', error)
-    return
+    
+    // Fallback to default notification
+    event.waitUntil(
+      self.registration.showNotification('HealthCare+', {
+        body: 'Você tem uma nova notificação',
+        icon: '/icon-light-32x32.png',
+        badge: '/badge-72x72.png',
+        tag: 'fallback'
+      })
+    )
   }
-
-  const options = {
-    body: data.body || 'Nova notificação',
-    icon: data.icon || '/icon-192x192.png',
-    badge: data.badge || '/badge-72x72.png',
-    vibrate: [200, 100, 200],
-    data: {
-      url: data.url || '/',
-      type: data.type || 'general',
-      timestamp: data.timestamp || Date.now()
-    },
-    actions: [
-      {
-        action: 'open',
-        title: 'Abrir'
-      },
-      {
-        action: 'close',
-        title: 'Fechar'
-      }
-    ]
-  }
-
-  event.waitUntil(
-    self.registration.showNotification(data.title, options).then(() => {
-      console.log('Notification shown successfully')
-    }).catch(error => {
-      console.error('Error showing notification:', error)
-    })
-  )
 })
 
+// Handle notification clicks
 self.addEventListener('notificationclick', function(event) {
-  console.log('Notification click received', event.notification.data)
-  
   event.notification.close()
 
-  if (event.action === 'open') {
-    const urlToOpen = event.notification.data.url || '/'
-    
-    event.waitUntil(
-      clients.matchAll({ 
-        type: 'window',
-        includeUncontrolled: true 
-      }).then(function(windowClients) {
-        // Check if there is already a window/tab open with the target URL
+  const urlToOpen = event.notification.data?.url || '/'
+
+  event.waitUntil(
+    clients.matchAll({ type: 'window', includeUncontrolled: true })
+      .then(function(windowClients) {
+        // Check if there's already a window/tab open with the target URL
         for (let i = 0; i < windowClients.length; i++) {
           const client = windowClients[i]
           if (client.url === urlToOpen && 'focus' in client) {
             return client.focus()
           }
         }
-        // If not, then open the target URL in a new window/tab
+        // If not, open a new window/tab
         if (clients.openWindow) {
           return clients.openWindow(urlToOpen)
         }
       })
-    )
-  } else if (event.action === 'close') {
-    // Do nothing, notification is already closed
-    console.log('Notification closed by user')
-  } else {
-    // Default click action
-    const urlToOpen = event.notification.data.url || '/'
-    event.waitUntil(clients.openWindow(urlToOpen))
-  }
+  )
 })
 
-// Handle push subscription
+// Handle notification close
+self.addEventListener('notificationclose', function(event) {
+  // You can log analytics here if needed
+  console.log('Notification closed:', event.notification.tag)
+})
+
+// Handle push subscription change
 self.addEventListener('pushsubscriptionchange', function(event) {
-  console.log('Push subscription changed')
   event.waitUntil(
-    self.registration.pushManager.getSubscription().then(function(subscription) {
-      if (subscription) {
-        // Send new subscription to server
-        return fetch('/api/push/subscribe', {
+    self.registration.pushManager.subscribe(event.oldSubscription.options)
+      .then(function(subscription) {
+        // Send the new subscription to your server
+        return fetch('/api/push/update-subscription', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify(subscription)
+          body: JSON.stringify({
+            oldEndpoint: event.oldSubscription.endpoint,
+            newSubscription: subscription.toJSON()
+          })
         })
-      }
-    })
+      })
   )
 })
 
