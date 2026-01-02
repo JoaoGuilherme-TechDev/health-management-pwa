@@ -135,7 +135,7 @@ export async function notifyPrescriptionCreated(
     title: "Nova Receita Adicionada",
     message: `${prescriptionTitle}${doctorStr}`,
     actionUrl: "/patient/prescriptions",
-    sendPush: false,
+    sendPush: true,
   })
 
   // Send push notification
@@ -166,7 +166,7 @@ export async function notifyAppointmentCreated(
     title: "Nova Consulta Agendada",
     message: `${appointmentTitle} - ${new Date(appointmentDate).toLocaleDateString("pt-BR")}`,
     actionUrl: "/patient/appointments",
-    sendPush: false,
+    sendPush: true,
   })
 
   // Send push notification
@@ -192,7 +192,7 @@ export async function notifyMedicationCreated(
     title: "Novo Medicamento Prescrito",
     message: `${medicationName}`,
     actionUrl: "/patient/medications",
-    sendPush: false,
+    sendPush: true,
   })
 
   if (sendPush && result) {
@@ -217,7 +217,7 @@ export async function notifyDietCreated(
     title: "Nova Receita de Dieta",
     message: `${dietTitle}`,
     actionUrl: "/patient/diet",
-    sendPush: false,
+    sendPush: true,
   })
 
   if (sendPush && result) {
@@ -242,7 +242,7 @@ export async function notifySuplementCreated(
     title: "Novo Suplemento Recomendado",
     message: `${supplementName}`,
     actionUrl: "/patient",
-    sendPush: false,
+    sendPush: true,
   })
 
   if (sendPush && result) {
@@ -270,7 +270,7 @@ export async function notifyEvolutionCreated(
     title: "📊 Nova Evolução Física",
     message: measurementDetails,
     actionUrl: "/patient/evolution",
-    sendPush: false,
+    sendPush: true,
   })
 
   // Send push notification
