@@ -5,8 +5,6 @@ import { useEffect, useState } from "react"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
 import { Calendar, MapPin, Clock } from "lucide-react"
-import { format, parseISO } from "date-fns"
-import { ptBR } from "date-fns/locale"
 import { formatBrasiliaDate } from "@/lib/timezone"
 
 interface Appointment {
@@ -27,59 +25,75 @@ export default function AppointmentsPage() {
   const [loading, setLoading] = useState(true)
 
   useEffect(() => {
+    const supabase = createClient()
+    let isMounted = true
+    const channels: any[] = []
+
     const loadAppointments = async () => {
-      const supabase = createClient()
       const {
         data: { user },
       } = await supabase.auth.getUser()
 
-      if (user) {
-        console.log("[v0] Carregando consultas do paciente:", user.id)
+      if (!user) {
+        setLoading(false)
+        return
+      }
 
-        const { data, error } = await supabase
-          .from("appointments")
-          .select("*")
-          .eq("patient_id", user.id)
-          .order("scheduled_at", { ascending: true })
+      console.log("[v0] Loading appointments for user:", user.id)
 
-        console.log("[v0] Consultas carregadas:", { data, error })
+      const { data, error } = await supabase
+        .from("appointments")
+        .select("*")
+        .eq("patient_id", user.id)
+        .order("scheduled_at", { ascending: true })
 
+      if (isMounted) {
         if (!error && data) {
           setAppointments(data)
         }
+        setLoading(false)
       }
-
-      setLoading(false)
     }
 
     loadAppointments()
 
-    const supabase = createClient()
+    const setupRealtime = async () => {
+      const {
+        data: { user },
+      } = await supabase.auth.getUser()
 
-    supabase.auth.getUser().then(({ data: { user } }) => {
-      if (user) {
-        const channel = supabase
-          .channel(`appointments-patient-${user.id}`)
-          .on(
-            "postgres_changes",
-            {
-              event: "*",
-              schema: "public",
-              table: "appointments",
-              filter: `patient_id=eq.${user.id}`,
-            },
-            () => {
-              console.log("[v0] Consulta atualizada, recarregando...")
-              loadAppointments()
-            },
-          )
-          .subscribe()
+      if (!user || !isMounted) return
 
-        return () => {
-          supabase.removeChannel(channel)
-        }
-      }
-    })
+      const channel = supabase
+        .channel(`appointments-patient-${user.id}`)
+        .on(
+          "postgres_changes",
+          {
+            event: "*",
+            schema: "public",
+            table: "appointments",
+            filter: `patient_id=eq.${user.id}`,
+          },
+          () => {
+            console.log("[v0] Appointment changed, reloading...")
+            if (isMounted) loadAppointments()
+          },
+        )
+        .subscribe((status) => {
+          console.log("[v0] Subscription status:", status)
+        })
+
+      channels.push(channel)
+    }
+
+    setupRealtime()
+
+    return () => {
+      isMounted = false
+      channels.forEach((channel) => {
+        supabase.removeChannel(channel)
+      })
+    }
   }, [])
 
   const getStatusColor = (status: string) => {
@@ -149,8 +163,10 @@ export default function AppointmentsPage() {
               <CardContent className="space-y-3">
                 <div className="flex items-center gap-2 text-muted-foreground">
                   <Clock className="h-4 w-4" />
-                  <span>Consulta Agendada para {formatBrasiliaDate(appointment.scheduled_at, "date")} às {" "}
-                    {formatBrasiliaDate(appointment.scheduled_at, "time")}</span> 
+                  <span>
+                    Consulta Agendada para {formatBrasiliaDate(appointment.scheduled_at, "date")} às{" "}
+                    {formatBrasiliaDate(appointment.scheduled_at, "time")}
+                  </span>
                 </div>
                 {appointment.location && (
                   <div className="flex items-center gap-2 text-muted-foreground">

@@ -1,4 +1,4 @@
-import { NextRequest, NextResponse } from "next/server"
+import { type NextRequest, NextResponse } from "next/server"
 import { createClient } from "@/lib/supabase/server"
 import webpush from "web-push"
 
@@ -13,18 +13,17 @@ if (process.env.VAPID_PRIVATE_KEY && process.env.NEXT_PUBLIC_VAPID_PUBLIC_KEY) {
 
 export async function POST(request: NextRequest) {
   try {
-    const supabase = createClient()
-    const supabaseClient = await supabase
-    const { data: userData } = await supabaseClient.auth.getUser()
+    const supabase = await createClient()
+    const { data: userData } = await supabase.auth.getUser()
+
+    if (!userData.user) {
+      return NextResponse.json({ error: "Não autorizado" }, { status: 401 })
+    }
+
+    const { data: userProfile } = await supabase.from("profiles").select("role").eq("id", userData.user.id).single()
 
     // Verificar se é admin/médico
-    const { data: profile } = await (await supabase)
-      .from("profiles")
-      .select("role")
-      .eq("id", userData.user?.id)
-      .single()
-
-    if (profile?.role !== "admin" && profile?.role !== "doctor") {
+    if (userProfile?.role !== "admin" && userProfile?.role !== "doctor") {
       return NextResponse.json({ error: "Apenas médicos podem enviar notificações" }, { status: 403 })
     }
 
@@ -35,13 +34,13 @@ export async function POST(request: NextRequest) {
     }
 
     // Buscar subscriptions do paciente
-    const { data: subscriptions, error: subscriptionsError } = await supabaseClient
+    const { data: subscriptions, error: subscriptionsError } = await supabase
       .from("push_subscriptions")
       .select("*")
       .eq("user_id", patientId)
 
     if (subscriptionsError) {
-      console.error("Erro ao buscar subscriptions:", subscriptionsError)
+      console.error("[v0] Erro ao buscar subscriptions:", subscriptionsError)
       return NextResponse.json({ error: "Erro ao buscar subscriptions" }, { status: 500 })
     }
 
@@ -71,13 +70,12 @@ export async function POST(request: NextRequest) {
         })
 
         await webpush.sendNotification(pushSubscription, payload)
-        console.log(`Notificação enviada para ${sub.endpoint}`)
+        console.log(`[v0] Push enviado para ${sub.endpoint}`)
       } catch (error: any) {
-        console.error(`Erro ao enviar para ${sub.endpoint}:`, error)
+        console.error(`[v0] Erro ao enviar push:`, error.message)
 
-        // Se subscription expirou, remover do banco
         if (error.statusCode === 410) {
-          await (await supabaseClient).from("push_subscriptions").delete().eq("id", sub.id)
+          await supabase.from("push_subscriptions").delete().eq("id", sub.id)
         }
       }
     })
@@ -86,10 +84,10 @@ export async function POST(request: NextRequest) {
 
     return NextResponse.json({
       success: true,
-      message: `Notificações enviadas para ${subscriptions.length} dispositivo(s)`,
+      message: `Notificações push enviadas para ${subscriptions.length} dispositivo(s)`,
     })
   } catch (error) {
-    console.error("Erro na API de send:", error)
+    console.error("[v0] Erro na API de send:", error)
     return NextResponse.json({ error: "Erro interno do servidor" }, { status: 500 })
   }
 }

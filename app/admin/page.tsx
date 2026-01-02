@@ -46,10 +46,6 @@ export default function AdminDashboard() {
           <h1 className="text-3xl font-bold text-foreground">Painel Administrativo</h1>
           <p className="text-muted-foreground mt-2">Monitore a atividade do sistema e gerencie operações de saúde</p>
         </div>
-        <Button onClick={() => {}} disabled={false} className="gap-2">
-          <RefreshCcw className={`h-4 w-4 animate-spin`} />
-          {"Atualizando..."}
-        </Button>
       </div>
 
       <div className="grid md:grid-cols-2 gap-6">

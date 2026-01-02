@@ -182,4 +182,3 @@ export function getAppointmentTimeStr(appointmentDate: string | Date): string {
     hour12: false,
   })
 }
-

@@ -1,3 +1,5 @@
+export async function GET() {
+  const swCode = `
 if ("serviceWorker" in navigator) {
   const SW_CONFIG = {
     scope: "/",
@@ -9,17 +11,17 @@ if ("serviceWorker" in navigator) {
     try {
       console.log("[SW] Starting service worker registration...")
 
-      const registration = await navigator.serviceWorker.register("/service-worker.js", {
+      const registration = await navigator.serviceWorker.register("/api/sw", {
         scope: SW_CONFIG.scope,
         updateViaCache: "none",
       })
 
-      console.log(`✅ Service Worker registered with scope: ${registration.scope}`)
+      console.log(\`✅ Service Worker registered with scope: \${registration.scope}\`)
 
       if (registration.installing) {
         console.log("[SW] Service worker installing...")
         registration.installing.addEventListener("statechange", (event) => {
-          console.log(`[SW] State changed to: ${event.target.state}`)
+          console.log(\`[SW] State changed to: \${event.target.state}\`)
         })
       } else if (registration.waiting) {
         console.log("[SW] Service worker waiting to activate")
@@ -48,7 +50,7 @@ if ("serviceWorker" in navigator) {
       console.log("[SW] Update found, new worker installing...")
 
       newWorker.addEventListener("statechange", () => {
-        console.log(`[SW] New worker state: ${newWorker.state}`)
+        console.log(\`[SW] New worker state: \${newWorker.state}\`)
 
         if (newWorker.state === "installed") {
           if (navigator.serviceWorker.controller) {
@@ -197,4 +199,14 @@ if (typeof module !== "undefined" && module.exports) {
     checkForUpdates: window.checkForUpdates,
     unregisterServiceWorker: window.unregisterServiceWorker,
   }
+}
+`
+
+  return new Response(swCode, {
+    headers: {
+      "Content-Type": "application/javascript",
+      "Cache-Control": "no-cache, no-store, must-revalidate",
+      "Service-Worker-Allowed": "/",
+    },
+  })
 }

@@ -1,5 +1,6 @@
-// app/clientLayout.tsx
 "use client"
+
+import type React from "react"
 
 import { useEffect, useState } from "react"
 import { Analytics } from "@vercel/analytics/next"
@@ -14,18 +15,18 @@ export default function ClientLayout({
 
   useEffect(() => {
     setIsClient(true)
-    
-    if ("serviceWorker" in navigator && process.env.NODE_ENV === "production") {
-      window.addEventListener("load", () => {
-        navigator.serviceWorker
-          .register("/service-worker.js")
-          .then((registration) => {
-            console.log("Service Worker registrado com escopo:", registration.scope)
-          })
-          .catch((error) => {
-            console.error("Falha ao registrar Service Worker:", error)
-          })
-      })
+
+    if ("serviceWorker" in navigator) {
+      navigator.serviceWorker
+        .register("/service-worker.js", {
+          scope: "/",
+        })
+        .then((registration) => {
+          console.log("[v0] Service Worker registered with scope:", registration.scope)
+        })
+        .catch((error) => {
+          console.error("[v0] Failed to register Service Worker:", error)
+        })
     }
   }, [])
 
@@ -33,9 +34,7 @@ export default function ClientLayout({
     <body className="font-sans antialiased">
       {children}
       <Analytics />
-      {isClient && (
-        <Script src="/register-sw.js" strategy="afterInteractive" />
-      )}
+      {isClient && <Script src="/register-sw.js" strategy="afterInteractive" />}
     </body>
   )
 }

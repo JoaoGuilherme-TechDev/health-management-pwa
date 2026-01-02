@@ -6,7 +6,6 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
-import { Textarea } from "@/components/ui/textarea"
 import { LogOut, Bell, BellOff, BellRing, TestTube, AlertCircle } from "lucide-react"
 import { useRouter } from "next/navigation"
 
@@ -41,7 +40,15 @@ export default function SettingsPage() {
   const [saving, setSaving] = useState(false)
   const [loggingOut, setLoggingOut] = useState(false)
   const [testingNotification, setTestingNotification] = useState(false)
-  
+  const [selectedTab, setSelectedTab] = useState<"personal" | "health" | "notifications">("personal")
+
+  const [preferences, setPreferences] = useState({
+    language: "pt-BR",
+    theme: "auto" as "auto" | "light" | "dark",
+    emailDigest: "weekly" as "daily" | "weekly" | "monthly",
+    dataSharing: false,
+  })
+
   const [notificationSettings, setNotificationSettings] = useState<NotificationSettings>({
     enabled: false,
     appointment_reminders: true,
@@ -50,7 +57,7 @@ export default function SettingsPage() {
     doctor_messages: true,
     promotions: false,
     silent_hours_start: "22:00",
-    silent_hours_end: "07:00"
+    silent_hours_end: "07:00",
   })
 
   const [notificationPermission, setNotificationPermission] = useState<NotificationPermission>("default")
@@ -70,14 +77,14 @@ export default function SettingsPage() {
 
         if (data) {
           setProfile(data)
-          
+
           // Carregar configurações de notificação do perfil
           const { data: settings } = await supabase
             .from("notification_settings")
             .select("*")
             .eq("user_id", user.id)
             .single()
-            
+
           if (settings) {
             setNotificationSettings(settings)
           }
@@ -88,33 +95,35 @@ export default function SettingsPage() {
     }
 
     loadProfile()
-    
+
     // Verificar permissão de notificação
-    if ('Notification' in window) {
+    if ("Notification" in window) {
       setNotificationPermission(Notification.permission)
-      
+
       // Verificar se está inscrito em push notifications
       checkPushSubscription()
     }
 
     // Verificar contexto seguro
     const hostname = window.location.hostname
-    const isLocalhost = hostname === 'localhost' || 
-                       hostname === '127.0.0.1' ||
-                       hostname.startsWith('192.168.') ||
-                       hostname.startsWith('10.0.') ||
-                       hostname.startsWith('172.16.')
-    const isHttps = window.location.protocol === 'https:'
-    
+    const isLocalhost =
+      hostname === "localhost" ||
+      hostname === "127.0.0.1" ||
+      hostname.startsWith("192.168.") ||
+      hostname.startsWith("10.0.") ||
+      hostname.startsWith("172.16.")
+    const isHttps = window.location.protocol === "https:"
+
     setIsSecureContext(isHttps || isLocalhost)
-    
+
     // Avisar se estiver em contexto inseguro
-    const isPublicIp = /^\d+\.\d+\.\d+\.\d+$/.test(hostname) && 
-                      !hostname.startsWith('192.168.') &&
-                      !hostname.startsWith('10.0.') &&
-                      !hostname.startsWith('172.16.')
-    
-    if (isPublicIp && window.location.protocol === 'http:') {
+    const isPublicIp =
+      /^\d+\.\d+\.\d+\.\d+$/.test(hostname) &&
+      !hostname.startsWith("192.168.") &&
+      !hostname.startsWith("10.0.") &&
+      !hostname.startsWith("172.16.")
+
+    if (isPublicIp && window.location.protocol === "http:") {
       console.warn("⚠️ AVISO: Service Workers não funcionam com IPs públicos em HTTP")
       console.warn("   Acesse por http://localhost:3000 para notificações funcionarem")
     }
@@ -122,20 +131,20 @@ export default function SettingsPage() {
 
   const checkPushSubscription = async () => {
     try {
-      if (!('serviceWorker' in navigator) || !('PushManager' in window)) {
+      if (!("serviceWorker" in navigator) || !("PushManager" in window)) {
         return
       }
-      
+
       // Primeiro, garantir que o service worker está registrado
       if (!navigator.serviceWorker.controller) {
         console.log("Service Worker não está registrado ainda")
         return
       }
-      
+
       const registration = await navigator.serviceWorker.ready
       const subscription = await registration.pushManager.getSubscription()
       setIsSubscribed(!!subscription)
-      
+
       if (subscription) {
         console.log("✅ Usuário já inscrito para push notifications")
         console.log("Endpoint:", subscription.endpoint.substring(0, 50) + "...")
@@ -154,19 +163,26 @@ export default function SettingsPage() {
     try {
       // Salvar perfil
       await supabase.from("profiles").update(profile).eq("id", profile.id)
-      
+
       // Salvar configurações de notificação
-      const { data: { user } } = await supabase.auth.getUser()
+      const {
+        data: { user },
+      } = await supabase.auth.getUser()
       if (user) {
-        await supabase
-          .from("notification_settings")
-          .upsert({
-            user_id: user.id,
-            ...notificationSettings,
-            updated_at: new Date().toISOString()
-          })
+        await supabase.from("notification_settings").upsert({
+          user_id: user.id,
+          ...notificationSettings,
+          updated_at: new Date().toISOString(),
+        })
       }
-      
+
+      // Salvar preferências
+      await supabase.from("preferences").upsert({
+        user_id: user!.id,
+        ...preferences,
+        updated_at: new Date().toISOString(),
+      })
+
       alert("Configurações salvas com sucesso!")
     } catch (error) {
       console.error("Erro ao salvar:", error)
@@ -185,10 +201,8 @@ export default function SettingsPage() {
 
   // Função corrigida para retornar Uint8Array
   const urlBase64ToUint8Array = (base64String: string): Uint8Array => {
-    const padding = '='.repeat((4 - (base64String.length % 4)) % 4)
-    const base64 = (base64String + padding)
-      .replace(/\-/g, '+')
-      .replace(/_/g, '/')
+    const padding = "=".repeat((4 - (base64String.length % 4)) % 4)
+    const base64 = (base64String + padding).replace(/-/g, "+").replace(/_/g, "/")
 
     const rawData = window.atob(base64)
     const outputArray = new Uint8Array(rawData.length)
@@ -196,85 +210,87 @@ export default function SettingsPage() {
     for (let i = 0; i < rawData.length; ++i) {
       outputArray[i] = rawData.charCodeAt(i)
     }
-    
+
     return outputArray
   }
 
   const activatePushNotifications = async () => {
     setPushError("")
-    
+
     try {
       console.log("🔔 Iniciando ativação de notificações push...")
-      
+
       // ===== VERIFICAÇÃO DE CONTEXTO SEGURO =====
       const hostname = window.location.hostname
       const protocol = window.location.protocol
-      
-      const isLocalhost = hostname === 'localhost' || 
-                         hostname === '127.0.0.1' ||
-                         hostname.startsWith('192.168.') ||
-                         hostname.startsWith('10.0.') ||
-                         hostname.startsWith('172.16.')
-      
-      const isHttps = protocol === 'https:'
-      
+
+      const isLocalhost =
+        hostname === "localhost" ||
+        hostname === "127.0.0.1" ||
+        hostname.startsWith("192.168.") ||
+        hostname.startsWith("10.0.") ||
+        hostname.startsWith("172.16.")
+
+      const isHttps = protocol === "https:"
+
       console.log("Contexto atual:", {
         hostname,
         protocol,
         isLocalhost,
         isHttps,
-        isSecureContext: window.isSecureContext
+        isSecureContext: window.isSecureContext,
       })
-      
+
       // Service Workers só funcionam em HTTPS ou localhost/private IP
       if (!isHttps && !isLocalhost) {
-        const isPublicIp = /^\d+\.\d+\.\d+\.\d+$/.test(hostname) && 
-                          !hostname.startsWith('192.168.') &&
-                          !hostname.startsWith('10.0.') &&
-                          !hostname.startsWith('172.16.')
-        
+        const isPublicIp =
+          /^\d+\.\d+\.\d+\.\d+$/.test(hostname) &&
+          !hostname.startsWith("192.168.") &&
+          !hostname.startsWith("10.0.") &&
+          !hostname.startsWith("172.16.")
+
         if (isPublicIp) {
           const localhostUrl = `http://localhost:${window.location.port || 3000}`
           throw new Error(
             `Service Workers NÃO funcionam com IPs públicos em HTTP.\n\n` +
-            `Você está acessando: http://${hostname}:${window.location.port || 3000}\n\n` +
-            `Para notificações funcionarem:\n` +
-            `1. Acesse por: ${localhostUrl}\n` +
-            `2. Ou configure HTTPS no servidor\n` +
-            `3. Ou use um nome de domínio local`
+              `Você está acessando: http://${hostname}:${window.location.port || 3000}\n\n` +
+              `Para notificações funcionarem:\n` +
+              `1. Acesse por: ${localhostUrl}\n` +
+              `2. Ou configure HTTPS no servidor\n` +
+              `3. Ou use um nome de domínio local`,
           )
         }
       }
-      
+
       // ===== VERIFICAÇÕES DE SUPORTE =====
       console.log("1. Verificando suporte do navegador...")
-      
-      if (!('serviceWorker' in navigator)) {
+
+      if (!("serviceWorker" in navigator)) {
         // Diagnosticar o motivo
         const diagnostics = {
           isSecureContext: window.isSecureContext,
           userAgent: (navigator as any).userAgent,
-          isPrivateMode: (navigator as any).userAgent.includes('Incognito') || 
-                        (navigator as any).userAgent.includes('Private')
+          isPrivateMode:
+            (navigator as any).userAgent.includes("Incognito") || (navigator as any).userAgent.includes("Private"),
         }
         console.log("Diagnóstico:", diagnostics)
-        
+
         throw new Error(
           "Service Workers não são suportados neste contexto.\n" +
-          "Possíveis causas:\n" +
-          "• Navegador muito antigo\n" +
-          "• Contexto inseguro (HTTP em IP público)\n" +
-          "• Modo de navegação privada\n" +
-          "• Extensões bloqueando\n\n" +
-          "Tente:\n" +
-          "• Usar Chrome/Firefox atualizado\n" +
-          "• Acessar por http://localhost:3000\n" +
-          "• Desativar modo privado\n" +
-          "• Desativar extensões de bloqueio"
+            "Possíveis causas:\n" +
+            "• Navegador muito antigo\n" +
+            "• Contexto inseguro (HTTP em IP público)\n" +
+            "• Modo de navegação privada\n" +
+            "• Extensões bloqueando\n\n" +
+            "Tente:\n" +
+            "• Usar Chrome/Firefox atualizado\n" +
+            "• Acessar por http://localhost:3000\n" +
+            "• Desativar modo privado\n" +
+            "• Desativar extensões de bloqueio",
         )
       }
 
-      if (!('PushManager' in window)) {
+      if (!("PushManager" in window)) {
         throw new Error("Seu navegador não suporta Push Notifications")
       }
 
@@ -282,7 +298,7 @@ export default function SettingsPage() {
       console.log("2. Solicitando permissão...")
       const permission = await Notification.requestPermission()
       setNotificationPermission(permission)
-      
+
       if (permission !== "granted") {
         throw new Error(`Permissão ${permission}. Você precisa permitir notificações.`)
       }
@@ -290,18 +306,18 @@ export default function SettingsPage() {
 
       // ===== REGISTRAR SERVICE WORKER =====
       console.log("3. Registrando Service Worker...")
-      
+
       // Tentar diferentes caminhos
-      const swPaths = ['/service-worker.js', '/sw.js']
+      const swPaths = ["/service-worker.js", "/sw.js"]
       let registration: ServiceWorkerRegistration | null = null
       let lastError: Error | null = null
-      
+
       for (const swPath of swPaths) {
         try {
           console.log(`Tentando registrar: ${swPath}`)
           registration = await navigator.serviceWorker.register(swPath, {
-            scope: '/',
-            updateViaCache: 'none'
+            scope: "/",
+            updateViaCache: "none",
           })
           console.log(`✅ Service Worker registrado: ${swPath}`)
           console.log("Scope:", registration.scope)
@@ -311,12 +327,9 @@ export default function SettingsPage() {
           lastError = error
         }
       }
-      
+
       if (!registration) {
-        throw new Error(
-          `Não foi possível registrar Service Worker.\n` +
-          `Último erro: ${lastError?.message}`
-        )
+        throw new Error(`Não foi possível registrar Service Worker.\n` + `Último erro: ${lastError?.message}`)
       }
 
       // Aguardar ativação
@@ -324,7 +337,7 @@ export default function SettingsPage() {
         if (registration!.active) {
           resolve()
         } else if (registration!.installing) {
-          registration!.installing.addEventListener('statechange', () => {
+          registration!.installing.addEventListener("statechange", () => {
             if (registration!.active) {
               resolve()
             }
@@ -338,24 +351,24 @@ export default function SettingsPage() {
 
       // ===== VERIFICAR E CONVERTER CHAVE VAPID =====
       const vapidPublicKey = process.env.NEXT_PUBLIC_VAPID_PUBLIC_KEY
-      
+
       if (!vapidPublicKey) {
         throw new Error("Chave VAPID não configurada. Configure NEXT_PUBLIC_VAPID_PUBLIC_KEY no .env.local")
       }
 
       console.log("5. Convertendo chave VAPID...")
-      
+
       const applicationServerKey = urlBase64ToUint8Array(vapidPublicKey)
       console.log("✅ Chave convertida, tamanho:", applicationServerKey.length)
 
       // ===== VERIFICAR INSCRIÇÃO EXISTENTE =====
       console.log("6. Verificando inscrição existente...")
       let subscription = await registration.pushManager.getSubscription()
-      
+
       if (subscription) {
         console.log("✅ Já inscrito. Atualizando status...")
         setIsSubscribed(true)
-        setNotificationSettings(prev => ({ ...prev, enabled: true }))
+        setNotificationSettings((prev) => ({ ...prev, enabled: true }))
         alert("Notificações já estão ativadas!")
         return
       }
@@ -365,36 +378,37 @@ export default function SettingsPage() {
       try {
         subscription = await registration.pushManager.subscribe({
           userVisibleOnly: true,
-          applicationServerKey: applicationServerKey as BufferSource
+          applicationServerKey: applicationServerKey as BufferSource,
         })
-        
+
         console.log("✅ Inscrito com sucesso!")
         console.log("Endpoint:", subscription.endpoint)
-        
+
         const subscriptionJson = subscription.toJSON()
         console.log("Tem p256dh?", !!subscriptionJson.keys?.p256dh)
         console.log("Tem auth?", !!subscriptionJson.keys?.auth)
-        
       } catch (subscribeError: any) {
         console.error("❌ Erro na inscrição:", subscribeError)
-        
+
         console.log("applicationServerKey é Uint8Array?", applicationServerKey instanceof Uint8Array)
         console.log("applicationServerKey byteLength:", applicationServerKey.byteLength)
-        
+
         throw new Error(`Falha ao criar inscrição: ${subscribeError.message}`)
       }
 
       // ===== SALVAR NO SUPABASE =====
       console.log("8. Salvando no Supabase...")
       const supabase = createClient()
-      const { data: { user } } = await supabase.auth.getUser()
-      
+      const {
+        data: { user },
+      } = await supabase.auth.getUser()
+
       if (!user) {
         throw new Error("Usuário não autenticado")
       }
 
       const subscriptionJson = subscription.toJSON()
-      
+
       const { error } = await supabase.from("push_subscriptions").upsert({
         user_id: user.id,
         endpoint: subscriptionJson.endpoint,
@@ -412,11 +426,11 @@ export default function SettingsPage() {
 
       // ===== ATUALIZAR ESTADO =====
       setIsSubscribed(true)
-      setNotificationSettings(prev => ({ ...prev, enabled: true }))
-      
+      setNotificationSettings((prev) => ({ ...prev, enabled: true }))
+
       // ===== NOTIFICAÇÃO DE SUCESSO =====
       console.log("9. Mostrando notificação de sucesso...")
-      
+
       try {
         await registration.showNotification("HealthCare+", {
           body: "Notificações push ativadas com sucesso!",
@@ -435,7 +449,6 @@ export default function SettingsPage() {
 
       console.log("🎉 Processo concluído com sucesso!")
       alert("✅ Notificações push ativadas com sucesso!")
-
     } catch (error: any) {
       console.error("❌ Erro:", error)
       setPushError(error.message || "Erro ao ativar notificações")
@@ -444,13 +457,13 @@ export default function SettingsPage() {
 
   const deactivatePushNotifications = async () => {
     setPushError("")
-    
+
     try {
       // 1. Cancelar subscription
-      if ('serviceWorker' in navigator && 'PushManager' in window) {
+      if ("serviceWorker" in navigator && "PushManager" in window) {
         const registration = await navigator.serviceWorker.ready
         const subscription = await registration.pushManager.getSubscription()
-        
+
         if (subscription) {
           const unsubscribed = await subscription.unsubscribe()
           if (!unsubscribed) {
@@ -461,21 +474,19 @@ export default function SettingsPage() {
 
       // 2. Remover do Supabase
       const supabase = createClient()
-      const { data: { user } } = await supabase.auth.getUser()
-      
+      const {
+        data: { user },
+      } = await supabase.auth.getUser()
+
       if (user) {
-        await supabase
-          .from("push_subscriptions")
-          .delete()
-          .eq("user_id", user.id)
+        await supabase.from("push_subscriptions").delete().eq("user_id", user.id)
       }
 
       // 3. Atualizar estado
       setIsSubscribed(false)
-      setNotificationSettings(prev => ({ ...prev, enabled: false }))
-      
+      setNotificationSettings((prev) => ({ ...prev, enabled: false }))
+
       alert("✅ Notificações desativadas com sucesso!")
-      
     } catch (error: any) {
       console.error("Erro ao desativar notificações:", error)
       setPushError("Erro: " + error.message)
@@ -485,7 +496,7 @@ export default function SettingsPage() {
   const sendTestNotification = async () => {
     setTestingNotification(true)
     setPushError("")
-    
+
     try {
       if (notificationPermission !== "granted") {
         alert("Permissão de notificação não concedida")
@@ -493,7 +504,7 @@ export default function SettingsPage() {
       }
 
       const registration = await navigator.serviceWorker.ready
-      
+
       await registration.showNotification("HealthCare+ - Notificação de Teste", {
         body: "Esta é uma notificação de teste! Se você vê isso, as notificações push estão funcionando corretamente.",
         icon: "/icon-light-32x32.png",
@@ -501,9 +512,8 @@ export default function SettingsPage() {
         tag: "test-notification",
         requireInteraction: true,
       })
-      
+
       alert("✅ Notificação de teste enviada!")
-      
     } catch (error: any) {
       console.error("Erro ao enviar notificação:", error)
       setPushError("Erro ao enviar notificação: " + error.message)
@@ -520,22 +530,22 @@ export default function SettingsPage() {
     console.log("Protocol:", window.location.protocol)
     console.log("isSecureContext:", window.isSecureContext)
     console.log("User Agent:", navigator.userAgent)
-    console.log("Service Worker in navigator:", 'serviceWorker' in navigator)
-    console.log("PushManager in window:", 'PushManager' in window)
-    console.log("Notification in window:", 'Notification' in window)
+    console.log("Service Worker in navigator:", "serviceWorker" in navigator)
+    console.log("PushManager in window:", "PushManager" in window)
+    console.log("Notification in window:", "Notification" in window)
     console.log("Notification.permission:", Notification.permission)
     console.log("isSubscribed:", isSubscribed)
     console.log("VAPID Key configured:", !!process.env.NEXT_PUBLIC_VAPID_PUBLIC_KEY)
-    
+
     const hostname = window.location.hostname
-    const isLocalhost = hostname === 'localhost' || hostname === '127.0.0.1'
-    
-    if (!isLocalhost && window.location.protocol !== 'https:') {
+    const isLocalhost = hostname === "localhost" || hostname === "127.0.0.1"
+
+    if (!isLocalhost && window.location.protocol !== "https:") {
       const localhostUrl = `http://localhost:${window.location.port || 3000}`
       alert(
         `Para notificações push funcionarem:\n\n` +
-        `Acesse por: ${localhostUrl}\n\n` +
-        `IPs públicos não suportam Service Workers em HTTP.`
+          `Acesse por: ${localhostUrl}\n\n` +
+          `IPs públicos não suportam Service Workers em HTTP.`,
       )
     }
   }
@@ -552,387 +562,399 @@ export default function SettingsPage() {
     <div className="space-y-6">
       <div>
         <h1 className="text-3xl font-bold text-foreground">Configurações do Perfil</h1>
-        <p className="text-muted-foreground mt-1">Gerencie suas informações pessoais e de saúde</p>
+        <p className="text-muted-foreground mt-1">Gerencie suas informações pessoais, saúde e preferências</p>
       </div>
 
-      <Card>
-        <CardHeader>
-          <CardTitle>Informações Pessoais</CardTitle>
-          <CardDescription>Atualize suas informações básicas</CardDescription>
-        </CardHeader>
-        <CardContent className="space-y-6">
-          <div className="grid sm:grid-cols-2 gap-6">
-            <div className="space-y-2">
-              <Label htmlFor="firstName">Nome</Label>
-              <Input
-                id="firstName"
-                value={profile.first_name}
-                onChange={(e) => setProfile({ ...profile, first_name: e.target.value })}
-              />
-            </div>
-            <div className="space-y-2">
-              <Label htmlFor="lastName">Sobrenome</Label>
-              <Input
-                id="lastName"
-                value={profile.last_name}
-                onChange={(e) => setProfile({ ...profile, last_name: e.target.value })}
-              />
-            </div>
-            <div className="space-y-2">
-              <Label htmlFor="email">E-mail</Label>
-              <Input id="email" value={profile.email} disabled />
-            </div>
-            <div className="space-y-2">
-              <Label htmlFor="phone">Telefone</Label>
-              <Input
-                id="phone"
-                value={profile.phone || ""}
-                onChange={(e) => setProfile({ ...profile, phone: e.target.value })}
-              />
-            </div>
-            <div className="space-y-2">
-              <Label htmlFor="dob">Data de Nascimento</Label>
-              <Input
-                id="dob"
-                type="date"
-                value={profile.date_of_birth || ""}
-                onChange={(e) => setProfile({ ...profile, date_of_birth: e.target.value })}
-              />
-            </div>
-            <div className="space-y-2">
-              <Label htmlFor="emergency">Contato de Emergência</Label>
-              <Input
-                id="emergency"
-                value={profile.emergency_contact || ""}
-                onChange={(e) => setProfile({ ...profile, emergency_contact: e.target.value })}
-              />
-            </div>
-          </div>
-        </CardContent>
-      </Card>
+      {/* Tabs for better organization */}
+      <div className="border-b border-border">
+        <div className="flex gap-0">
+          <button
+            onClick={() => setSelectedTab("personal")}
+            className={`pb-3 px-4 font-medium text-sm transition-colors ${
+              selectedTab === "personal"
+                ? "border-b-2 border-primary text-primary"
+                : "text-muted-foreground hover:text-foreground"
+            }`}
+          >
+            Pessoal
+          </button>
+          <button
+            onClick={() => setSelectedTab("health")}
+            className={`pb-3 px-4 font-medium text-sm transition-colors ${
+              selectedTab === "health"
+                ? "border-b-2 border-primary text-primary"
+                : "text-muted-foreground hover:text-foreground"
+            }`}
+          >
+            Saúde
+          </button>
+          <button
+            onClick={() => setSelectedTab("notifications")}
+            className={`pb-3 px-4 font-medium text-sm transition-colors ${
+              selectedTab === "notifications"
+                ? "border-b-2 border-primary text-primary"
+                : "text-muted-foreground hover:text-foreground"
+            }`}
+          >
+            Notificações
+          </button>
+        </div>
+      </div>
 
-      <Card>
-        <CardHeader>
-          <CardTitle>Informações de Saúde</CardTitle>
-          <CardDescription>Detalhes de saúde importantes para seu cuidado</CardDescription>
-        </CardHeader>
-        <CardContent className="space-y-6">
-          <div className="space-y-2">
-            <Label htmlFor="allergies">Alergias</Label>
-            <Textarea
-              id="allergies"
-              value={profile.allergies || ""}
-              onChange={(e) => setProfile({ ...profile, allergies: e.target.value })}
-              placeholder="Liste quaisquer alergias conhecidas..."
-            />
-          </div>
-          <div className="grid sm:grid-cols-2 gap-6">
-            <div className="space-y-2">
-              <Label htmlFor="insurance">Plano de Saúde</Label>
-              <Input
-                id="insurance"
-                value={profile.insurance_provider || ""}
-                onChange={(e) => setProfile({ ...profile, insurance_provider: e.target.value })}
-              />
-            </div>
-            <div className="space-y-2">
-              <Label htmlFor="insuranceId">Número do Plano</Label>
-              <Input
-                id="insuranceId"
-                value={profile.insurance_id || ""}
-                onChange={(e) => setProfile({ ...profile, insurance_id: e.target.value })}
-              />
-            </div>
-          </div>
-        </CardContent>
-      </Card>
-
-      {/* CARD DE NOTIFICAÇÕES PUSH - CORRIGIDO */}
-      <Card>
-        <CardHeader>
-          <CardTitle className="flex items-center gap-2">
-            <BellRing className="h-5 w-5" />
-            Notificações Push
-          </CardTitle>
-          <CardDescription>
-            Configure as notificações para receber lembretes e atualizações importantes
-          </CardDescription>
-        </CardHeader>
-        <CardContent className="space-y-6">
-          <div className="space-y-4">
-            <div className="flex items-center justify-between">
-              <div>
-                <h3 className="font-medium text-foreground">Status das Notificações</h3>
-                <p className="text-sm text-muted-foreground">
-                  {notificationPermission === "granted" && isSubscribed
-                    ? "✅ Ativas - Você receberá notificações mesmo com o app fechado"
-                    : notificationPermission === "granted" && !isSubscribed
-                    ? "⚠️ Permissão concedida, mas não inscrito"
-                    : notificationPermission === "denied"
-                    ? "❌ Permissão negada"
-                    : "⏳ Aguardando sua decisão"}
-                </p>
+      {/* Personal Information Tab */}
+      {selectedTab === "personal" && (
+        <Card>
+          <CardHeader>
+            <CardTitle>Informações Pessoais</CardTitle>
+            <CardDescription>Atualize suas informações básicas</CardDescription>
+          </CardHeader>
+          <CardContent className="space-y-6">
+            <div className="space-y-4">
+              <div className="space-y-2">
+                <Label htmlFor="firstName">Nome</Label>
+                <Input
+                  id="firstName"
+                  value={profile?.first_name || ""}
+                  onChange={(e) => setProfile({ ...profile!, first_name: e.target.value })}
+                />
               </div>
-              <div className="flex items-center gap-2">
-                {notificationPermission === "granted" && isSubscribed ? (
-                  <span className="px-3 py-1 bg-green-100 text-green-800 text-sm font-medium rounded-full flex items-center gap-1">
-                    <Bell className="h-3 w-3" />
-                    Ativo
-                  </span>
-                ) : (
-                  <span className="px-3 py-1 bg-red-100 text-red-800 text-sm font-medium rounded-full flex items-center gap-1">
-                    <BellOff className="h-3 w-3" />
-                    Inativo
-                  </span>
-                )}
+              <div className="space-y-2">
+                <Label htmlFor="lastName">Sobrenome</Label>
+                <Input
+                  id="lastName"
+                  value={profile?.last_name || ""}
+                  onChange={(e) => setProfile({ ...profile!, last_name: e.target.value })}
+                />
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="email">E-mail</Label>
+                <Input id="email" value={profile?.email || ""} disabled className="bg-muted" />
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="phone">Telefone</Label>
+                <Input
+                  id="phone"
+                  value={profile?.phone || ""}
+                  onChange={(e) => setProfile({ ...profile!, phone: e.target.value })}
+                  placeholder="+55 (11) 9XXXX-XXXX"
+                />
               </div>
             </div>
+          </CardContent>
+        </Card>
+      )}
 
-            {/* Botões principais */}
-            <div className="space-y-3">
-              {!isSubscribed ? (
-                <Button 
-                  onClick={activatePushNotifications}
-                  className="w-full py-6"
-                  size="lg"
-                >
-                  <Bell className="h-5 w-5 mr-2" />
-                  Ativar Notificações Push
-                </Button>
-              ) : (
-                <>
-                  <Button 
-                    onClick={deactivatePushNotifications}
-                    variant="outline"
-                    className="w-full py-6"
-                    size="lg"
-                  >
-                    <BellOff className="h-5 w-5 mr-2" />
-                    Desativar Notificações
-                  </Button>
-                  
-                  <Button 
-                    onClick={sendTestNotification}
-                    disabled={testingNotification}
-                    className="w-full"
-                    variant="secondary"
-                  >
-                    <TestTube className="h-4 w-4 mr-2" />
-                    {testingNotification ? "Enviando..." : "Enviar Notificação de Teste"}
-                  </Button>
-                </>
-              )}
-              
-              {/* Botão de diagnóstico */}
-              <Button 
-                onClick={runDiagnostics}
-                variant="outline"
-                className="w-full"
-              >
-                <AlertCircle className="h-4 w-4 mr-2" />
-                Diagnosticar Problema
-              </Button>
-            </div>
-
-            {/* Mensagem de erro */}
-            {pushError && (
-              <div className="p-3 bg-red-50 border border-red-200 rounded-lg">
-                <div className="flex items-center gap-2">
-                  <AlertCircle className="h-4 w-4 text-red-600 flex-shrink-0" />
-                  <p className="text-sm text-red-800 whitespace-pre-line">{pushError}</p>
-                </div>
+      {/* Health Information Tab */}
+      {selectedTab === "health" && (
+        <Card>
+          <CardHeader>
+            <CardTitle>Informações de Saúde</CardTitle>
+            <CardDescription>Detalhes de saúde importantes para seu cuidado</CardDescription>
+          </CardHeader>
+          <CardContent className="space-y-6">
+            <div className="space-y-4">
+              <div className="space-y-2">
+                <Label htmlFor="dob">Data de Nascimento</Label>
+                <Input
+                  id="dob"
+                  type="date"
+                  value={profile?.date_of_birth || ""}
+                  onChange={(e) => setProfile({ ...profile!, date_of_birth: e.target.value })}
+                />
               </div>
-            )}
+              <div className="space-y-2">
+                <Label htmlFor="allergies">Alergias</Label>
+                <Input
+                  id="allergies"
+                  value={profile?.allergies || ""}
+                  onChange={(e) => setProfile({ ...profile!, allergies: e.target.value })}
+                  placeholder="Liste quaisquer alergias conhecidas..."
+                />
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="insurance">Plano de Saúde</Label>
+                <Input
+                  id="insurance"
+                  value={profile?.insurance_provider || ""}
+                  onChange={(e) => setProfile({ ...profile!, insurance_provider: e.target.value })}
+                  placeholder="Ex: Unimed, Bradesco Saúde"
+                />
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="insuranceId">Número do Plano</Label>
+                <Input
+                  id="insuranceId"
+                  value={profile?.insurance_id || ""}
+                  onChange={(e) => setProfile({ ...profile!, insurance_id: e.target.value })}
+                  placeholder="Número de matrícula"
+                />
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="emergency">Contato de Emergência</Label>
+                <Input
+                  id="emergency"
+                  value={profile?.emergency_contact || ""}
+                  onChange={(e) => setProfile({ ...profile!, emergency_contact: e.target.value })}
+                  placeholder="Nome e telefone"
+                />
+              </div>
+            </div>
+          </CardContent>
+        </Card>
+      )}
 
-            {notificationPermission === "denied" && (
-              <div className="p-3 bg-yellow-50 border border-yellow-200 rounded-lg">
-                <div className="flex items-center gap-2">
-                  <AlertCircle className="h-4 w-4 text-yellow-600 flex-shrink-0" />
-                  <p className="text-sm text-yellow-800">
-                    Você bloqueou as notificações. Para ativá-las, acesse as configurações do seu navegador.
+      {/* Notifications Tab */}
+      {selectedTab === "notifications" && (
+        <Card>
+          <CardHeader>
+            <CardTitle className="flex items-center gap-2">
+              <BellRing className="h-5 w-5" />
+              Notificações Push
+            </CardTitle>
+            <CardDescription>
+              Configure as notificações para receber lembretes e atualizações importantes
+            </CardDescription>
+          </CardHeader>
+          <CardContent className="space-y-6">
+            <div className="space-y-4">
+              <div className="flex items-center justify-between">
+                <div>
+                  <h3 className="font-medium text-foreground">Status das Notificações</h3>
+                  <p className="text-sm text-muted-foreground">
+                    {notificationPermission === "granted" && isSubscribed
+                      ? "✅ Ativas - Você receberá notificações mesmo com o app fechado"
+                      : notificationPermission === "granted" && !isSubscribed
+                        ? "⚠️ Permissão concedida, mas não inscrito"
+                        : notificationPermission === "denied"
+                          ? "❌ Permissão negada"
+                          : "⏳ Aguardando sua decisão"}
                   </p>
                 </div>
+                <div className="flex items-center gap-2">
+                  {notificationPermission === "granted" && isSubscribed ? (
+                    <span className="px-3 py-1 bg-green-100 text-green-800 text-sm font-medium rounded-full flex items-center gap-1">
+                      <Bell className="h-3 w-3" />
+                      Ativo
+                    </span>
+                  ) : (
+                    <span className="px-3 py-1 bg-red-100 text-red-800 text-sm font-medium rounded-full flex items-center gap-1">
+                      <BellOff className="h-3 w-3" />
+                      Inativo
+                    </span>
+                  )}
+                </div>
               </div>
+
+              {/* Botões principais */}
+              <div className="space-y-3">
+                {!isSubscribed ? (
+                  <Button onClick={activatePushNotifications} className="w-full py-6" size="lg">
+                    <Bell className="h-5 w-5 mr-2" />
+                    Ativar Notificações Push
+                  </Button>
+                ) : (
+                  <>
+                    <Button
+                      onClick={deactivatePushNotifications}
+                      variant="outline"
+                      className="w-full py-6 bg-transparent"
+                      size="lg"
+                    >
+                      <BellOff className="h-5 w-5 mr-2" />
+                      Desativar Notificações
+                    </Button>
+
+                    <Button
+                      onClick={sendTestNotification}
+                      disabled={testingNotification}
+                      className="w-full"
+                      variant="secondary"
+                    >
+                      <TestTube className="h-4 w-4 mr-2" />
+                      {testingNotification ? "Enviando..." : "Enviar Notificação de Teste"}
+                    </Button>
+                  </>
+                )}
+
+                {/* Botão de diagnóstico */}
+                <Button onClick={runDiagnostics} variant="outline" className="w-full bg-transparent">
+                  <AlertCircle className="h-4 w-4 mr-2" />
+                  Diagnosticar Problema
+                </Button>
+              </div>
+
+              {/* Mensagem de erro */}
+              {pushError && (
+                <div className="p-3 bg-red-50 border border-red-200 rounded-lg">
+                  <div className="flex items-center gap-2">
+                    <AlertCircle className="h-4 w-4 text-red-600 shrink-0" />
+                    <p className="text-sm text-red-800 whitespace-pre-line">{pushError}</p>
+                  </div>
+                </div>
+              )}
+
+              {notificationPermission === "denied" && (
+                <div className="p-3 bg-yellow-50 border border-yellow-200 rounded-lg">
+                  <div className="flex items-center gap-2">
+                    <AlertCircle className="h-4 w-4 text-yellow-600 shrink-0" />
+                    <p className="text-sm text-yellow-800">
+                      Você bloqueou as notificações. Para ativá-las, acesse as configurações do seu navegador.
+                    </p>
+                  </div>
+                </div>
+              )}
+            </div>
+
+            {/* Preferências (só aparecem se ativado) */}
+            {isSubscribed && (
+              <>
+                <div className="space-y-4">
+                  <h3 className="font-medium text-foreground">Preferências de Notificação</h3>
+                  <div className="space-y-3">
+                    <div className="flex items-center justify-between">
+                      <Label htmlFor="appointment-reminders" className="cursor-pointer">
+                        Lembretes de Consulta
+                      </Label>
+                      <input
+                        id="appointment-reminders"
+                        type="checkbox"
+                        checked={notificationSettings.appointment_reminders}
+                        onChange={(e) =>
+                          setNotificationSettings({
+                            ...notificationSettings,
+                            appointment_reminders: e.target.checked,
+                          })
+                        }
+                        className="h-4 w-4 rounded border-gray-300 text-blue-600 focus:ring-blue-500"
+                      />
+                    </div>
+
+                    <div className="flex items-center justify-between">
+                      <Label htmlFor="medication-reminders" className="cursor-pointer">
+                        Lembretes de Medicamento
+                      </Label>
+                      <input
+                        id="medication-reminders"
+                        type="checkbox"
+                        checked={notificationSettings.medication_reminders}
+                        onChange={(e) =>
+                          setNotificationSettings({
+                            ...notificationSettings,
+                            medication_reminders: e.target.checked,
+                          })
+                        }
+                        className="h-4 w-4 rounded border-gray-300 text-blue-600 focus:ring-blue-500"
+                      />
+                    </div>
+
+                    <div className="flex items-center justify-between">
+                      <Label htmlFor="lab-results" className="cursor-pointer">
+                        Resultados de Exames
+                      </Label>
+                      <input
+                        id="lab-results"
+                        type="checkbox"
+                        checked={notificationSettings.lab_results}
+                        onChange={(e) =>
+                          setNotificationSettings({
+                            ...notificationSettings,
+                            lab_results: e.target.checked,
+                          })
+                        }
+                        className="h-4 w-4 rounded border-gray-300 text-blue-600 focus:ring-blue-500"
+                      />
+                    </div>
+
+                    <div className="flex items-center justify-between">
+                      <Label htmlFor="doctor-messages" className="cursor-pointer">
+                        Mensagens do Médico
+                      </Label>
+                      <input
+                        id="doctor-messages"
+                        type="checkbox"
+                        checked={notificationSettings.doctor_messages}
+                        onChange={(e) =>
+                          setNotificationSettings({
+                            ...notificationSettings,
+                            doctor_messages: e.target.checked,
+                          })
+                        }
+                        className="h-4 w-4 rounded border-gray-300 text-blue-600 focus:ring-blue-500"
+                      />
+                    </div>
+
+                    <div className="flex items-center justify-between">
+                      <Label htmlFor="promotions" className="cursor-pointer">
+                        Promoções e Ofertas
+                      </Label>
+                      <input
+                        id="promotions"
+                        type="checkbox"
+                        checked={notificationSettings.promotions}
+                        onChange={(e) =>
+                          setNotificationSettings({
+                            ...notificationSettings,
+                            promotions: e.target.checked,
+                          })
+                        }
+                        className="h-4 w-4 rounded border-gray-300 text-blue-600 focus:ring-blue-500"
+                      />
+                    </div>
+                  </div>
+                </div>
+
+                <div className="space-y-4">
+                  <h3 className="font-medium text-foreground">Horário Silencioso</h3>
+                  <p className="text-sm text-muted-foreground">
+                    Configure horários em que não deseja receber notificações
+                  </p>
+                  <div className="grid grid-cols-2 gap-4">
+                    <div className="space-y-2">
+                      <Label htmlFor="silent-start">Início</Label>
+                      <Input
+                        id="silent-start"
+                        type="time"
+                        value={notificationSettings.silent_hours_start}
+                        onChange={(e) =>
+                          setNotificationSettings({
+                            ...notificationSettings,
+                            silent_hours_start: e.target.value,
+                          })
+                        }
+                      />
+                    </div>
+                    <div className="space-y-2">
+                      <Label htmlFor="silent-end">Término</Label>
+                      <Input
+                        id="silent-end"
+                        type="time"
+                        value={notificationSettings.silent_hours_end}
+                        onChange={(e) =>
+                          setNotificationSettings({
+                            ...notificationSettings,
+                            silent_hours_end: e.target.value,
+                          })
+                        }
+                      />
+                    </div>
+                  </div>
+                </div>
+              </>
             )}
-          </div>
+          </CardContent>
+        </Card>
+      )}
 
-          {/* Preferências (só aparecem se ativado) */}
-          {isSubscribed && (
-            <>
-              <div className="space-y-4">
-                <h3 className="font-medium text-foreground">Preferências de Notificação</h3>
-                <div className="space-y-3">
-                  <div className="flex items-center justify-between">
-                    <Label htmlFor="appointment-reminders" className="cursor-pointer">
-                      Lembretes de Consulta
-                    </Label>
-                    <input
-                      id="appointment-reminders"
-                      type="checkbox"
-                      checked={notificationSettings.appointment_reminders}
-                      onChange={(e) => setNotificationSettings({
-                        ...notificationSettings,
-                        appointment_reminders: e.target.checked
-                      })}
-                      className="h-4 w-4 rounded border-gray-300 text-blue-600 focus:ring-blue-500"
-                    />
-                  </div>
-
-                  <div className="flex items-center justify-between">
-                    <Label htmlFor="medication-reminders" className="cursor-pointer">
-                      Lembretes de Medicamento
-                    </Label>
-                    <input
-                      id="medication-reminders"
-                      type="checkbox"
-                      checked={notificationSettings.medication_reminders}
-                      onChange={(e) => setNotificationSettings({
-                        ...notificationSettings,
-                        medication_reminders: e.target.checked
-                      })}
-                      className="h-4 w-4 rounded border-gray-300 text-blue-600 focus:ring-blue-500"
-                    />
-                  </div>
-
-                  <div className="flex items-center justify-between">
-                    <Label htmlFor="lab-results" className="cursor-pointer">
-                      Resultados de Exames
-                    </Label>
-                    <input
-                      id="lab-results"
-                      type="checkbox"
-                      checked={notificationSettings.lab_results}
-                      onChange={(e) => setNotificationSettings({
-                        ...notificationSettings,
-                        lab_results: e.target.checked
-                      })}
-                      className="h-4 w-4 rounded border-gray-300 text-blue-600 focus:ring-blue-500"
-                    />
-                  </div>
-
-                  <div className="flex items-center justify-between">
-                    <Label htmlFor="doctor-messages" className="cursor-pointer">
-                      Mensagens do Médico
-                    </Label>
-                    <input
-                      id="doctor-messages"
-                      type="checkbox"
-                      checked={notificationSettings.doctor_messages}
-                      onChange={(e) => setNotificationSettings({
-                        ...notificationSettings,
-                        doctor_messages: e.target.checked
-                      })}
-                      className="h-4 w-4 rounded border-gray-300 text-blue-600 focus:ring-blue-500"
-                    />
-                  </div>
-
-                  <div className="flex items-center justify-between">
-                    <Label htmlFor="promotions" className="cursor-pointer">
-                      Promoções e Ofertas
-                    </Label>
-                    <input
-                      id="promotions"
-                      type="checkbox"
-                      checked={notificationSettings.promotions}
-                      onChange={(e) => setNotificationSettings({
-                        ...notificationSettings,
-                        promotions: e.target.checked
-                      })}
-                      className="h-4 w-4 rounded border-gray-300 text-blue-600 focus:ring-blue-500"
-                    />
-                  </div>
-                </div>
-              </div>
-
-              <div className="space-y-4">
-                <h3 className="font-medium text-foreground">Horário Silencioso</h3>
-                <p className="text-sm text-muted-foreground">
-                  Configure horários em que não deseja receber notificações
-                </p>
-                <div className="grid grid-cols-2 gap-4">
-                  <div className="space-y-2">
-                    <Label htmlFor="silent-start">Início</Label>
-                    <Input
-                      id="silent-start"
-                      type="time"
-                      value={notificationSettings.silent_hours_start}
-                      onChange={(e) => setNotificationSettings({
-                        ...notificationSettings,
-                        silent_hours_start: e.target.value
-                      })}
-                    />
-                  </div>
-                  <div className="space-y-2">
-                    <Label htmlFor="silent-end">Término</Label>
-                    <Input
-                      id="silent-end"
-                      type="time"
-                      value={notificationSettings.silent_hours_end}
-                      onChange={(e) => setNotificationSettings({
-                        ...notificationSettings,
-                        silent_hours_end: e.target.value
-                      })}
-                    />
-                  </div>
-                </div>
-              </div>
-            </>
-          )}
-        </CardContent>
-      </Card>
-
-      <Card>
-        <CardHeader>
-          <CardTitle>Configurações do App</CardTitle>
-          <CardDescription>Configure preferências de PWA</CardDescription>
-        </CardHeader>
-        <CardContent className="space-y-6">
-          <div className="space-y-4">
-            <h3 className="font-semibold text-foreground">Instalar App</h3>
-            <div className="p-4 rounded-lg border border-border bg-muted/30">
-              <p className="text-sm text-muted-foreground mb-3">
-                Instale o HealthCare+ como um app no seu dispositivo para acesso rápido e suporte offline.
-              </p>
-              <div className="text-xs text-muted-foreground space-y-2">
-                <p>
-                  <strong>Desktop:</strong> Procure pelo ícone de instalar na barra de endereços ou menu
-                </p>
-                <p>
-                  <strong>Mobile:</strong> Toque no menu de compartilhamento e selecione "Adicionar à Tela Inicial"
-                  (iOS) ou use as opções do menu (Android)
-                </p>
-              </div>
-            </div>
-          </div>
-
-          <div className="space-y-4">
-            <h3 className="font-semibold text-foreground">Acesso Offline</h3>
-            <div className="p-4 rounded-lg border border-border bg-muted/30">
-              <p className="text-sm text-muted-foreground">
-                O HealthCare+ funciona offline e sincronizará seus dados quando você voltar a ter conexão. Suas
-                informações de saúde estão sempre disponíveis.
-              </p>
-            </div>
-          </div>
-        </CardContent>
-      </Card>
-
-      <Card className="border-destructive">
-        <CardHeader>
-          <CardTitle className="text-destructive">Sair da Conta</CardTitle>
-          <CardDescription>Encerrar sua sessão neste dispositivo</CardDescription>
-        </CardHeader>
-        <CardContent>
-          <Button onClick={handleLogout} disabled={loggingOut} variant="destructive" className="gap-2 w-full sm:w-auto">
-            <LogOut className="h-4 w-4" />
-            {loggingOut ? "Saindo..." : "Sair da Conta"}
-          </Button>
-        </CardContent>
-      </Card>
-
-      <Button onClick={handleSave} disabled={saving} className="w-full sm:w-auto">
-        {saving ? "Salvando..." : "Salvar Alterações"}
-      </Button>
+      {/* Save and Logout Buttons */}
+      <div className="flex flex-col sm:flex-row gap-3 pt-4">
+        <Button onClick={handleSave} disabled={saving} className="gap-2">
+          {saving ? "Salvando..." : "Salvar Alterações"}
+        </Button>
+        <Button onClick={handleLogout} disabled={loggingOut} variant="outline" className="gap-2 bg-transparent">
+          <LogOut className="h-4 w-4" />
+          {loggingOut ? "Saindo..." : "Sair da Conta"}
+        </Button>
+      </div>
     </div>
   )
 }
