@@ -13,19 +13,15 @@ export default function ClientLayout({
 }>) {
   const [isClient, setIsClient] = useState(false)
 
-  useEffect(() => {
-    setIsClient(true)
 
-    if ("serviceWorker" in navigator) {
-      navigator.serviceWorker
-        .register("/service-worker.js", {
-          scope: "/",
+  useEffect(() => {
+    if (typeof window !== 'undefined' && 'serviceWorker' in navigator) {
+      navigator.serviceWorker.register('/service-worker.js')
+        .then(registration => {
+          console.log('✅ Service Worker registered with scope:', registration.scope)
         })
-        .then((registration) => {
-          console.log("[v0] Service Worker registered with scope:", registration.scope)
-        })
-        .catch((error) => {
-          console.error("[v0] Failed to register Service Worker:", error)
+        .catch(error => {
+          console.error('❌ Service Worker registration failed:', error)
         })
     }
   }, [])
