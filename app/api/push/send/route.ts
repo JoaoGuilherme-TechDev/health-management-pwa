@@ -1,206 +1,142 @@
 // app/api/push/send/route.ts
-import { NextRequest, NextResponse } from 'next/server'
+import { createClient } from "@/lib/supabase/server"
+import { NextResponse } from "next/server"
+import webpush from 'web-push'
 
-// lib/notification-service.ts
-export class NotificationService {
-  static async sendPrescriptionNotification(
-    userId: string,
-    prescriptionTitle: string,
-    doctorName?: string,
-    sendPush: boolean = true
-  ) {
-    try {
-      console.log("NotificationService: Sending prescription notification...")
-      const { notifyPrescriptionCreated } = await import('@/lib/notifications')
-      const notification = await notifyPrescriptionCreated(userId, prescriptionTitle, doctorName, sendPush)
-      console.log("NotificationService: Notification sent:", notification)
-      return notification
-    } catch (error) {
-      console.error("Error sending prescription notification:", error)
-      return null
-    }
-  }
-
-  static async sendAppointmentNotification(
-    userId: string,
-    appointmentTitle: string,
-    appointmentDate: string,
-    sendPush: boolean = true
-  ) {
-    try {
-      const { notifyAppointmentCreated } = await import('@/lib/notifications')
-      const notification = await notifyAppointmentCreated(userId, appointmentTitle, appointmentDate, sendPush)
-      console.log("NotificationService: Appointment notification sent:", notification)
-      return notification
-    } catch (error) {
-      console.error("Error sending appointment notification:", error)
-      return null
-    }
-  }
-
-  static async sendMedicationNotification(
-    userId: string,
-    medicationName: string,
-    sendPush: boolean = true
-  ) {
-    try {
-      const { notifyMedicationCreated } = await import('@/lib/notifications')
-      const notification = await notifyMedicationCreated(userId, medicationName, sendPush)
-      console.log("NotificationService: Medication notification sent:", notification)
-      return notification
-    } catch (error) {
-      console.error("Error sending medication notification:", error)
-      return null
-    }
-  }
-
-  static async sendDietNotification(
-    userId: string,
-    dietTitle: string,
-    sendPush: boolean = true
-  ) {
-    try {
-      const { notifyDietCreated } = await import('@/lib/notifications')
-      const notification = await notifyDietCreated(userId, dietTitle, sendPush)
-      console.log("NotificationService: Diet notification sent:", notification)
-      return notification
-    } catch (error) {
-      console.error("Error sending diet notification:", error)
-      return null
-    }
-  }
-
-  static async sendSupplementNotification(
-    userId: string,
-    supplementName: string,
-    sendPush: boolean = true
-  ) {
-    try {
-      const { notifySuplementCreated } = await import('@/lib/notifications')
-      const notification = await notifySuplementCreated(userId, supplementName, sendPush)
-      console.log("NotificationService: Supplement notification sent:", notification)
-      return notification
-    } catch (error) {
-      console.error("Error sending supplement notification:", error)
-      return null
-    }
-  }
-
-  // Test method to verify push notifications are working
-  static async testPushNotification(
-    userId: string,
-    title: string = "Test Notification",
-    body: string = "This is a test notification"
-  ) {
-    try {
-      const { pushNotifications } = await import("@/lib/push-notifications")
-      await pushNotifications.sendToPatient({
-        patientId: userId,
-        title,
-        body,
-        url: "/patient",
-        type: "general"
-      })
-      return true
-    } catch (error) {
-      console.error("Test push notification failed:", error)
-      return false
-    }
-  }
+// Configure VAPID keys
+const vapidKeys = {
+  publicKey: process.env.NEXT_PUBLIC_VAPID_PUBLIC_KEY!,
+  privateKey: process.env.VAPID_PRIVATE_KEY!
 }
 
-// Next.js API Route Handlers - MUST EXPORT THESE
-export async function POST(request: NextRequest) {
+if (!vapidKeys.publicKey || !vapidKeys.privateKey) {
+  console.error("❌ VAPID keys are not configured!")
+}
+
+if (vapidKeys.publicKey && vapidKeys.privateKey) {
+  webpush.setVapidDetails(
+    'mailto:your-email@example.com',
+    vapidKeys.publicKey,
+    vapidKeys.privateKey
+  )
+}
+
+export async function POST(request: Request) {
   try {
+    const supabase = await createClient()
     const body = await request.json()
-    const { userId, type, data, sendPush = true } = body
-
-    let notification
     
-    switch (type) {
-      case 'prescription':
-        notification = await NotificationService.sendPrescriptionNotification(
-          userId,
-          data.prescriptionTitle,
-          data.doctorName,
-          sendPush
-        )
-        break
-      case 'appointment':
-        notification = await NotificationService.sendAppointmentNotification(
-          userId,
-          data.appointmentTitle,
-          data.appointmentDate,
-          sendPush
-        )
-        break
-      case 'medication':
-        notification = await NotificationService.sendMedicationNotification(
-          userId,
-          data.medicationName,
-          sendPush
-        )
-        break
-      case 'diet':
-        notification = await NotificationService.sendDietNotification(
-          userId,
-          data.dietTitle,
-          sendPush
-        )
-        break
-      case 'supplement':
-        notification = await NotificationService.sendSupplementNotification(
-          userId,
-          data.supplementName,
-          sendPush
-        )
-        break
-      case 'test':
-        const success = await NotificationService.testPushNotification(
-          userId,
-          data.title,
-          data.body
-        )
-        return NextResponse.json({ 
-          success: true, 
-          message: "Test notification sent",
-          testResult: success 
-        })
-      default:
-        return NextResponse.json(
-          { error: 'Invalid notification type' },
-          { status: 400 }
-        )
+    const { patientId, title, body: messageBody, url, type } = body
+    
+    console.log("📨 Push API: Received request for patient:", patientId)
+    console.log("📝 Details:", { title, messageBody, url, type })
+    
+    // Check if VAPID keys are configured
+    if (!vapidKeys.publicKey || !vapidKeys.privateKey) {
+      console.log("⚠️ VAPID keys not configured, skipping push notification")
+      return NextResponse.json({
+        message: 'Push notifications not configured (missing VAPID keys)',
+        skipped: true,
+        reason: 'VAPID keys not configured'
+      })
     }
-
-    return NextResponse.json({ 
-      success: true, 
-      message: "Notification sent successfully",
-      notification 
+    
+    // Get patient's push subscriptions
+    const { data: subscriptions, error: subError } = await supabase
+      .from('push_subscriptions')
+      .select('*')
+      .eq('user_id', patientId)
+    
+    if (subError) {
+      console.error("❌ Error fetching subscriptions:", subError)
+      return NextResponse.json(
+        { error: 'Error fetching push subscriptions' },
+        { status: 500 }
+      )
+    }
+    
+    if (!subscriptions || subscriptions.length === 0) {
+      console.log("📭 No push subscriptions found for user:", patientId)
+      return NextResponse.json({
+        message: 'No push subscriptions found for this user',
+        skipped: true,
+        reason: 'No subscriptions'
+      })
+    }
+    
+    console.log(`📱 Found ${subscriptions.length} subscription(s) for user ${patientId}`)
+    
+    // Send to all subscriptions
+    const results = await Promise.allSettled(
+      subscriptions.map(async (subscription) => {
+        try {
+          const pushSubscription = {
+            endpoint: subscription.endpoint,
+            keys: {
+              p256dh: subscription.p256dh_key,
+              auth: subscription.auth_key
+            }
+          }
+          
+          const payload = JSON.stringify({
+            title,
+            body: messageBody,
+            url: url || '/patient',
+            type,
+            icon: '/icon-192x192.png',
+            badge: '/badge-72x72.png',
+            timestamp: Date.now()
+          })
+          
+          console.log("📤 Sending push to endpoint:", subscription.endpoint.substring(0, 50) + "...")
+          await webpush.sendNotification(pushSubscription, payload)
+          
+          console.log("✅ Successfully sent to:", subscription.endpoint.substring(0, 50) + "...")
+          return { 
+            success: true, 
+            endpoint: subscription.endpoint,
+            message: 'Notification sent'
+          }
+        } catch (error: any) {
+          console.error('❌ Error sending to subscription:', error)
+          
+          // Delete invalid subscriptions (Gone status)
+          if (error.statusCode === 410) {
+            console.log("🗑️ Deleting expired subscription:", subscription.endpoint.substring(0, 50) + "...")
+            await supabase
+              .from('push_subscriptions')
+              .delete()
+              .eq('endpoint', subscription.endpoint)
+          }
+          
+          return { 
+            success: false, 
+            endpoint: subscription.endpoint, 
+            error: error.message 
+          }
+        }
+      })
+    )
+    
+    const successful = results.filter((r): r is PromiseFulfilledResult<any> => 
+      r.status === 'fulfilled' && r.value.success
+    ).length
+    
+    console.log(`🎯 Successfully sent to ${successful}/${subscriptions.length} devices`)
+    
+    return NextResponse.json({
+      message: `Notifications sent to ${successful}/${subscriptions.length} devices`,
+      total: subscriptions.length,
+      successful,
+      failed: subscriptions.length - successful,
+      results: results.map(r => r.status === 'fulfilled' ? r.value : r.reason)
     })
-  } catch (error) {
-    console.error('Error in push notification API:', error)
+    
+  } catch (error: any) {
+    console.error('💥 Error in push send API:', error)
     return NextResponse.json(
-      { error: 'Failed to send notification', details: error instanceof Error ? error.message : 'Unknown error' },
+      { error: 'Internal server error', details: error.message },
       { status: 500 }
     )
   }
-}
-
-export async function GET(request: NextRequest) {
-  // Return API information
-  return NextResponse.json({
-    success: true,
-    message: 'Push notification API is running',
-    endpoint: '/api/push/send',
-    availableTypes: [
-      { type: 'prescription', requiredFields: ['userId', 'data.prescriptionTitle'] },
-      { type: 'appointment', requiredFields: ['userId', 'data.appointmentTitle', 'data.appointmentDate'] },
-      { type: 'medication', requiredFields: ['userId', 'data.medicationName'] },
-      { type: 'diet', requiredFields: ['userId', 'data.dietTitle'] },
-      { type: 'supplement', requiredFields: ['userId', 'data.supplementName'] },
-      { type: 'test', requiredFields: ['userId'] }
-    ],
-    usage: 'Send POST request with { userId, type, data, sendPush? }'
-  })
 }

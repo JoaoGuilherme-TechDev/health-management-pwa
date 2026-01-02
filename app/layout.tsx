@@ -2,6 +2,7 @@ import type { Metadata, Viewport } from "next"
 import { Geist, Geist_Mono } from "next/font/google"
 import "./globals.css"
 import ClientLayout from "./clientLayout"
+import { useEffect } from "react"
 
 const geist = Geist({ 
   subsets: ["latin"],
@@ -43,6 +44,19 @@ export default function RootLayout({
 }: Readonly<{
   children: React.ReactNode
 }>) {
+
+  useEffect(() => {
+    if (typeof window !== 'undefined' && 'serviceWorker' in navigator) {
+      navigator.serviceWorker.register('/service-worker.js')
+        .then(registration => {
+          console.log('✅ Service Worker registered with scope:', registration.scope)
+        })
+        .catch(error => {
+          console.error('❌ Service Worker registration failed:', error)
+        })
+    }
+  }, [])
+  
   return (
     <html lang="pt-BR" className={`${geist.className}`}>
       <head>

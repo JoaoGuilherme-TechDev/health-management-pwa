@@ -1,10 +1,11 @@
+// lib/push-notifications.ts
 import { createClient } from "@/lib/supabase/client"
 
 interface NotificationPayload {
   title: string
   body?: string
   url?: string
-  type?: "prescription" | "evolution" | "appointment" | "diet" | "medication" | "supplement" | "general"
+  type?: "prescription" | "appointment" | "diet" | "medication" | "supplement" | "general" | "evolution"
   patientId: string
 }
 
@@ -14,8 +15,16 @@ export class PushNotificationService {
   // Enviar notificação para um paciente
   async sendToPatient(payload: NotificationPayload) {
     try {
-      console.log("Sending push notification to patient:", payload.patientId)
+      console.log("🚀 Starting push notification for patient:", payload.patientId)
+      console.log("📦 Payload:", payload)
       
+      // Remove role check temporarily for debugging
+      // const { data: userData } = await this.supabase.auth.getUser()
+      // const { data: profile } = await this.supabase.from("profiles").select("role").eq("id", userData.user?.id).single()
+      // if (profile?.role !== "admin" && profile?.role !== "doctor") {
+      //   throw new Error("Apenas médicos podem enviar notificações")
+      // }
+
       // Enviar via API route
       const response = await fetch("/api/push/send", {
         method: "POST",
@@ -31,31 +40,21 @@ export class PushNotificationService {
         }),
       })
 
-      console.log("Push API response status:", response.status)
+      console.log("📡 API Response status:", response.status)
 
       if (!response.ok) {
         const errorText = await response.text()
-        console.error("Push API error response:", errorText)
+        console.error("❌ Push API error response:", errorText)
         throw new Error(`Falha ao enviar notificação: ${response.status}`)
       }
 
       const result = await response.json()
-      console.log("Push notification sent successfully:", result)
+      console.log("✅ Push notification sent successfully:", result)
       return result
     } catch (error) {
-      console.error("Erro ao enviar notificação push:", error)
+      console.error("❌ Erro ao enviar notificação push:", error)
       throw error
     }
-  }
-
-  async sendNewEvolution(patientId: string, evolutionDetails: string) {
-    return this.sendToPatient({
-      patientId,
-      title: "📈 Novo Registro de Evolução",
-      body: `${evolutionDetails}`,
-      url: `/patient/evolution`,
-      type: "evolution",
-    })
   }
 
   // Enviar notificação de nova prescrição

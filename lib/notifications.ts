@@ -32,7 +32,7 @@ export interface CreateNotificationData {
   title: string
   message: string
   actionUrl?: string
-  sendPush?: boolean // Add this to control push notifications
+  sendPush?: boolean
 }
 
 // Create a notification in the database
@@ -122,7 +122,7 @@ export async function notifyPrescriptionCreated(
   userId: string,
   prescriptionTitle: string,
   doctorName?: string,
-  sendPush: boolean = true // Default to sending push
+  sendPush: boolean = true
 ): Promise<Notification | null> {
   console.log("notifyPrescriptionCreated called with:", { userId, prescriptionTitle, doctorName, sendPush })
 
@@ -135,7 +135,7 @@ export async function notifyPrescriptionCreated(
     title: "Nova Receita Adicionada",
     message: `${prescriptionTitle}${doctorStr}`,
     actionUrl: "/patient/prescriptions",
-    sendPush: false, // Don't send push from createNotification
+    sendPush: false,
   })
 
   // Send push notification
@@ -146,7 +146,6 @@ export async function notifyPrescriptionCreated(
       console.log("Push notification sent successfully")
     } catch (error) {
       console.error("Failed to send push notification:", error)
-      // Don't fail the whole operation if push fails
     }
   }
 
@@ -232,30 +231,6 @@ export async function notifyDietCreated(
   return result
 }
 
-export async function notifyEvolutionCreated (
-  userId: string,
-  evolutionDetails: string,
-  sendPush: boolean = true
-): Promise<Notification | null> {
-  const result = await createNotification({
-    userId,
-    type: "evolution_created",
-    title: "Novo Registro de Evolução",
-    message: `${evolutionDetails}`,
-    actionUrl: "/patient/evolution",
-    sendPush: false,
-  })
-
-  if (sendPush && result) {
-    try {
-      await pushNotifications.sendNewEvolution(userId, evolutionDetails)
-    } catch (error) {
-      console.error("Failed to send push notification:", error)
-    }
-  }
-  return result
-}
-
 export async function notifySuplementCreated(
   userId: string,
   supplementName: string,
@@ -278,5 +253,43 @@ export async function notifySuplementCreated(
     }
   }
 
+  return result
+}
+
+export async function notifyEvolutionCreated(
+  userId: string,
+  measurementDetails: string,
+  sendPush: boolean = true
+): Promise<Notification | null> {
+  console.log("notifyEvolutionCreated called with:", { userId, measurementDetails, sendPush })
+
+  // Create in-app notification
+  const result = await createNotification({
+    userId,
+    type: "evolution_created",
+    title: "📊 Nova Evolução Física",
+    message: measurementDetails,
+    actionUrl: "/patient/evolution",
+    sendPush: false,
+  })
+
+  // Send push notification
+  if (sendPush && result) {
+    try {
+      console.log("Sending push notification for evolution...")
+      await pushNotifications.sendToPatient({
+        patientId: userId,
+        title: "📊 Nova Evolução Física",
+        body: measurementDetails,
+        url: "/patient/evolution",
+        type: "general",
+      })
+      console.log("Push notification sent successfully")
+    } catch (error) {
+      console.error("Failed to send push notification:", error)
+    }
+  }
+
+  console.log("notifyEvolutionCreated result:", result)
   return result
 }

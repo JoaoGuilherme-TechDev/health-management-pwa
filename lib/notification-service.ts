@@ -20,12 +20,12 @@ export class NotificationService {
     sendPush: boolean = true
   ): Promise<Notification | null> {
     try {
-      console.log("NotificationService: Sending prescription notification...")
+      console.log("📋 NotificationService: Sending prescription notification...")
       const notification = await notifyPrescriptionCreated(userId, prescriptionTitle, doctorName, sendPush)
-      console.log("NotificationService: Notification sent:", notification)
+      console.log("✅ NotificationService: Notification sent:", notification?.id || "No ID")
       return notification
     } catch (error) {
-      console.error("Error sending prescription notification:", error)
+      console.error("❌ Error sending prescription notification:", error)
       return null
     }
   }
@@ -37,11 +37,12 @@ export class NotificationService {
     sendPush: boolean = true
   ): Promise<Notification | null> {
     try {
+      console.log("📅 NotificationService: Sending appointment notification...")
       const notification = await notifyAppointmentCreated(userId, appointmentTitle, appointmentDate, sendPush)
-      console.log("NotificationService: Appointment notification sent:", notification)
+      console.log("✅ NotificationService: Appointment notification sent:", notification?.id || "No ID")
       return notification
     } catch (error) {
-      console.error("Error sending appointment notification:", error)
+      console.error("❌ Error sending appointment notification:", error)
       return null
     }
   }
@@ -52,30 +53,31 @@ export class NotificationService {
     sendPush: boolean = true
   ): Promise<Notification | null> {
     try {
+      console.log("💊 NotificationService: Sending medication notification...")
       const notification = await notifyMedicationCreated(userId, medicationName, sendPush)
-      console.log("NotificationService: Medication notification sent:", notification)
+      console.log("✅ NotificationService: Medication notification sent:", notification?.id || "No ID")
       return notification
     } catch (error) {
-      console.error("Error sending medication notification:", error)
+      console.error("❌ Error sending medication notification:", error)
       return null
     }
   }
 
-  // Add this method to the NotificationService class in lib/notification-service.ts
-static async sendEvolutionNotification(
-  userId: string,
-  measurementDetails: string,
-  sendPush: boolean = true
-): Promise<Notification | null> {
-  try {
-    const notification = await notifyEvolutionCreated(userId, measurementDetails, sendPush)
-    console.log("NotificationService: Evolution notification sent:", notification)
-    return notification
-  } catch (error) {
-    console.error("Error sending evolution notification:", error)
-    return null
+  static async sendEvolutionNotification(
+    userId: string,
+    measurementDetails: string,
+    sendPush: boolean = true
+  ): Promise<Notification | null> {
+    try {
+      console.log("📊 NotificationService: Sending evolution notification...")
+      const notification = await notifyEvolutionCreated(userId, measurementDetails, sendPush)
+      console.log("✅ NotificationService: Evolution notification sent:", notification?.id || "No ID")
+      return notification
+    } catch (error) {
+      console.error("❌ Error sending evolution notification:", error)
+      return null
+    }
   }
-}
 
   static async sendDietNotification(
     userId: string,
@@ -83,11 +85,12 @@ static async sendEvolutionNotification(
     sendPush: boolean = true
   ): Promise<Notification | null> {
     try {
+      console.log("🥗 NotificationService: Sending diet notification...")
       const notification = await notifyDietCreated(userId, dietTitle, sendPush)
-      console.log("NotificationService: Diet notification sent:", notification)
+      console.log("✅ NotificationService: Diet notification sent:", notification?.id || "No ID")
       return notification
     } catch (error) {
-      console.error("Error sending diet notification:", error)
+      console.error("❌ Error sending diet notification:", error)
       return null
     }
   }
@@ -98,11 +101,12 @@ static async sendEvolutionNotification(
     sendPush: boolean = true
   ): Promise<Notification | null> {
     try {
+      console.log("💪 NotificationService: Sending supplement notification...")
       const notification = await notifySuplementCreated(userId, supplementName, sendPush)
-      console.log("NotificationService: Supplement notification sent:", notification)
+      console.log("✅ NotificationService: Supplement notification sent:", notification?.id || "No ID")
       return notification
     } catch (error) {
-      console.error("Error sending supplement notification:", error)
+      console.error("❌ Error sending supplement notification:", error)
       return null
     }
   }
@@ -114,6 +118,7 @@ static async sendEvolutionNotification(
     body: string = "This is a test notification"
   ): Promise<boolean> {
     try {
+      console.log("🧪 NotificationService: Sending test push notification...")
       const { pushNotifications } = await import("@/lib/push-notifications")
       await pushNotifications.sendToPatient({
         patientId: userId,
@@ -122,9 +127,10 @@ static async sendEvolutionNotification(
         url: "/patient",
         type: "general"
       })
+      console.log("✅ Test push notification sent successfully")
       return true
     } catch (error) {
-      console.error("Test push notification failed:", error)
+      console.error("❌ Test push notification failed:", error)
       return false
     }
   }
