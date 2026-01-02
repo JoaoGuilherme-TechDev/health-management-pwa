@@ -2,7 +2,7 @@ import type { Metadata, Viewport } from "next"
 import { Geist, Geist_Mono } from "next/font/google"
 import "./globals.css"
 import ClientLayout from "./clientLayout"
-import { useEffect } from "react"
+
 
 const geist = Geist({ 
   subsets: ["latin"],
