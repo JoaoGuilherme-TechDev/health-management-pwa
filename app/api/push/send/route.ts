@@ -1,4 +1,4 @@
-// app/api/push/send/route.tsx
+// app/api/push/send/route.ts
 import { NextRequest, NextResponse } from 'next/server'
 
 // lib/notification-service.ts
@@ -11,7 +11,6 @@ export class NotificationService {
   ) {
     try {
       console.log("NotificationService: Sending prescription notification...")
-      // Import here to avoid client-side code in server context
       const { notifyPrescriptionCreated } = await import('@/lib/notifications')
       const notification = await notifyPrescriptionCreated(userId, prescriptionTitle, doctorName, sendPush)
       console.log("NotificationService: Notification sent:", notification)
@@ -116,7 +115,6 @@ export async function POST(request: NextRequest) {
     const body = await request.json()
     const { userId, type, data, sendPush = true } = body
 
-    let result
     let notification
     
     switch (type) {
