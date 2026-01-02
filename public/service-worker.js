@@ -1,97 +1,57 @@
-// HealthCare+ Service Worker - Push Notification Handler
-console.log('[Service Worker] Loading push notification handler...')
-
-self.addEventListener('push', function(event) {
-  console.log('[Service Worker] Push event received:', event)
-  
-  if (!event.data) {
-    console.log('[Service Worker] No data in push event')
+// Service Worker
+self.addEventListener("push", (event) => {
+  if (!(self.Notification && self.Notification.permission === "granted")) {
     return
   }
 
-  try {
-    let notificationData
-    try {
-      notificationData = event.data.json()
-      console.log('[Service Worker] Push data (parsed):', notificationData)
-    } catch (e) {
-      console.log('[Service Worker] Could not parse push data as JSON, using text:', e)
-      notificationData = {
-        title: 'HealthCare+',
-        body: event.data.text() || 'Nova notificação',
-        icon: '/icon-light-32x32.png'
-      }
-    }
+  const data = event.data?.json() ?? {}
+  const title = data.title || "HealthCare+"
+  const message = data.message || "Nova notificação"
 
-    // Generate unique tag to prevent duplicates
-    const uniqueTag = notificationData.tag || 
-      `${notificationData.type || 'general'}-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`
-
-    // Prepare notification options
-    const options = {
-      body: notificationData.body || 'Nova notificação',
-      icon: notificationData.icon || '/icon-light-32x32.png',
-      badge: notificationData.badge || '/badge-72x72.png',
-      tag: uniqueTag,
-      data: notificationData.data || {},
-      timestamp: notificationData.timestamp || Date.now(),
-      requireInteraction: notificationData.requireInteraction || false,
-      silent: notificationData.silent || false,
-      vibrate: notificationData.vibrate || [200, 100, 200],
-      actions: notificationData.actions || [],
-      renotify: false
-    }
-
-    console.log('[Service Worker] Showing notification:', {
-      title: notificationData.title || 'HealthCare+',
-      tag: options.tag,
-      data: options.data
-    })
-
-    // Show the notification
-    event.waitUntil(
-      self.registration.showNotification(
-        notificationData.title || 'HealthCare+', 
-        options
-      ).then(() => {
-        console.log('[Service Worker] Notification shown successfully')
-      }).catch(error => {
-        console.error('[Service Worker] Error showing notification:', error)
-      })
-    )
-
-  } catch (error) {
-    console.error('[Service Worker] Error in push event handler:', error)
+  const options = {
+    body: message,
+    icon: data.icon || "/icon-light-32x32.png",
+    badge: "/badge-72x72.png",
+    tag: data.tag || "notification",
+    data: data.data || {},
+    actions: data.actions || [],
   }
+
+  event.waitUntil(self.registration.showNotification(title, options))
 })
 
-// Notification click handler
-self.addEventListener('notificationclick', function(event) {
-  console.log('[Service Worker] Notification clicked:', event.notification.tag)
-  
+self.addEventListener("notificationclick", (event) => {
   event.notification.close()
 
-  const urlToOpen = event.notification.data?.url || '/notifications'
+  const urlToOpen = new URL("/", self.location.origin).href
 
   event.waitUntil(
-    self.clients.matchAll({ 
-      type: 'window', 
-      includeUncontrolled: true 
-    }).then(function(windowClients) {
-      // Check if there's already a window/tab open with the URL
-      for (let i = 0; i < windowClients.length; i++) {
-        const client = windowClients[i]
-        if (client.url.includes(urlToOpen) && 'focus' in client) {
-          console.log('[Service Worker] Focusing existing client')
+    clients.matchAll({ type: "window", includeUncontrolled: true }).then((windowClients) => {
+      for (const client of windowClients) {
+        if (client.url === urlToOpen && "focus" in client) {
           return client.focus()
         }
       }
-      
-      // If not, open a new window/tab
-      if (self.clients.openWindow) {
-        console.log('[Service Worker] Opening new window to:', urlToOpen)
-        return self.clients.openWindow(urlToOpen)
+      if (clients.openWindow) {
+        return clients.openWindow(urlToOpen)
       }
-    })
+    }),
+  )
+})
+
+self.addEventListener("pushsubscriptionchange", (event) => {
+  event.waitUntil(
+    self.registration.pushManager.subscribe(event.oldSubscription.options).then((subscription) =>
+      fetch("/api/push/subscribe", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          action: "update",
+          subscription: subscription.toJSON(),
+        }),
+      }),
+    ),
   )
 })

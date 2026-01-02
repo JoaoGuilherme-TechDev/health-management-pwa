@@ -16,6 +16,7 @@ webPush.setVapidDetails(
   vapidPrivateKey
 )
 
+// Define TypeScript interfaces
 interface PushSubscriptionData {
   endpoint: string
   p256dh: string
@@ -25,25 +26,38 @@ interface PushSubscriptionData {
   updated_at: string
 }
 
+interface PushNotificationPayload {
+  title: string
+  body: string
+  icon?: string
+  badge?: string
+  tag?: string
+  data?: Record<string, any>
+  requireInteraction?: boolean
+  silent?: boolean
+}
+
 interface SendPushRequest {
   title: string
-  body?: string
-  url?: string
-  type?: "prescription" | "appointment" | "diet" | "medication" | "supplement" | "general" | "evolution"
-  patientId: string
+  body: string
+  icon?: string
+  badge?: string
+  tag?: string
+  data?: Record<string, any>
+  userId?: string
   notificationType?: string
 }
 
 export async function POST(request: Request) {
   try {
-    console.log("📱 [PUSH] Received push notification request")
+    console.log("📱 Received push notification request")
     
     // Get request body
     let body: SendPushRequest
     try {
       body = await request.json()
     } catch (error) {
-      console.error("❌ [PUSH] Invalid JSON in request body")
+      console.error("❌ Invalid JSON in request body")
       return NextResponse.json(
         { error: "Invalid JSON in request body" },
         { status: 400 }
@@ -53,46 +67,48 @@ export async function POST(request: Request) {
     const { 
       title, 
       body: message, 
-      url = "/notifications",
-      type = "general",
-      patientId,
-      notificationType = type
+      icon = "/icon-light-32x32.png",
+      badge = "/badge-72x72.png",
+      tag = `notification-${Date.now()}`,
+      data = {},
+      userId,
+      notificationType
     } = body
 
     // Validate required fields
-    if (!title) {
+    if (!title || !message) {
       return NextResponse.json(
-        { error: "Title is required" },
+        { error: "Title and body are required" },
         { status: 400 }
       )
     }
 
-    if (!patientId) {
-      return NextResponse.json(
-        { error: "patientId is required" },
-        { status: 400 }
-      )
-    }
-
-    console.log(`📤 [PUSH] Preparing to send: "${title}"`)
-    console.log(`   Target patient: ${patientId}`)
-    console.log(`   Type: ${notificationType}`)
+    console.log(`📤 Preparing to send: "${title}"`)
+    console.log(`   Target user: ${userId || "ALL users"}`)
+    console.log(`   Notification type: ${notificationType || "general"}`)
 
     // Create Supabase client
     const supabase = await createClient()
-    console.log("✅ [PUSH] Supabase client created")
+    console.log("✅ Supabase client created")
 
-    // Get patient's subscriptions - USING patientId AS user_id
-    const { data: subscriptions, error: queryError } = await supabase
+    // Get user subscriptions
+    let query = supabase
       .from("push_subscriptions")
       .select("*")
-      .eq("user_id", patientId)
       .not("endpoint", "is", null)
       .not("p256dh", "is", null)
       .not("auth", "is", null)
 
+    // Filter by user if specified
+    if (userId) {
+      query = query.eq("user_id", userId)
+      console.log(`   Filtering by user_id: ${userId}`)
+    }
+
+    const { data: subscriptions, error: queryError } = await query
+
     if (queryError) {
-      console.error("❌ [PUSH] Error fetching subscriptions:", queryError)
+      console.error("❌ Error fetching subscriptions:", queryError)
       return NextResponse.json(
         { 
           error: "Failed to fetch push subscriptions",
@@ -103,42 +119,42 @@ export async function POST(request: Request) {
     }
 
     if (!subscriptions || subscriptions.length === 0) {
-      console.log("⚠️ [PUSH] No active push subscriptions found for patient")
+      console.log("⚠️ No active push subscriptions found")
       return NextResponse.json(
         { 
           error: "No active push subscriptions found",
-          patientId,
-          suggestion: "The patient hasn't enabled push notifications yet."
+          userId,
+          suggestion: userId ? 
+            "The specified user hasn't enabled push notifications yet." :
+            "No users have enabled push notifications."
         },
         { status: 404 }
       )
     }
 
-    console.log(`📨 [PUSH] Found ${subscriptions.length} subscription(s) for patient ${patientId}`)
+    console.log(`📨 Found ${subscriptions.length} subscription(s)`)
 
     // Prepare notification payload
-    const tag = `push-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`
-    const payload = {
+    const payload: PushNotificationPayload = {
       title,
-      body: message || title, // Use title as body if no message
-      icon: "/icon-light-32x32.png",
-      badge: "/badge-72x72.png",
-      tag: tag,
+      body: message,
+      icon,
+      badge,
+      tag,
       data: {
-        url: url,
+        ...data,
+        notificationId: tag,
         type: notificationType,
-        patientId: patientId,
         timestamp: new Date().toISOString(),
-        source: "doctor-push"
+        url: data.url || "/notifications"
       },
-      requireInteraction: true,
-      silent: false,
-      timestamp: Date.now()
+      requireInteraction: false,
+      silent: false
     }
 
     // Send to each subscription
     const results = await Promise.allSettled(
-      (subscriptions as PushSubscriptionData[]).map(async (subscription) => {
+      subscriptions.map(async (subscription: PushSubscriptionData) => {
         try {
           const pushSubscription = {
             endpoint: subscription.endpoint,
@@ -151,26 +167,24 @@ export async function POST(request: Request) {
           // Stringify payload
           const payloadString = JSON.stringify(payload)
 
-          console.log(`   📤 [PUSH] Sending to patient ${subscription.user_id}`)
+          console.log(`   Sending to: ${subscription.endpoint.substring(0, 50)}...`)
 
           // Send via web-push
-          await webPush.sendNotification(
+          const result = await webPush.sendNotification(
             pushSubscription,
-            payloadString,
-            {
-              TTL: 604800, // 7 days in seconds
-              urgency: 'high'
-            }
+            payloadString
           )
 
-          console.log(`   ✅ [PUSH] Success for patient ${subscription.user_id}`)
+          console.log(`   ✅ Sent to ${subscription.user_id}`)
+
           return {
             success: true,
             userId: subscription.user_id,
-            endpoint: subscription.endpoint
+            endpoint: subscription.endpoint,
+            status: result.statusCode
           }
         } catch (error: any) {
-          console.error(`   ❌ [PUSH] Failed for patient ${subscription.user_id}:`, error.message)
+          console.error(`   ❌ Failed for ${subscription.user_id}:`, error.message)
 
           // Check if subscription is invalid
           const isInvalid = error.statusCode === 410 || 
@@ -179,7 +193,7 @@ export async function POST(request: Request) {
                            error.message.includes("not valid")
 
           if (isInvalid) {
-            console.log(`   🗑️ [PUSH] Removing invalid subscription for ${subscription.user_id}`)
+            console.log(`   🗑️ Removing invalid subscription for ${subscription.user_id}`)
             try {
               await supabase
                 .from("push_subscriptions")
@@ -195,6 +209,7 @@ export async function POST(request: Request) {
             userId: subscription.user_id,
             endpoint: subscription.endpoint,
             error: error.message,
+            statusCode: error.statusCode,
             shouldRemove: isInvalid
           }
         }
@@ -207,23 +222,32 @@ export async function POST(request: Request) {
     ).length
     const failed = results.length - successful
 
-    console.log(`📊 [PUSH] Results: ${successful} sent, ${failed} failed`)
+    console.log(`📊 Results: ${successful} sent, ${failed} failed`)
 
-    // Store notification in database (for notification center) - match your Notification type
+    // Format response
+    const formattedResults = results.map((result: any) => {
+      if (result.status === "fulfilled") {
+        return result.value
+      } else {
+        return {
+          success: false,
+          error: result.reason?.message || "Unknown error"
+        }
+      }
+    })
+
+    // Store notification in database (for notification center)
     try {
       await supabase.from("notifications").insert({
-        title: title,
-        message: message || title,
-        notification_type: notificationType,
-        user_id: patientId,
+        title,
+        body: message,
+        type: notificationType || "general",
         data: payload.data,
-        is_read: false,
-        created_at: new Date().toISOString(),
-        updated_at: new Date().toISOString()
+        created_at: new Date().toISOString()
       })
-      console.log("📝 [PUSH] Notification saved to database")
-    } catch (dbError: any) {
-      console.error("[PUSH] Failed to save notification to database:", dbError.message)
+      console.log("📝 Notification saved to database")
+    } catch (dbError) {
+      console.error("Failed to save notification to database:", dbError)
       // Continue even if this fails
     }
 
@@ -233,22 +257,59 @@ export async function POST(request: Request) {
       total: subscriptions.length,
       sent: successful,
       failed: failed,
+      results: formattedResults,
       notification: {
         title,
-        body: message || title,
+        body: message,
         type: notificationType,
-        patientId: patientId
+        id: tag
       }
     })
 
   } catch (error: any) {
-    console.error("🚨 [PUSH] Critical error in push/send route:", error)
+    console.error("🚨 Critical error in push/send route:", error)
     return NextResponse.json(
       { 
         error: "Internal server error",
         message: error.message,
         stack: process.env.NODE_ENV === "development" ? error.stack : undefined
       },
+      { status: 500 }
+    )
+  }
+}
+
+// Also add GET endpoint for testing
+export async function GET(request: Request) {
+  try {
+    const supabase = await createClient()
+    const { searchParams } = new URL(request.url)
+    const userId = searchParams.get("userId")
+    
+    const query = supabase
+      .from("push_subscriptions")
+      .select("*")
+
+    if (userId) {
+      query.eq("user_id", userId)
+    }
+
+    const { data, error } = await query
+
+    if (error) {
+      return NextResponse.json(
+        { error: "Failed to fetch subscriptions" },
+        { status: 500 }
+      )
+    }
+
+    return NextResponse.json({
+      count: data?.length || 0,
+      subscriptions: data
+    })
+  } catch (error: any) {
+    return NextResponse.json(
+      { error: error.message },
       { status: 500 }
     )
   }
