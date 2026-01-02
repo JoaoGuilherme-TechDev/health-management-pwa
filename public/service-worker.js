@@ -1,86 +1,71 @@
-// Enhanced service worker with deduplication
-const NOTIFICATION_TAG_PREFIX = 'notification-'
+// HealthCare+ Service Worker - Push Notification Handler
+console.log('[Service Worker] Loading push notification handler...')
 
-self.addEventListener('push', async function(event) {
-  console.log('[Service Worker] Push Received')
+self.addEventListener('push', function(event) {
+  console.log('[Service Worker] Push event received:', event)
   
+  if (!event.data) {
+    console.log('[Service Worker] No data in push event')
+    return
+  }
+
   try {
-    let data = {}
-    
-    if (event.data) {
-      try {
-        data = event.data.json()
-        console.log('[Service Worker] Push data:', data)
-      } catch (e) {
-        console.log('[Service Worker] Push data is not JSON, using text')
-        data = {
-          title: 'HealthCare+',
-          body: event.data.text() || 'Nova notificação',
-          icon: '/icon-light-32x32.png'
-        }
+    let notificationData
+    try {
+      notificationData = event.data.json()
+      console.log('[Service Worker] Push data (parsed):', notificationData)
+    } catch (e) {
+      console.log('[Service Worker] Could not parse push data as JSON, using text:', e)
+      notificationData = {
+        title: 'HealthCare+',
+        body: event.data.text() || 'Nova notificação',
+        icon: '/icon-light-32x32.png'
       }
     }
 
-    // Check if we already have a notification with this tag
-    const notifications = await self.registration.getNotifications({
-      tag: data.tag || 'default'
-    })
-    
-    // If duplicate found, update it instead of creating new
-    if (notifications.length > 0) {
-      console.log('[Service Worker] Duplicate notification found, updating')
-      notifications[0].close()
-    }
+    // Generate unique tag to prevent duplicates
+    const uniqueTag = notificationData.tag || 
+      `${notificationData.type || 'general'}-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`
 
+    // Prepare notification options
     const options = {
-      body: data.body || 'Nova notificação',
-      icon: data.icon || '/icon-light-32x32.png',
-      badge: data.badge || '/badge-72x72.png',
-      tag: data.tag || `notification-${Date.now()}`,
-      data: data.data || {},
-      timestamp: data.timestamp ? new Date(data.timestamp).getTime() : Date.now(),
-      requireInteraction: data.requireInteraction || false,
-      silent: data.silent || false,
-      vibrate: data.vibrate || [200, 100, 200],
-      actions: data.actions || []
+      body: notificationData.body || 'Nova notificação',
+      icon: notificationData.icon || '/icon-light-32x32.png',
+      badge: notificationData.badge || '/badge-72x72.png',
+      tag: uniqueTag,
+      data: notificationData.data || {},
+      timestamp: notificationData.timestamp || Date.now(),
+      requireInteraction: notificationData.requireInteraction || false,
+      silent: notificationData.silent || false,
+      vibrate: notificationData.vibrate || [200, 100, 200],
+      actions: notificationData.actions || [],
+      renotify: false
     }
 
-    console.log('[Service Worker] Showing notification with tag:', options.tag)
-    
+    console.log('[Service Worker] Showing notification:', {
+      title: notificationData.title || 'HealthCare+',
+      tag: options.tag,
+      data: options.data
+    })
+
+    // Show the notification
     event.waitUntil(
       self.registration.showNotification(
-        data.title || 'HealthCare+', 
+        notificationData.title || 'HealthCare+', 
         options
-      )
-    )
-
-    // Send analytics or update badge
-    if (self.clients && self.clients.matchAll) {
-      const allClients = await self.clients.matchAll()
-      allClients.forEach(client => {
-        client.postMessage({
-          type: 'NOTIFICATION_RECEIVED',
-          data: data
-        })
+      ).then(() => {
+        console.log('[Service Worker] Notification shown successfully')
+      }).catch(error => {
+        console.error('[Service Worker] Error showing notification:', error)
       })
-    }
+    )
 
   } catch (error) {
-    console.error('[Service Worker] Error handling push:', error)
-    
-    // Fallback notification
-    event.waitUntil(
-      self.registration.showNotification('HealthCare+', {
-        body: 'Você tem uma nova notificação',
-        icon: '/icon-light-32x32.png',
-        tag: `fallback-${Date.now()}`,
-        requireInteraction: true
-      })
-    )
+    console.error('[Service Worker] Error in push event handler:', error)
   }
 })
 
-// Handle notification click
+// Notification click handler
 self.addEventListener('notificationclick', function(event) {
   console.log('[Service Worker] Notification clicked:', event.notification.tag)
   
@@ -89,19 +74,24 @@ self.addEventListener('notificationclick', function(event) {
   const urlToOpen = event.notification.data?.url || '/notifications'
 
   event.waitUntil(
-    clients.matchAll({ type: 'window', includeUncontrolled: true })
-      .then(function(windowClients) {
-        // Check if there's already a window/tab open
-        for (let i = 0; i < windowClients.length; i++) {
-          const client = windowClients[i]
-          if (client.url.includes(urlToOpen) && 'focus' in client) {
-            return client.focus()
-          }
+    self.clients.matchAll({ 
+      type: 'window', 
+      includeUncontrolled: true 
+    }).then(function(windowClients) {
+      // Check if there's already a window/tab open with the URL
+      for (let i = 0; i < windowClients.length; i++) {
+        const client = windowClients[i]
+        if (client.url.includes(urlToOpen) && 'focus' in client) {
+          console.log('[Service Worker] Focusing existing client')
+          return client.focus()
         }
-        // If not, open a new window/tab
-        if (clients.openWindow) {
-          return clients.openWindow(urlToOpen)
-        }
-      })
+      }
+      
+      // If not, open a new window/tab
+      if (self.clients.openWindow) {
+        console.log('[Service Worker] Opening new window to:', urlToOpen)
+        return self.clients.openWindow(urlToOpen)
+      }
+    })
   )
 })

@@ -1,4 +1,3 @@
-// lib/push-notifications.ts
 import { createClient } from "@/lib/supabase/client"
 
 interface NotificationPayload {
@@ -18,14 +17,10 @@ export class PushNotificationService {
       console.log("🚀 Starting push notification for patient:", payload.patientId)
       console.log("📦 Payload:", payload)
       
-      // Remove role check temporarily for debugging
-      // const { data: userData } = await this.supabase.auth.getUser()
-      // const { data: profile } = await this.supabase.from("profiles").select("role").eq("id", userData.user?.id).single()
-      // if (profile?.role !== "admin" && profile?.role !== "doctor") {
-      //   throw new Error("Apenas médicos podem enviar notificações")
-      // }
-
-      // Enviar via API route
+      // Also send a local notification if we're on the patient's device
+      this.sendLocalNotification(payload)
+      
+      // Enviar via API route for cross-device
       const response = await fetch("/api/push/send", {
         method: "POST",
         headers: {
@@ -35,7 +30,7 @@ export class PushNotificationService {
           patientId: payload.patientId,
           title: payload.title,
           body: payload.body,
-          url: payload.url || "/patient",
+          url: payload.url || "/notifications",
           type: payload.type || "general",
         }),
       })
@@ -57,6 +52,43 @@ export class PushNotificationService {
     }
   }
 
+  // Send local notification (like the test button)
+  private async sendLocalNotification(payload: NotificationPayload) {
+    try {
+      if (!('Notification' in window) || Notification.permission !== 'granted') {
+        return false
+      }
+
+      if (!('serviceWorker' in navigator)) {
+        return false
+      }
+
+      const registration = await navigator.serviceWorker.ready
+      const uniqueTag = `local-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`
+
+      await registration.showNotification(payload.title, {
+        body: payload.body || payload.title,
+        icon: "/icon-light-32x32.png",
+        badge: "/badge-72x72.png",
+        tag: uniqueTag,
+        requireInteraction: true,
+        data: {
+          type: payload.type || "general",
+          url: payload.url || "/notifications",
+          patientId: payload.patientId,
+          notificationId: uniqueTag,
+          source: "local-push"
+        }
+      })
+
+      console.log("✅ Local notification shown")
+      return true
+    } catch (error) {
+      console.error("Error sending local notification:", error)
+      return false
+    }
+  }
+
   // Enviar notificação de nova prescrição
   async sendNewPrescription(patientId: string, prescriptionTitle: string) {
     return this.sendToPatient({
@@ -68,6 +100,7 @@ export class PushNotificationService {
     })
   }
 
+  // Enviar notificação de nova consulta
   async sendNewAppointment(patientId: string, appointmentTitle: string, appointmentDate: string) {
     const formattedDate = new Date(appointmentDate).toLocaleDateString("pt-BR", {
       weekday: "long",
@@ -86,6 +119,7 @@ export class PushNotificationService {
     })
   }
 
+  // Enviar notificação de novo medicamento
   async sendNewMedication(patientId: string, medicationName: string) {
     return this.sendToPatient({
       patientId,
@@ -96,6 +130,7 @@ export class PushNotificationService {
     })
   }
 
+  // Enviar notificação de nova dieta
   async sendNewDiet(patientId: string, dietTitle: string) {
     return this.sendToPatient({
       patientId,
@@ -106,6 +141,7 @@ export class PushNotificationService {
     })
   }
 
+  // Enviar notificação de novo suplemento
   async sendNewSupplement(patientId: string, supplementName: string) {
     return this.sendToPatient({
       patientId,
@@ -113,6 +149,17 @@ export class PushNotificationService {
       body: `Você recebeu uma recomendação: ${supplementName}`,
       url: `/patient`,
       type: "supplement",
+    })
+  }
+
+  // Enviar notificação de evolução
+  async sendNewEvolution(patientId: string, evolutionTitle: string) {
+    return this.sendToPatient({
+      patientId,
+      title: "📈 Nova Evolução Registrada",
+      body: `Sua evolução foi atualizada: ${evolutionTitle}`,
+      url: `/patient/evolutions`,
+      type: "evolution",
     })
   }
 }
