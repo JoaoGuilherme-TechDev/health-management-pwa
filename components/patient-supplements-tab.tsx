@@ -19,6 +19,7 @@ import {
   DialogTrigger,
 } from "@/components/ui/dialog"
 import { Plus, Trash2, Pill } from "lucide-react"
+import { showSimpleNotification } from "@/lib/simple-notifications"
 
 interface PatientSupplementsTabProps {
   patientId: string
@@ -87,6 +88,8 @@ export function PatientSupplementsTab({ patientId }: PatientSupplementsTabProps)
       data: { user },
     } = await supabase.auth.getUser()
 
+    const isPatient = user?.id === patientId
+
     const { error } = await supabase.from("patient_supplements").insert({
       patient_id: patientId,
       doctor_id: user?.id,
@@ -101,6 +104,12 @@ export function PatientSupplementsTab({ patientId }: PatientSupplementsTabProps)
     })
 
     if (!error) {
+      if (isPatient) {
+        await showSimpleNotification("💪 Novo Suplemento Recomendado", {
+          body: `${formData.supplement_name} - ${formData.dosage}`,
+        })
+      }
+
       setOpen(false)
       setFormData({
         supplement_name: "",

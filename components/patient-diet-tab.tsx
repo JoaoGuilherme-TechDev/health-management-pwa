@@ -19,6 +19,7 @@ import {
 } from "@/components/ui/dialog"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { Plus, Trash2, Utensils } from "lucide-react"
+import { showSimpleNotification } from "@/lib/simple-notifications"
 
 interface PatientDietTabProps {
   patientId: string
@@ -89,6 +90,8 @@ export function PatientDietTab({ patientId }: PatientDietTabProps) {
       data: { user },
     } = await supabase.auth.getUser()
 
+    const isPatient = user?.id === patientId
+
     const { error } = await supabase.from("patient_diet_recipes").insert({
       patient_id: patientId,
       doctor_id: user?.id,
@@ -105,6 +108,12 @@ export function PatientDietTab({ patientId }: PatientDietTabProps) {
     })
 
     if (!error) {
+      if (isPatient) {
+        await showSimpleNotification("🥗 Nova Receita de Dieta", {
+          body: `${formData.title} - ${formData.meal_type}`,
+        })
+      }
+
       setOpen(false)
       setFormData({
         title: "",

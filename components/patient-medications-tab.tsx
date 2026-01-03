@@ -12,6 +12,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/u
 import { Badge } from "@/components/ui/badge"
 import { formatBrasiliaDate } from "@/lib/timezone"
 import { Alert, AlertDescription } from "@/components/ui/alert"
+import { showSimpleNotification } from "@/lib/simple-notifications"
 
 export function PatientMedicationsTab({ patientId }: { patientId: string }) {
   const [medications, setMedications] = useState<any[]>([])
@@ -169,6 +170,12 @@ export function PatientMedicationsTab({ patientId }: { patientId: string }) {
     try {
       const supabase = createClient()
 
+      const {
+        data: { user },
+      } = await supabase.auth.getUser()
+
+      const isPatient = user?.id === patientId
+
       const dataToInsert = {
         user_id: patientId,
         doctor_crm: doctorInfo.crm,
@@ -212,6 +219,12 @@ export function PatientMedicationsTab({ patientId }: { patientId: string }) {
           console.error("Erro ao adicionar horários:", scheduleError)
           alert("Medicamento adicionado, mas houve erro ao configurar os horários")
         }
+      }
+
+      if (isPatient) {
+        await showSimpleNotification("💊 Novo Medicamento Adicionado", {
+          body: `${formData.name} - ${formData.dosage}`,
+        })
       }
 
       alert("Medicamento e horários adicionados com sucesso!")

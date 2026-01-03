@@ -10,6 +10,7 @@ import { createClient } from "@/lib/supabase/client"
 import { Plus, Calendar, Trash2 } from "lucide-react"
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog"
 import { formatBrasiliaDateAppointment } from "@/lib/timezone"
+import { showSimpleNotification } from "@/lib/simple-notifications"
 
 export function PatientAppointmentsTab({ patientId }: { patientId: string }) {
   const [appointments, setAppointments] = useState<any[]>([])
@@ -100,6 +101,8 @@ export function PatientAppointmentsTab({ patientId }: { patientId: string }) {
       data: { user },
     } = await supabase.auth.getUser()
 
+    const isPatient = user?.id === patientId
+
     const dataToInsert = {
       patient_id: patientId,
       status: "scheduled",
@@ -118,6 +121,12 @@ export function PatientAppointmentsTab({ patientId }: { patientId: string }) {
     if (!data || data.length === 0) {
       alert("Erro: Nenhuma consulta foi agendada. Verifique as permissões.")
       return
+    }
+
+    if (isPatient) {
+      await showSimpleNotification("📅 Nova Consulta Agendada", {
+        body: `${formData.title} - ${formatBrasiliaDateAppointment(formData.scheduled_at, "date")}`,
+      })
     }
 
     alert("Consulta agendada com sucesso!")
