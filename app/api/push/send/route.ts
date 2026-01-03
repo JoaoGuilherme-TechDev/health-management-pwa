@@ -1,57 +1,77 @@
-// app/api/push/send/route.ts
-import { createClient } from "@/lib/supabase/server"
-import { NextResponse } from "next/server"
+"use client"
 
-export async function POST(request: Request) {
-  try {
-    const body = await request.json()
-    const { 
-      patientId,
-      title,
-      body: message,
-      url = "/notifications",
-      type = "general"
-    } = body
+import { useEffect } from "react"
+import { createClient } from "@/lib/supabase/client"
 
-    // Validate
-    if (!patientId || !title) {
-      return NextResponse.json(
-        { error: "patientId and title are required" },
-        { status: 400 }
-      )
+export function RealTimeNotifications() {
+  useEffect(() => {
+    const setupRealTime = async () => {
+      const supabase = createClient()
+      
+      // Get current user
+      const { data: { user } } = await supabase.auth.getUser()
+      if (!user) return
+
+      console.log("👤 Real-time notifications for user:", user.id)
+
+      // Subscribe to new notifications for this user
+      const channel = supabase
+        .channel(`notifications-${user.id}`)
+        .on(
+          'postgres_changes',
+          {
+            event: 'INSERT',
+            schema: 'public',
+            table: 'notifications',
+            filter: `user_id=eq.${user.id}`
+          },
+          async (payload) => {
+            console.log("📬 New notification received:", payload.new)
+            
+            // Show notification using service worker (like test button)
+            await showNotification(payload.new)
+          }
+        )
+        .subscribe()
+
+      return () => {
+        supabase.removeChannel(channel)
+      }
     }
 
-    console.log(`📤 Doctor → Patient ${patientId}: "${title}"`)
+    setupRealTime()
+  }, [])
 
-    // Store in database
-    const supabase = await createClient()
+  return null // This component doesn't render anything
+}
+
+// Function to show notification (same as test button)
+async function showNotification(notification: any) {
+  try {
+    // Check if notifications are allowed
+    if (Notification.permission !== "granted") return
     
-    await supabase.from("notifications").insert({
-      title: title,
-      message: message || title,
-      notification_type: type,
-      user_id: patientId,
+    // Check if service worker is available
+    if (!('serviceWorker' in navigator)) return
+    
+    const registration = await navigator.serviceWorker.ready
+    
+    // Show notification (EXACTLY like test button)
+    await registration.showNotification(notification.title, {
+      body: notification.message || notification.title,
+      icon: "/icon-light-32x32.png",
+      badge: "/badge-72x72.png",
+      tag: `notification-${Date.now()}`,
+      requireInteraction: true,
       data: {
-        url: url,
-        type: type,
-        patientId: patientId,
-        timestamp: new Date().toISOString()
-      },
-      is_read: false,
-      created_at: new Date().toISOString(),
-      updated_at: new Date().toISOString()
+        type: notification.notification_type || notification.type,
+        url: notification.data?.url || "/notifications",
+        notificationId: notification.id
+      }
     })
-
-    return NextResponse.json({
-      success: true,
-      message: "Notification stored successfully"
-    })
-
-  } catch (error: any) {
-    console.error("Error:", error)
-    return NextResponse.json(
-      { error: error.message },
-      { status: 500 }
-    )
+    
+    console.log("🔔 Real-time notification shown")
+  } catch (error) {
+    console.error("Error showing real-time notification:", error)
   }
 }
