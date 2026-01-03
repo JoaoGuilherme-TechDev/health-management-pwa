@@ -128,17 +128,7 @@ export async function notifyPrescriptionCreated(
 
   const doctorStr = doctorName ? ` - Dr(a). ${doctorName}` : ""
 
-  // Create in-app notification
-  const result = await createNotification({
-    userId,
-    type: "prescription_created",
-    title: "Nova Receita Adicionada",
-    message: `${prescriptionTitle}${doctorStr}`,
-    actionUrl: "/patient/prescriptions",
-    sendPush: true,
-  })
-
-  if (sendPush && result) {
+  if (sendPush) {
     try {
       console.log("Sending push notification for prescription...")
       await pushNotifications.sendToPatient({
@@ -154,8 +144,8 @@ export async function notifyPrescriptionCreated(
     }
   }
 
-  console.log("notifyPrescriptionCreated result:", result)
-  return result
+  console.log("notifyPrescriptionCreated completed")
+  return null
 }
 
 export async function notifyAppointmentCreated(
@@ -164,17 +154,7 @@ export async function notifyAppointmentCreated(
   appointmentDate: string,
   sendPush = true,
 ): Promise<Notification | null> {
-  // Create in-app notification
-  const result = await createNotification({
-    userId,
-    type: "appointment_created",
-    title: "Nova Consulta Agendada",
-    message: `${appointmentTitle} - ${new Date(appointmentDate).toLocaleDateString("pt-BR")}`,
-    actionUrl: "/patient/appointments",
-    sendPush: true,
-  })
-
-  if (sendPush && result) {
+  if (sendPush) {
     try {
       const formattedDate = new Date(appointmentDate).toLocaleDateString("pt-BR", {
         weekday: "long",
@@ -195,7 +175,7 @@ export async function notifyAppointmentCreated(
     }
   }
 
-  return result
+  return null
 }
 
 export async function notifyMedicationCreated(
@@ -203,16 +183,7 @@ export async function notifyMedicationCreated(
   medicationName: string,
   sendPush = true,
 ): Promise<Notification | null> {
-  const result = await createNotification({
-    userId,
-    type: "medication_created",
-    title: "Novo Medicamento Prescrito",
-    message: `${medicationName}`,
-    actionUrl: "/patient/medications",
-    sendPush: true,
-  })
-
-  if (sendPush && result) {
+  if (sendPush) {
     try {
       await pushNotifications.sendToPatient({
         patientId: userId,
@@ -226,7 +197,7 @@ export async function notifyMedicationCreated(
     }
   }
 
-  return result
+  return null
 }
 
 export async function notifyDietCreated(
@@ -234,16 +205,7 @@ export async function notifyDietCreated(
   dietTitle: string,
   sendPush = true,
 ): Promise<Notification | null> {
-  const result = await createNotification({
-    userId,
-    type: "diet_recipe_created",
-    title: "Nova Receita de Dieta",
-    message: `${dietTitle}`,
-    actionUrl: "/patient/diet",
-    sendPush: true,
-  })
-
-  if (sendPush && result) {
+  if (sendPush) {
     try {
       await pushNotifications.sendToPatient({
         patientId: userId,
@@ -257,7 +219,7 @@ export async function notifyDietCreated(
     }
   }
 
-  return result
+  return null
 }
 
 export async function notifySuplementCreated(
@@ -265,16 +227,7 @@ export async function notifySuplementCreated(
   supplementName: string,
   sendPush = true,
 ): Promise<Notification | null> {
-  const result = await createNotification({
-    userId,
-    type: "supplement_created",
-    title: "Novo Suplemento Recomendado",
-    message: `${supplementName}`,
-    actionUrl: "/patient",
-    sendPush: true,
-  })
-
-  if (sendPush && result) {
+  if (sendPush) {
     try {
       await pushNotifications.sendToPatient({
         patientId: userId,
@@ -288,7 +241,7 @@ export async function notifySuplementCreated(
     }
   }
 
-  return result
+  return null
 }
 
 export async function notifyEvolutionCreated(
@@ -298,18 +251,7 @@ export async function notifyEvolutionCreated(
 ): Promise<Notification | null> {
   console.log("notifyEvolutionCreated called with:", { userId, measurementDetails, sendPush })
 
-  // Create in-app notification
-  const result = await createNotification({
-    userId,
-    type: "evolution_created",
-    title: "📊 Nova Evolução Física",
-    message: measurementDetails,
-    actionUrl: "/patient/evolution",
-    sendPush: true,
-  })
-
-  // Send push notification
-  if (sendPush && result) {
+  if (sendPush) {
     try {
       console.log("Sending push notification for evolution...")
       await pushNotifications.sendToPatient({
@@ -325,6 +267,6 @@ export async function notifyEvolutionCreated(
     }
   }
 
-  console.log("notifyEvolutionCreated result:", result)
-  return result
+  console.log("notifyEvolutionCreated result:")
+  return null
 }
