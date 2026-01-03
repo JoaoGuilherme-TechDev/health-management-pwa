@@ -12,7 +12,6 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/u
 import { Badge } from "@/components/ui/badge"
 import { formatBrasiliaDate } from "@/lib/timezone"
 import { Alert, AlertDescription } from "@/components/ui/alert"
-import { NotificationService } from "@/lib/notification-service" // Add this import
 
 export function PatientMedicationsTab({ patientId }: { patientId: string }) {
   const [medications, setMedications] = useState<any[]>([])
@@ -217,12 +216,17 @@ export function PatientMedicationsTab({ patientId }: { patientId: string }) {
 
       alert("Medicamento e horários adicionados com sucesso!")
 
-      // Use NotificationService instead of individual functions
       try {
-        await NotificationService.sendMedicationNotification(patientId, formData.name)
-        console.log("Medication notification sent successfully")
+        const registration = await navigator.serviceWorker.ready
+        await registration.showNotification("💊 Novo Medicamento Prescrito", {
+          body: `Medicamento: ${formData.name} - ${formData.dosage}`,
+          icon: "/icon-light-32x32.png",
+          badge: "/badge-72x72.png",
+          tag: "medication-notification",
+          requireInteraction: true,
+        })
       } catch (notificationError) {
-        console.error("Erro ao enviar notificações:", notificationError)
+        console.error("Erro ao enviar notificação push:", notificationError)
       }
 
       setShowDialog(false)

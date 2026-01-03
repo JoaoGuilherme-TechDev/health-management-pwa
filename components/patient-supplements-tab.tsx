@@ -19,7 +19,6 @@ import {
   DialogTrigger,
 } from "@/components/ui/dialog"
 import { Plus, Trash2, Pill } from "lucide-react"
-import { NotificationService } from "@/lib/notification-service" // Add this import
 
 interface PatientSupplementsTabProps {
   patientId: string
@@ -102,12 +101,17 @@ export function PatientSupplementsTab({ patientId }: PatientSupplementsTabProps)
     })
 
     if (!error) {
-      // Use NotificationService instead of individual functions
       try {
-        await NotificationService.sendSupplementNotification(patientId, formData.supplement_name)
-        console.log("Supplement notification sent successfully")
+        const registration = await navigator.serviceWorker.ready
+        await registration.showNotification("💪 Novo Suplemento Recomendado", {
+          body: `Suplemento: ${formData.supplement_name} - ${formData.dosage}`,
+          icon: "/icon-light-32x32.png",
+          badge: "/badge-72x72.png",
+          tag: "supplement-notification",
+          requireInteraction: true,
+        })
       } catch (notificationError) {
-        console.error("Erro ao enviar notificações:", notificationError)
+        console.error("Erro ao enviar notificação push:", notificationError)
       }
 
       setOpen(false)

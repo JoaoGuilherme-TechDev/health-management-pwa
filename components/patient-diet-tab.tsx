@@ -19,7 +19,6 @@ import {
 } from "@/components/ui/dialog"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { Plus, Trash2, Utensils } from "lucide-react"
-import { NotificationService } from "@/lib/notification-service" // Add this import
 
 interface PatientDietTabProps {
   patientId: string
@@ -106,12 +105,17 @@ export function PatientDietTab({ patientId }: PatientDietTabProps) {
     })
 
     if (!error) {
-      // Use NotificationService instead of individual functions
       try {
-        await NotificationService.sendDietNotification(patientId, formData.title)
-        console.log("Diet notification sent successfully")
+        const registration = await navigator.serviceWorker.ready
+        await registration.showNotification("🥗 Nova Receita de Dieta", {
+          body: `Receita: ${formData.title}`,
+          icon: "/icon-light-32x32.png",
+          badge: "/badge-72x72.png",
+          tag: "diet-notification",
+          requireInteraction: true,
+        })
       } catch (notificationError) {
-        console.error("Erro ao enviar notificações:", notificationError)
+        console.error("Erro ao enviar notificação push:", notificationError)
       }
 
       setOpen(false)

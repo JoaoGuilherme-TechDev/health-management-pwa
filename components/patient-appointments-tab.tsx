@@ -10,7 +10,6 @@ import { createClient } from "@/lib/supabase/client"
 import { Plus, Calendar, Trash2 } from "lucide-react"
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog"
 import { formatBrasiliaDateAppointment } from "@/lib/timezone"
-import { NotificationService } from "@/lib/notification-service" // Add this import
 
 export function PatientAppointmentsTab({ patientId }: { patientId: string }) {
   const [appointments, setAppointments] = useState<any[]>([])
@@ -123,16 +122,17 @@ export function PatientAppointmentsTab({ patientId }: { patientId: string }) {
 
     alert("Consulta agendada com sucesso!")
 
-    // Use NotificationService instead of individual functions
     try {
-      await NotificationService.sendAppointmentNotification(
-        patientId, 
-        formData.title, 
-        formData.scheduled_at
-      )
-      console.log("Appointment notification sent successfully")
+      const registration = await navigator.serviceWorker.ready
+      await registration.showNotification("📅 Nova Consulta Agendada", {
+        body: `Consulta: ${formData.title} em ${formData.scheduled_at}`,
+        icon: "/icon-light-32x32.png",
+        badge: "/badge-72x72.png",
+        tag: "appointment-notification",
+        requireInteraction: true,
+      })
     } catch (notificationError) {
-      console.error("Erro ao enviar notificações:", notificationError)
+      console.error("Erro ao enviar notificação push:", notificationError)
     }
 
     setShowDialog(false)
