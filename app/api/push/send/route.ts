@@ -1,16 +1,26 @@
 import { createClient } from "@/lib/supabase/server"
 import { NextResponse } from "next/server"
+import webPush from "web-push"
 
-// IMPORTANT: Don't import web-push here - it's server-side only
-// We'll handle web-push in a separate function
+// Configure web-push
+const vapidPublicKey = process.env.NEXT_PUBLIC_VAPID_PUBLIC_KEY!
+const vapidPrivateKey = process.env.VAPID_PRIVATE_KEY!
+
+if (!vapidPublicKey || !vapidPrivateKey) {
+  throw new Error("Missing VAPID keys. Check your environment variables.")
+}
+
+webPush.setVapidDetails(
+  `mailto:${process.env.VAPID_EMAIL || "your-email@example.com"}`,
+  vapidPublicKey,
+  vapidPrivateKey
+)
 
 export async function POST(request: Request) {
   try {
-    console.log("📱 [PUSH API] Received push request")
+    console.log("📱 [PUSH API] Received request")
     
     const body = await request.json()
-    console.log("📦 Body:", body)
-
     const { 
       patientId,
       title,
@@ -48,47 +58,60 @@ export async function POST(request: Request) {
     }
 
     if (!subscriptions || subscriptions.length === 0) {
-      console.log("⚠️ [PUSH API] Patient has no push subscriptions")
+      console.log("⚠️ [PUSH API] No subscriptions found")
       return NextResponse.json({
         success: false,
         message: "Patient has no push subscriptions",
-        suggestion: "Patient needs to enable push notifications in Settings"
+        suggestion: "Ask the patient to enable push notifications"
       })
     }
 
     console.log(`📨 [PUSH API] Found ${subscriptions.length} subscription(s)`)
 
-    // IMPORTANT: We need to use a server-side web-push
-    // Create a server action or separate API route for web-push
-    
-    // Store notification in database
-    await supabase.from("notifications").insert({
-      title: title,
-      message: message || title,
-      notification_type: type,
-      user_id: patientId,
-      data: {
-        url: url,
-        type: type,
-        patientId: patientId,
-        timestamp: new Date().toISOString(),
-        fromPushApi: true
-      },
-      is_read: false,
-      created_at: new Date().toISOString(),
-      updated_at: new Date().toISOString()
-    })
+    // Send to each subscription
+    const results = []
+    for (const subscription of subscriptions) {
+      try {
+        const pushSubscription = {
+          endpoint: subscription.endpoint,
+          keys: {
+            p256dh: subscription.p256dh,
+            auth: subscription.auth
+          }
+        }
 
-    console.log("💾 [PUSH API] Notification stored in database")
+        const payload = JSON.stringify({
+          title,
+          body: message || title,
+          icon: "/icon-light-32x32.png",
+          badge: "/badge-72x72.png",
+          tag: `push-${Date.now()}`,
+          data: {
+            url,
+            type,
+            patientId,
+            timestamp: new Date().toISOString()
+          }
+        })
 
-    // Return success even if we can't send push
-    // The notification will appear in the notification center
+        await webPush.sendNotification(pushSubscription, payload)
+        results.push({ success: true, endpoint: subscription.endpoint })
+        
+      } catch (error: any) {
+        console.error(`❌ [PUSH API] Failed for endpoint:`, error.message)
+        results.push({ success: false, endpoint: subscription.endpoint, error: error.message })
+      }
+    }
+
+    const successful = results.filter(r => r.success).length
+    const failed = results.length - successful
+
+    console.log(`📊 [PUSH API] Results: ${successful} sent, ${failed} failed`)
+
     return NextResponse.json({
       success: true,
-      message: "Notification stored in database",
-      storedInDB: true,
-      pushSubscriptions: subscriptions.length,
-      note: "Push notifications require VAPID keys configured on server"
+      message: `Push notifications sent: ${successful} successful, ${failed} failed`,
+      results
     })
 
   } catch (error: any) {

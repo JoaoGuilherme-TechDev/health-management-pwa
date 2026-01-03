@@ -228,7 +228,6 @@ const fetchNotifications = useCallback(async () => {
     setInternalLoading(false)
   }
 }, [supabase, onNotificationsChange, autoRefresh])
-
   useEffect(() => {
     if (!autoRefresh) return
 
