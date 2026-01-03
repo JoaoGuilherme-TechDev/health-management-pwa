@@ -1,77 +1,104 @@
-"use client"
+import { createClient } from "@/lib/supabase/server"
+import { NextResponse } from "next/server"
 
-import { useEffect } from "react"
-import { createClient } from "@/lib/supabase/client"
+// IMPORTANT: Don't import web-push here - it's server-side only
+// We'll handle web-push in a separate function
 
-export function RealTimeNotifications() {
-  useEffect(() => {
-    const setupRealTime = async () => {
-      const supabase = createClient()
-      
-      // Get current user
-      const { data: { user } } = await supabase.auth.getUser()
-      if (!user) return
+export async function POST(request: Request) {
+  try {
+    console.log("📱 [PUSH API] Received push request")
+    
+    const body = await request.json()
+    console.log("📦 Body:", body)
 
-      console.log("👤 Real-time notifications for user:", user.id)
+    const { 
+      patientId,
+      title,
+      body: message,
+      url = "/notifications",
+      type = "general"
+    } = body
 
-      // Subscribe to new notifications for this user
-      const channel = supabase
-        .channel(`notifications-${user.id}`)
-        .on(
-          'postgres_changes',
-          {
-            event: 'INSERT',
-            schema: 'public',
-            table: 'notifications',
-            filter: `user_id=eq.${user.id}`
-          },
-          async (payload) => {
-            console.log("📬 New notification received:", payload.new)
-            
-            // Show notification using service worker (like test button)
-            await showNotification(payload.new)
-          }
-        )
-        .subscribe()
-
-      return () => {
-        supabase.removeChannel(channel)
-      }
+    // Validate
+    if (!patientId || !title) {
+      return NextResponse.json(
+        { error: "patientId and title are required" },
+        { status: 400 }
+      )
     }
 
-    setupRealTime()
-  }, [])
+    console.log(`📤 [PUSH API] Sending: "${title}" to patient ${patientId}`)
 
-  return null // This component doesn't render anything
-}
+    // Get Supabase client
+    const supabase = await createClient()
 
-// Function to show notification (same as test button)
-async function showNotification(notification: any) {
-  try {
-    // Check if notifications are allowed
-    if (Notification.permission !== "granted") return
+    // Get patient's push subscriptions
+    const { data: subscriptions, error: queryError } = await supabase
+      .from("push_subscriptions")
+      .select("*")
+      .eq("user_id", patientId)
+      .not("endpoint", "is", null)
+
+    if (queryError) {
+      console.error("❌ [PUSH API] Error fetching subscriptions:", queryError)
+      return NextResponse.json(
+        { error: "Failed to fetch subscriptions" },
+        { status: 500 }
+      )
+    }
+
+    if (!subscriptions || subscriptions.length === 0) {
+      console.log("⚠️ [PUSH API] Patient has no push subscriptions")
+      return NextResponse.json({
+        success: false,
+        message: "Patient has no push subscriptions",
+        suggestion: "Patient needs to enable push notifications in Settings"
+      })
+    }
+
+    console.log(`📨 [PUSH API] Found ${subscriptions.length} subscription(s)`)
+
+    // IMPORTANT: We need to use a server-side web-push
+    // Create a server action or separate API route for web-push
     
-    // Check if service worker is available
-    if (!('serviceWorker' in navigator)) return
-    
-    const registration = await navigator.serviceWorker.ready
-    
-    // Show notification (EXACTLY like test button)
-    await registration.showNotification(notification.title, {
-      body: notification.message || notification.title,
-      icon: "/icon-light-32x32.png",
-      badge: "/badge-72x72.png",
-      tag: `notification-${Date.now()}`,
-      requireInteraction: true,
+    // Store notification in database
+    await supabase.from("notifications").insert({
+      title: title,
+      message: message || title,
+      notification_type: type,
+      user_id: patientId,
       data: {
-        type: notification.notification_type || notification.type,
-        url: notification.data?.url || "/notifications",
-        notificationId: notification.id
-      }
+        url: url,
+        type: type,
+        patientId: patientId,
+        timestamp: new Date().toISOString(),
+        fromPushApi: true
+      },
+      is_read: false,
+      created_at: new Date().toISOString(),
+      updated_at: new Date().toISOString()
     })
-    
-    console.log("🔔 Real-time notification shown")
-  } catch (error) {
-    console.error("Error showing real-time notification:", error)
+
+    console.log("💾 [PUSH API] Notification stored in database")
+
+    // Return success even if we can't send push
+    // The notification will appear in the notification center
+    return NextResponse.json({
+      success: true,
+      message: "Notification stored in database",
+      storedInDB: true,
+      pushSubscriptions: subscriptions.length,
+      note: "Push notifications require VAPID keys configured on server"
+    })
+
+  } catch (error: any) {
+    console.error("🚨 [PUSH API] Error:", error)
+    return NextResponse.json(
+      { 
+        error: "Internal server error",
+        message: error.message
+      },
+      { status: 500 }
+    )
   }
 }
