@@ -216,19 +216,6 @@ export function PatientMedicationsTab({ patientId }: { patientId: string }) {
 
       alert("Medicamento e horários adicionados com sucesso!")
 
-      try {
-        const registration = await navigator.serviceWorker.ready
-        await registration.showNotification("💊 Novo Medicamento Prescrito", {
-          body: `Medicamento: ${formData.name} - ${formData.dosage}`,
-          icon: "/icon-light-32x32.png",
-          badge: "/badge-72x72.png",
-          tag: "medication-notification",
-          requireInteraction: true,
-        })
-      } catch (notificationError) {
-        console.error("Erro ao enviar notificação push:", notificationError)
-      }
-
       setShowDialog(false)
       setFormData({
         name: "",

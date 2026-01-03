@@ -122,19 +122,6 @@ export function PatientAppointmentsTab({ patientId }: { patientId: string }) {
 
     alert("Consulta agendada com sucesso!")
 
-    try {
-      const registration = await navigator.serviceWorker.ready
-      await registration.showNotification("📅 Nova Consulta Agendada", {
-        body: `Consulta: ${formData.title} em ${formData.scheduled_at}`,
-        icon: "/icon-light-32x32.png",
-        badge: "/badge-72x72.png",
-        tag: "appointment-notification",
-        requireInteraction: true,
-      })
-    } catch (notificationError) {
-      console.error("Erro ao enviar notificação push:", notificationError)
-    }
-
     setShowDialog(false)
     setFormData({
       title: "",

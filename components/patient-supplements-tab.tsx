@@ -101,19 +101,6 @@ export function PatientSupplementsTab({ patientId }: PatientSupplementsTabProps)
     })
 
     if (!error) {
-      try {
-        const registration = await navigator.serviceWorker.ready
-        await registration.showNotification("💪 Novo Suplemento Recomendado", {
-          body: `Suplemento: ${formData.supplement_name} - ${formData.dosage}`,
-          icon: "/icon-light-32x32.png",
-          badge: "/badge-72x72.png",
-          tag: "supplement-notification",
-          requireInteraction: true,
-        })
-      } catch (notificationError) {
-        console.error("Erro ao enviar notificação push:", notificationError)
-      }
-
       setOpen(false)
       setFormData({
         supplement_name: "",

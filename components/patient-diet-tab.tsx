@@ -105,19 +105,6 @@ export function PatientDietTab({ patientId }: PatientDietTabProps) {
     })
 
     if (!error) {
-      try {
-        const registration = await navigator.serviceWorker.ready
-        await registration.showNotification("🥗 Nova Receita de Dieta", {
-          body: `Receita: ${formData.title}`,
-          icon: "/icon-light-32x32.png",
-          badge: "/badge-72x72.png",
-          tag: "diet-notification",
-          requireInteraction: true,
-        })
-      } catch (notificationError) {
-        console.error("Erro ao enviar notificação push:", notificationError)
-      }
-
       setOpen(false)
       setFormData({
         title: "",
