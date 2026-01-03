@@ -122,7 +122,7 @@ export async function notifyPrescriptionCreated(
   userId: string,
   prescriptionTitle: string,
   doctorName?: string,
-  sendPush: boolean = true
+  sendPush = true,
 ): Promise<Notification | null> {
   console.log("notifyPrescriptionCreated called with:", { userId, prescriptionTitle, doctorName, sendPush })
 
@@ -138,11 +138,16 @@ export async function notifyPrescriptionCreated(
     sendPush: true,
   })
 
-  // Send push notification
   if (sendPush && result) {
     try {
       console.log("Sending push notification for prescription...")
-      await pushNotifications.sendNewPrescription(userId, prescriptionTitle)
+      await pushNotifications.sendToPatient({
+        patientId: userId,
+        title: "📋 Nova Prescrição Médica",
+        body: `Você recebeu uma nova prescrição: ${prescriptionTitle}`,
+        url: "/patient/prescriptions",
+        type: "prescription",
+      })
       console.log("Push notification sent successfully")
     } catch (error) {
       console.error("Failed to send push notification:", error)
@@ -157,7 +162,7 @@ export async function notifyAppointmentCreated(
   userId: string,
   appointmentTitle: string,
   appointmentDate: string,
-  sendPush: boolean = true
+  sendPush = true,
 ): Promise<Notification | null> {
   // Create in-app notification
   const result = await createNotification({
@@ -169,10 +174,22 @@ export async function notifyAppointmentCreated(
     sendPush: true,
   })
 
-  // Send push notification
   if (sendPush && result) {
     try {
-      await pushNotifications.sendNewAppointment(userId, appointmentTitle, appointmentDate)
+      const formattedDate = new Date(appointmentDate).toLocaleDateString("pt-BR", {
+        weekday: "long",
+        day: "numeric",
+        month: "long",
+        hour: "2-digit",
+        minute: "2-digit",
+      })
+      await pushNotifications.sendToPatient({
+        patientId: userId,
+        title: "📅 Nova Consulta Agendada",
+        body: `${appointmentTitle} • ${formattedDate}`,
+        url: "/patient/appointments",
+        type: "appointment",
+      })
     } catch (error) {
       console.error("Failed to send push notification:", error)
     }
@@ -184,7 +201,7 @@ export async function notifyAppointmentCreated(
 export async function notifyMedicationCreated(
   userId: string,
   medicationName: string,
-  sendPush: boolean = true
+  sendPush = true,
 ): Promise<Notification | null> {
   const result = await createNotification({
     userId,
@@ -197,7 +214,13 @@ export async function notifyMedicationCreated(
 
   if (sendPush && result) {
     try {
-      await pushNotifications.sendNewMedication(userId, medicationName)
+      await pushNotifications.sendToPatient({
+        patientId: userId,
+        title: "💊 Novo Medicamento Prescrito",
+        body: `Você recebeu um novo medicamento: ${medicationName}`,
+        url: "/patient/medications",
+        type: "medication",
+      })
     } catch (error) {
       console.error("Failed to send push notification:", error)
     }
@@ -209,7 +232,7 @@ export async function notifyMedicationCreated(
 export async function notifyDietCreated(
   userId: string,
   dietTitle: string,
-  sendPush: boolean = true
+  sendPush = true,
 ): Promise<Notification | null> {
   const result = await createNotification({
     userId,
@@ -222,7 +245,13 @@ export async function notifyDietCreated(
 
   if (sendPush && result) {
     try {
-      await pushNotifications.sendNewDiet(userId, dietTitle)
+      await pushNotifications.sendToPatient({
+        patientId: userId,
+        title: "🥗 Nova Receita de Dieta",
+        body: `Você recebeu uma nova receita: ${dietTitle}`,
+        url: "/patient/diet",
+        type: "diet",
+      })
     } catch (error) {
       console.error("Failed to send push notification:", error)
     }
@@ -234,7 +263,7 @@ export async function notifyDietCreated(
 export async function notifySuplementCreated(
   userId: string,
   supplementName: string,
-  sendPush: boolean = true
+  sendPush = true,
 ): Promise<Notification | null> {
   const result = await createNotification({
     userId,
@@ -247,7 +276,13 @@ export async function notifySuplementCreated(
 
   if (sendPush && result) {
     try {
-      await pushNotifications.sendNewSupplement(userId, supplementName)
+      await pushNotifications.sendToPatient({
+        patientId: userId,
+        title: "💪 Novo Suplemento Recomendado",
+        body: `Você recebeu uma recomendação: ${supplementName}`,
+        url: "/patient",
+        type: "supplement",
+      })
     } catch (error) {
       console.error("Failed to send push notification:", error)
     }
@@ -259,7 +294,7 @@ export async function notifySuplementCreated(
 export async function notifyEvolutionCreated(
   userId: string,
   measurementDetails: string,
-  sendPush: boolean = true
+  sendPush = true,
 ): Promise<Notification | null> {
   console.log("notifyEvolutionCreated called with:", { userId, measurementDetails, sendPush })
 
