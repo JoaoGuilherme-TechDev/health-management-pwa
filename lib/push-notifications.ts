@@ -90,7 +90,6 @@ export class PushNotificationService {
         badge: "/badge-72x72.png",
         tag: uniqueTag,
         requireInteraction: true,
-        timestamp: Date.now(),
         data: {
           type: payload.type || "general",
           url: payload.url || "/notifications",
