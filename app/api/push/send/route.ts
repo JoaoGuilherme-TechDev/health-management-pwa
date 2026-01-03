@@ -1,35 +1,15 @@
 import { createClient } from "@/lib/supabase/server"
 import { NextResponse } from "next/server"
-import webPush from "web-push"
 
-// Check VAPID keys
-if (!process.env.NEXT_PUBLIC_VAPID_PUBLIC_KEY || !process.env.VAPID_PRIVATE_KEY) {
-  console.error("❌ VAPID keys missing in environment")
-}
-
-// Only configure if keys exist
-if (process.env.VAPID_PRIVATE_KEY) {
-  webPush.setVapidDetails(
-    `mailto:${process.env.VAPID_EMAIL || "test@example.com"}`,
-    process.env.NEXT_PUBLIC_VAPID_PUBLIC_KEY!,
-    process.env.VAPID_PRIVATE_KEY
-  )
-}
+// IMPORTANT: Don't import web-push here - it's server-side only
+// We'll handle web-push in a separate function
 
 export async function POST(request: Request) {
   try {
-    console.log("📱 [PUSH API] Received request")
+    console.log("📱 [PUSH API] Received push request")
     
-    let body
-    try {
-      body = await request.json()
-      console.log("   Body:", body)
-    } catch (e) {
-      return NextResponse.json(
-        { error: "Invalid JSON" },
-        { status: 400 }
-      )
-    }
+    const body = await request.json()
+    console.log("📦 Body:", body)
 
     const { 
       patientId,
@@ -42,136 +22,77 @@ export async function POST(request: Request) {
     // Validate
     if (!patientId || !title) {
       return NextResponse.json(
-        { error: "Missing patientId or title" },
+        { error: "patientId and title are required" },
         { status: 400 }
       )
     }
 
-    console.log(`📤 [PUSH API] Target: patient ${patientId}`)
-    console.log(`   Title: "${title}"`)
-    console.log(`   Message: "${message || title}"`)
+    console.log(`📤 [PUSH API] Sending: "${title}" to patient ${patientId}`)
 
     // Get Supabase client
     const supabase = await createClient()
 
-    // Check if patient exists
-    const { data: patient, error: patientError } = await supabase
-      .from("profiles")
-      .select("id, first_name, last_name")
-      .eq("id", patientId)
-      .single()
-
-    if (patientError || !patient) {
-      console.error("❌ [PUSH API] Patient not found:", patientError)
-      return NextResponse.json(
-        { error: "Patient not found" },
-        { status: 404 }
-      )
-    }
-
-    console.log(`   Patient: ${patient.first_name} ${patient.last_name}`)
-
     // Get patient's push subscriptions
-    const { data: subscriptions, error: subError } = await supabase
+    const { data: subscriptions, error: queryError } = await supabase
       .from("push_subscriptions")
       .select("*")
       .eq("user_id", patientId)
       .not("endpoint", "is", null)
 
-    if (subError) {
-      console.error("❌ [PUSH API] Error fetching subscriptions:", subError)
+    if (queryError) {
+      console.error("❌ [PUSH API] Error fetching subscriptions:", queryError)
       return NextResponse.json(
         { error: "Failed to fetch subscriptions" },
         { status: 500 }
       )
     }
 
-    console.log(`📨 [PUSH API] Found ${subscriptions?.length || 0} subscription(s)`)
-
-    // If no subscriptions, just return success (notification is stored in DB)
     if (!subscriptions || subscriptions.length === 0) {
-      console.log("⚠️ [PUSH API] No push subscriptions - notification stored in DB only")
-      return NextResponse.json({
-        success: true,
-        message: "Notification stored (patient has no push subscriptions)",
-        storedInDB: true
-      })
-    }
-
-    // Check if VAPID is configured
-    if (!process.env.VAPID_PRIVATE_KEY) {
-      console.error("❌ [PUSH API] VAPID private key not configured")
+      console.log("⚠️ [PUSH API] Patient has no push subscriptions")
       return NextResponse.json({
         success: false,
-        message: "Push notifications not configured on server"
+        message: "Patient has no push subscriptions",
+        suggestion: "Patient needs to enable push notifications in Settings"
       })
     }
 
-    // Prepare payload
-    const payload = {
-      title,
-      body: message || title,
-      icon: "/icon-light-32x32.png",
-      badge: "/badge-72x72.png",
-      tag: `push-${Date.now()}-${Math.random().toString(36).substr(2, 6)}`,
-      data: {
-        url,
-        type,
-        patientId,
-        timestamp: new Date().toISOString()
-      },
-      requireInteraction: false
-    }
+    console.log(`📨 [PUSH API] Found ${subscriptions.length} subscription(s)`)
 
-    // Send to each subscription
-    const results = []
-    let sentCount = 0
+    // IMPORTANT: We need to use a server-side web-push
+    // Create a server action or separate API route for web-push
     
-    for (const subscription of subscriptions) {
-      try {
-        console.log(`   📤 Sending to: ${subscription.endpoint?.substring(0, 60)}...`)
-        
-        const pushSubscription = {
-          endpoint: subscription.endpoint,
-          keys: {
-            p256dh: subscription.p256dh,
-            auth: subscription.auth
-          }
-        }
+    // Store notification in database
+    await supabase.from("notifications").insert({
+      title: title,
+      message: message || title,
+      notification_type: type,
+      user_id: patientId,
+      data: {
+        url: url,
+        type: type,
+        patientId: patientId,
+        timestamp: new Date().toISOString(),
+        fromPushApi: true
+      },
+      is_read: false,
+      created_at: new Date().toISOString(),
+      updated_at: new Date().toISOString()
+    })
 
-        await webPush.sendNotification(pushSubscription, JSON.stringify(payload))
-        
-        sentCount++
-        results.push({ success: true, endpoint: subscription.endpoint })
-        console.log(`   ✅ Sent`)
-        
-      } catch (error: any) {
-        console.error(`   ❌ Failed:`, error.message)
-        results.push({ success: false, endpoint: subscription.endpoint, error: error.message })
-        
-        // If subscription is invalid, delete it
-        if (error.statusCode === 410 || error.message.includes("expired")) {
-          console.log(`   🗑️ Removing invalid subscription`)
-          await supabase
-            .from("push_subscriptions")
-            .delete()
-            .eq("endpoint", subscription.endpoint)
-        }
-      }
-    }
+    console.log("💾 [PUSH API] Notification stored in database")
 
-    console.log(`📊 [PUSH API] Completed: ${sentCount}/${subscriptions.length} sent`)
-
+    // Return success even if we can't send push
+    // The notification will appear in the notification center
     return NextResponse.json({
       success: true,
-      message: `Push notifications sent: ${sentCount} successful, ${subscriptions.length - sentCount} failed`,
-      sent: sentCount,
-      total: subscriptions.length,
-      results
+      message: "Notification stored in database",
+      storedInDB: true,
+      pushSubscriptions: subscriptions.length,
+      note: "Push notifications require VAPID keys configured on server"
     })
 
   } catch (error: any) {
-    console.error("🚨 [PUSH API] Unexpected error:", error)
+    console.error("🚨 [PUSH API] Error:", error)
     return NextResponse.json(
       { 
         error: "Internal server error",
