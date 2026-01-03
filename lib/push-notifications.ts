@@ -4,7 +4,7 @@ interface NotificationPayload {
   title: string
   body?: string
   url?: string
-  type?: string
+  type?: "prescription" | "appointment" | "diet" | "medication" | "supplement" | "general" | "evolution"
   patientId: string
 }
 
@@ -105,7 +105,9 @@ export class PushNotificationService {
     }
   }
 
-  // Helper methods (unchanged)
+  // ADD ALL THE MISSING METHODS BELOW:
+
+  // Enviar notificação de nova prescrição
   async sendNewPrescription(patientId: string, prescriptionTitle: string) {
     return this.sendToPatient({
       patientId,
@@ -141,6 +143,39 @@ export class PushNotificationService {
       body: `Você recebeu um novo medicamento: ${medicationName}`,
       url: `/patient/medications`,
       type: "medication",
+    })
+  }
+
+  // ADD THIS MISSING METHOD:
+  async sendNewDiet(patientId: string, dietTitle: string) {
+    return this.sendToPatient({
+      patientId,
+      title: "🥗 Nova Receita de Dieta",
+      body: `Você recebeu uma nova receita: ${dietTitle}`,
+      url: `/patient/diet`,
+      type: "diet",
+    })
+  }
+
+  // ADD THIS MISSING METHOD:
+  async sendNewSupplement(patientId: string, supplementName: string) {
+    return this.sendToPatient({
+      patientId,
+      title: "💪 Novo Suplemento Recomendado",
+      body: `Você recebeu uma recomendação: ${supplementName}`,
+      url: `/patient`,
+      type: "supplement",
+    })
+  }
+
+  // ADD THIS MISSING METHOD:
+  async sendNewEvolution(patientId: string, evolutionTitle: string) {
+    return this.sendToPatient({
+      patientId,
+      title: "📈 Nova Evolução Registrada",
+      body: `Sua evolução foi atualizada: ${evolutionTitle}`,
+      url: `/patient/evolutions`,
+      type: "evolution",
     })
   }
 }
