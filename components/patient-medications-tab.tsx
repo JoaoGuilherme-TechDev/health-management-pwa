@@ -12,7 +12,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/u
 import { Badge } from "@/components/ui/badge"
 import { formatBrasiliaDate } from "@/lib/timezone"
 import { Alert, AlertDescription } from "@/components/ui/alert"
-import { showSimpleNotification } from "@/lib/simple-notifications"
+import { pushNotifications } from "@/lib/push-notifications"
 
 export function PatientMedicationsTab({ patientId }: { patientId: string }) {
   const [medications, setMedications] = useState<any[]>([])
@@ -222,9 +222,7 @@ export function PatientMedicationsTab({ patientId }: { patientId: string }) {
       }
 
       if (isPatient) {
-        await showSimpleNotification("💊 Novo Medicamento Adicionado", {
-          body: `${formData.name} - ${formData.dosage}`,
-        })
+        await pushNotifications.sendNewMedication(patientId, formData.name)
       }
 
       alert("Medicamento e horários adicionados com sucesso!")

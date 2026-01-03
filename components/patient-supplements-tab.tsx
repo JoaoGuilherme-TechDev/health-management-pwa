@@ -2,6 +2,7 @@
 
 import type React from "react"
 import { formatBrasiliaDate } from "@/lib/timezone"
+import { pushNotifications } from "@/lib/push-notifications"
 
 import { createClient } from "@/lib/supabase/client"
 import { useEffect, useState } from "react"
@@ -19,7 +20,6 @@ import {
   DialogTrigger,
 } from "@/components/ui/dialog"
 import { Plus, Trash2, Pill } from "lucide-react"
-import { showSimpleNotification } from "@/lib/simple-notifications"
 
 interface PatientSupplementsTabProps {
   patientId: string
@@ -105,9 +105,7 @@ export function PatientSupplementsTab({ patientId }: PatientSupplementsTabProps)
 
     if (!error) {
       if (isPatient) {
-        await showSimpleNotification("💪 Novo Suplemento Recomendado", {
-          body: `${formData.supplement_name} - ${formData.dosage}`,
-        })
+        await pushNotifications.sendNewSupplement(patientId, formData.supplement_name)
       }
 
       setOpen(false)

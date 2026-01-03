@@ -1,7 +1,7 @@
 "use client"
 
 import type React from "react"
-
+import { pushNotifications } from "@/lib/push-notifications"
 import { createClient } from "@/lib/supabase/client"
 import { useEffect, useState } from "react"
 import { Button } from "@/components/ui/button"
@@ -19,7 +19,6 @@ import {
 } from "@/components/ui/dialog"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { Plus, Trash2, Utensils } from "lucide-react"
-import { showSimpleNotification } from "@/lib/simple-notifications"
 
 interface PatientDietTabProps {
   patientId: string
@@ -109,9 +108,7 @@ export function PatientDietTab({ patientId }: PatientDietTabProps) {
 
     if (!error) {
       if (isPatient) {
-        await showSimpleNotification("🥗 Nova Receita de Dieta", {
-          body: `${formData.title} - ${formData.meal_type}`,
-        })
+        await pushNotifications.sendNewDiet(patientId, formData.title)
       }
 
       setOpen(false)

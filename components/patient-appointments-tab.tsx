@@ -10,7 +10,7 @@ import { createClient } from "@/lib/supabase/client"
 import { Plus, Calendar, Trash2 } from "lucide-react"
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog"
 import { formatBrasiliaDateAppointment } from "@/lib/timezone"
-import { showSimpleNotification } from "@/lib/simple-notifications"
+import { pushNotifications } from "@/lib/push-notifications"
 
 export function PatientAppointmentsTab({ patientId }: { patientId: string }) {
   const [appointments, setAppointments] = useState<any[]>([])
@@ -124,9 +124,7 @@ export function PatientAppointmentsTab({ patientId }: { patientId: string }) {
     }
 
     if (isPatient) {
-      await showSimpleNotification("📅 Nova Consulta Agendada", {
-        body: `${formData.title} - ${formatBrasiliaDateAppointment(formData.scheduled_at, "date")}`,
-      })
+      await pushNotifications.sendNewAppointment(patientId, formData.title, formData.scheduled_at)
     }
 
     alert("Consulta agendada com sucesso!")
