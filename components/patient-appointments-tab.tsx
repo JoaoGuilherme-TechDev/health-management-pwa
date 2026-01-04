@@ -101,8 +101,6 @@ export function PatientAppointmentsTab({ patientId }: { patientId: string }) {
       data: { user },
     } = await supabase.auth.getUser()
 
-    const isPatient = user?.id === patientId
-
     const dataToInsert = {
       patient_id: patientId,
       status: "scheduled",
@@ -123,9 +121,7 @@ export function PatientAppointmentsTab({ patientId }: { patientId: string }) {
       return
     }
 
-    if (isPatient) {
-      await pushNotifications.sendNewAppointment(patientId, formData.title, formData.scheduled_at)
-    }
+    await pushNotifications.sendNewAppointment(patientId, formData.title, formData.scheduled_at)
 
     alert("Consulta agendada com sucesso!")
 

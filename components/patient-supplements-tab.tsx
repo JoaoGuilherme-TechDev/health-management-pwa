@@ -88,8 +88,6 @@ export function PatientSupplementsTab({ patientId }: PatientSupplementsTabProps)
       data: { user },
     } = await supabase.auth.getUser()
 
-    const isPatient = user?.id === patientId
-
     const { error } = await supabase.from("patient_supplements").insert({
       patient_id: patientId,
       doctor_id: user?.id,
@@ -104,9 +102,7 @@ export function PatientSupplementsTab({ patientId }: PatientSupplementsTabProps)
     })
 
     if (!error) {
-      if (isPatient) {
-        await pushNotifications.sendNewSupplement(patientId, formData.supplement_name)
-      }
+      await pushNotifications.sendNewSupplement(patientId, formData.supplement_name)
 
       setOpen(false)
       setFormData({
