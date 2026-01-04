@@ -15,20 +15,20 @@ export class PushNotificationService {
   async sendToPatient(payload: NotificationPayload) {
     try {
       console.log("🚀 [PUSH] Starting push notification for patient:", payload.patientId)
-      
+
       // FIRST: Send via API for cross-device push
       const apiResult = await this.sendViaAPI(payload)
-      
+
       // SECOND: Send local notification for immediate feedback (like test button)
       const localResult = await this.sendLocalNotification(payload)
-      
+
       // THIRD: Store in database for notification center
       await this.storeInDatabase(payload)
-      
+
       return {
         apiSuccess: apiResult,
         localSuccess: localResult,
-        message: "Notificação enviada"
+        message: "Notificação enviada",
       }
     } catch (error) {
       console.error("❌ [PUSH] Error sending notification:", error)
@@ -72,33 +72,48 @@ export class PushNotificationService {
   private async sendLocalNotification(payload: NotificationPayload): Promise<boolean> {
     try {
       // Check if we can send local notifications
-      if (typeof window === 'undefined') return false
-      if (!('Notification' in window) || Notification.permission !== 'granted') {
-        return false
+      if (typeof window === "undefined") return false
+      if (!("Notification" in window)) return false
+
+      if (Notification.permission === "denied") return false
+
+      if (Notification.permission !== "granted") {
+        const permission = await Notification.requestPermission()
+        if (permission !== "granted") return false
       }
 
-      if (!('serviceWorker' in navigator)) {
-        return false
+      try {
+        if ("serviceWorker" in navigator && navigator.serviceWorker.controller) {
+          const registration = await navigator.serviceWorker.ready
+          await registration.showNotification(payload.title, {
+            body: payload.body || payload.title,
+            icon: "/icon-light-32x32.png",
+            badge: "/badge-72x72.png",
+            tag: `local-${Date.now()}`,
+            requireInteraction: true,
+            data: {
+              type: payload.type || "general",
+              url: payload.url || "/notifications",
+              patientId: payload.patientId,
+              source: "local",
+            },
+          })
+          console.log("✅ [PUSH] Local notification shown via service worker")
+          return true
+        }
+      } catch (swError) {
+        console.warn("⚠️ [PUSH] Service worker not available, using fallback notification")
       }
 
-      const registration = await navigator.serviceWorker.ready
-      const uniqueTag = `local-${Date.now()}`
-
-      await registration.showNotification(payload.title, {
+      new Notification(payload.title, {
         body: payload.body || payload.title,
         icon: "/icon-light-32x32.png",
         badge: "/badge-72x72.png",
-        tag: uniqueTag,
+        tag: `local-${Date.now()}`,
         requireInteraction: true,
-        data: {
-          type: payload.type || "general",
-          url: payload.url || "/notifications",
-          patientId: payload.patientId,
-          source: "local"
-        }
       })
 
-      console.log("✅ [PUSH] Local notification shown")
+      console.log("✅ [PUSH] Local notification shown via fallback")
       return true
     } catch (error) {
       console.error("❌ [PUSH] Local notification failed:", error)
@@ -110,7 +125,7 @@ export class PushNotificationService {
   private async storeInDatabase(payload: NotificationPayload): Promise<void> {
     try {
       const notificationType = payload.type || "general"
-      
+
       await this.supabase.from("notifications").insert({
         title: payload.title,
         message: payload.body || payload.title,
@@ -120,13 +135,13 @@ export class PushNotificationService {
           type: notificationType,
           patientId: payload.patientId,
           url: payload.url || "/notifications",
-          timestamp: new Date().toISOString()
+          timestamp: new Date().toISOString(),
         },
         is_read: false,
         created_at: new Date().toISOString(),
-        updated_at: new Date().toISOString()
+        updated_at: new Date().toISOString(),
       })
-      
+
       console.log("✅ [PUSH] Stored in database")
     } catch (error) {
       console.error("❌ [PUSH] Database storage failed:", error)

@@ -11,7 +11,7 @@ import { createClient } from "@/lib/supabase/client"
 import { Plus, FileText, Trash2, ExternalLink } from "lucide-react"
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog"
 import { formatBrasiliaDate } from "@/lib/timezone"
-import { NotificationService } from "@/lib/notification-service" // Add this import
+import { pushNotifications } from "@/lib/push-notifications"
 
 export function PatientPrescriptionsTab({ patientId }: { patientId: string }) {
   const [prescriptions, setPrescriptions] = useState<any[]>([])
@@ -67,9 +67,11 @@ export function PatientPrescriptionsTab({ patientId }: { patientId: string }) {
   const handleFileUpload = async (file: File) => {
     setUploading(true)
     const supabase = createClient()
-    
-    const { data: { user } } = await supabase.auth.getUser()
-    
+
+    const {
+      data: { user },
+    } = await supabase.auth.getUser()
+
     if (!user) {
       alert("Usuário não autenticado")
       setUploading(false)
@@ -77,23 +79,21 @@ export function PatientPrescriptionsTab({ patientId }: { patientId: string }) {
     }
 
     const timestamp = Date.now()
-    const fileExt = file.name.split('.').pop()
+    const fileExt = file.name.split(".").pop()
     const fileName = `${timestamp}-${Math.random().toString(36).substring(2)}.${fileExt}`
     const filePath = `prescriptions/${patientId}/${user.id}/${fileName}`
 
     console.log("[v0] Fazendo upload para:", filePath)
 
     try {
-      const { data, error } = await supabase.storage
-        .from("prescriptions")
-        .upload(filePath, file, {
-          cacheControl: '3600',
-          upsert: false
-        })
+      const { data, error } = await supabase.storage.from("prescriptions").upload(filePath, file, {
+        cacheControl: "3600",
+        upsert: false,
+      })
 
       if (error) {
         console.error("[v0] Erro detalhado no upload:", error)
-        
+
         if (error.message.includes("row-level security")) {
           alert("Erro de permissão: Verifique as políticas do bucket 'prescriptions' no Supabase.")
         } else {
@@ -104,9 +104,7 @@ export function PatientPrescriptionsTab({ patientId }: { patientId: string }) {
 
       console.log("[v0] Upload bem-sucedido:", data)
 
-      const { data: urlData } = supabase.storage
-        .from("prescriptions")
-        .getPublicUrl(filePath)
+      const { data: urlData } = supabase.storage.from("prescriptions").getPublicUrl(filePath)
 
       if (urlData?.publicUrl) {
         console.log("[v0] URL pública gerada:", urlData.publicUrl)
@@ -125,19 +123,24 @@ export function PatientPrescriptionsTab({ patientId }: { patientId: string }) {
   const handleAdd = async () => {
     console.log("[v0] Iniciando adição de receita...")
     const supabase = createClient()
-    
+
     if (!formData.prescription_file_url) {
       alert("Por favor, faça o upload da receita médica antes de adicionar.")
       return
     }
 
-    const { data: { user }, error: authError } = await supabase.auth.getUser()
-    
+    const {
+      data: { user },
+      error: authError,
+    } = await supabase.auth.getUser()
+
     if (authError || !user) {
       console.error("[v0] Erro de autenticação:", authError)
       alert("Erro: Usuário não autenticado")
       return
     }
+
+    const isPatient = user.id === patientId
 
     // Get doctor's name for notification
     const { data: profile } = await supabase
@@ -146,10 +149,11 @@ export function PatientPrescriptionsTab({ patientId }: { patientId: string }) {
       .eq("id", user.id)
       .single()
 
-    const doctorName = profile?.doctor_full_name || 
-                       `${profile?.first_name || ''} ${profile?.last_name || ''}`.trim() ||
-                       user.email ||
-                       "Médico"
+    const doctorName =
+      profile?.doctor_full_name ||
+      `${profile?.first_name || ""} ${profile?.last_name || ""}`.trim() ||
+      user.email ||
+      "Médico"
 
     const dataToInsert = {
       patient_id: patientId,
@@ -160,16 +164,13 @@ export function PatientPrescriptionsTab({ patientId }: { patientId: string }) {
       notes: formData.notes || null,
       prescription_file_url: formData.prescription_file_url,
       created_at: new Date().toISOString(),
-      updated_at: new Date().toISOString()
+      updated_at: new Date().toISOString(),
     }
 
     console.log("[v0] Dados a inserir:", JSON.stringify(dataToInsert, null, 2))
 
     try {
-      const { data, error } = await supabase
-        .from("medical_prescriptions")
-        .insert(dataToInsert)
-        .select()
+      const { data, error } = await supabase.from("medical_prescriptions").insert(dataToInsert).select()
 
       console.log("[v0] Resposta completa:", { data, error })
 
@@ -181,26 +182,13 @@ export function PatientPrescriptionsTab({ patientId }: { patientId: string }) {
 
       if (data && data.length > 0) {
         console.log("[v0] Receita adicionada com sucesso:", data[0])
-        
-        // Use NotificationService instead of individual functions
-        try {
-          const notification = await NotificationService.sendPrescriptionNotification(
-            patientId,
-            formData.title,
-            doctorName
-          )
-          
-          if (notification) {
-            console.log("Prescription notification sent successfully:", notification)
-          } else {
-            console.warn("Não foi possível criar a notificação. Verifique se a tabela notifications existe.")
-          }
-        } catch (notificationError) {
-          console.error("Erro ao criar notificação:", notificationError)
+
+        if (isPatient) {
+          await pushNotifications.sendNewPrescription(patientId, formData.title)
         }
 
         alert("Receita adicionada com sucesso!")
-        
+
         setShowDialog(false)
         setFormData({
           title: "",
