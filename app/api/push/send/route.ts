@@ -1,118 +1,47 @@
+import { type NextRequest, NextResponse } from "next/server"
 import { createClient } from "@/lib/supabase/server"
-import { NextResponse } from "next/server"
-import webPush from "web-push"
+import webpush from "web-push"
 
-// Configure web-push
-const vapidPublicKey = process.env.NEXT_PUBLIC_VAPID_PUBLIC_KEY!
-const vapidPrivateKey = process.env.VAPID_PRIVATE_KEY!
-
-if (!vapidPublicKey || !vapidPrivateKey) {
-  throw new Error("Missing VAPID keys. Check your environment variables.")
+// Configurar web-push
+if (process.env.VAPID_PRIVATE_KEY && process.env.NEXT_PUBLIC_VAPID_PUBLIC_KEY) {
+  webpush.setVapidDetails(
+    process.env.VAPID_SUBJECT || "mailto:example@example.com",
+    process.env.NEXT_PUBLIC_VAPID_PUBLIC_KEY,
+    process.env.VAPID_PRIVATE_KEY,
+  )
 }
 
-webPush.setVapidDetails(
-  `mailto:${process.env.VAPID_EMAIL || "your-email@example.com"}`,
-  vapidPublicKey,
-  vapidPrivateKey,
-)
-
-export async function POST(request: Request) {
+export async function POST(request: NextRequest) {
   try {
-    console.log("📱 [PUSH API] Received request")
-
-    const body = await request.json()
-    const { patientId, title, body: message, url = "/notifications", type = "general" } = body
-
-    // Validate
-    if (!patientId || !title) {
-      return NextResponse.json({ error: "patientId and title are required" }, { status: 400 })
-    }
-
-    console.log(`📤 [PUSH API] Sending: "${title}" to patient ${patientId}`)
-
-    // Get Supabase client
     const supabase = await createClient()
+    const { data: userData } = await supabase.auth.getUser()
 
-    // Get patient's push subscriptions
-    const { data: subscriptions, error: queryError } = await supabase
-      .from("push_subscriptions")
-      .select("subscription")
-      .eq("user_id", patientId)
-
-    if (queryError) {
-      console.error("❌ [PUSH API] Error fetching subscriptions:", queryError)
-      return NextResponse.json({ error: "Failed to fetch subscriptions" }, { status: 500 })
+    if (!userData.user) {
+      return NextResponse.json({ error: "Não autorizado" }, { status: 401 })
     }
 
-    if (!subscriptions || subscriptions.length === 0) {
-      console.log("⚠️ [PUSH API] No subscriptions found")
-      return NextResponse.json({
-        success: false,
-        message: "Patient has no push subscriptions",
-        suggestion: "Ask the patient to enable push notifications",
-      })
+    const subscription = await request.json()
+
+    // Validar subscription
+    if (!subscription.endpoint || !subscription.keys || !subscription.keys.p256dh || !subscription.keys.auth) {
+      return NextResponse.json({ error: "Subscription inválida" }, { status: 400 })
     }
 
-    console.log(`📨 [PUSH API] Found ${subscriptions.length} subscription(s)`)
-
-    // Send to each subscription
-    const results = []
-    for (const subscriptionRecord of subscriptions) {
-      try {
-        let pushSubscription = subscriptionRecord.subscription
-
-        // Parse if it's a string
-        if (typeof pushSubscription === "string") {
-          pushSubscription = JSON.parse(pushSubscription)
-        }
-
-        // Validate subscription has required fields
-        if (!pushSubscription?.endpoint || !pushSubscription?.keys?.p256dh || !pushSubscription?.keys?.auth) {
-          console.warn(`⚠️ [PUSH API] Invalid subscription format:`, pushSubscription)
-          results.push({ success: false, endpoint: pushSubscription?.endpoint, error: "Invalid subscription format" })
-          continue
-        }
-
-        const payload = JSON.stringify({
-          title,
-          body: message || title,
-          icon: "/icon-light-32x32.png",
-          badge: "/badge-72x72.png",
-          tag: `push-${Date.now()}`,
-          data: {
-            url,
-            type,
-            patientId,
-            timestamp: new Date().toISOString(),
-          },
-        })
-
-        await webPush.sendNotification(pushSubscription, payload)
-        results.push({ success: true, endpoint: pushSubscription.endpoint })
-      } catch (error: any) {
-        console.error(`❌ [PUSH API] Failed for subscription:`, error.message)
-        results.push({ success: false, error: error.message })
-      }
-    }
-
-    const successful = results.filter((r) => r.success).length
-    const failed = results.length - successful
-
-    console.log(`📊 [PUSH API] Results: ${successful} sent, ${failed} failed`)
-
-    return NextResponse.json({
-      success: true,
-      message: `Push notifications sent: ${successful} successful, ${failed} failed`,
-      results,
+    // Salvar no banco de dados
+    const { error } = await supabase.from("push_subscriptions").upsert({
+      user_id: userData.user.id,
+      subscription: subscription, // Store the entire subscription object as JSONB
+      updated_at: new Date().toISOString(),
     })
-  } catch (error: any) {
-    console.error("🚨 [PUSH API] Error:", error)
-    return NextResponse.json(
-      {
-        error: "Internal server error",
-        message: error.message,
-      },
-      { status: 500 },
-    )
+
+    if (error) {
+      console.error("Erro ao salvar subscription:", error)
+      return NextResponse.json({ error: "Erro ao salvar subscription" }, { status: 500 })
+    }
+
+    return NextResponse.json({ success: true, message: "Subscription salva com sucesso" })
+  } catch (error) {
+    console.error("Erro na API de subscribe:", error)
+    return NextResponse.json({ error: "Erro interno do servidor" }, { status: 500 })
   }
 }
