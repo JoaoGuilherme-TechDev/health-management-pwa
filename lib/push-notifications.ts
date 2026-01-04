@@ -11,7 +11,6 @@ interface NotificationPayload {
 export class PushNotificationService {
   private supabase = createClient()
 
-  // Enviar notificação para um paciente
   async sendToPatient(payload: NotificationPayload) {
     try {
       console.log("🚀 [PUSH] Starting push notification for patient:", payload.patientId)
@@ -19,7 +18,7 @@ export class PushNotificationService {
       // FIRST: Send via API for cross-device push
       const apiResult = await this.sendViaAPI(payload)
 
-      // SECOND: Send local notification for immediate feedback (like test button)
+      // SECOND: Send local notification ONLY if current user is the patient
       const localResult = await this.sendLocalNotification(payload)
 
       // THIRD: Store in database for notification center
@@ -27,7 +26,7 @@ export class PushNotificationService {
 
       return {
         apiSuccess: apiResult,
-        
+        localSuccess: localResult,
         message: "Notificação enviada",
       }
     } catch (error) {
@@ -36,7 +35,6 @@ export class PushNotificationService {
     }
   }
 
-  // Send via API (for push to other devices)
   private async sendViaAPI(payload: NotificationPayload): Promise<boolean> {
     try {
       const response = await fetch("/api/push/send", {
@@ -68,9 +66,18 @@ export class PushNotificationService {
     }
   }
 
-  // Send local notification (like test button)
   private async sendLocalNotification(payload: NotificationPayload): Promise<boolean> {
     try {
+      // First check: Only show local notification if current user is the patient
+      const {
+        data: { user },
+      } = await this.supabase.auth.getUser()
+
+      if (!user || user.id !== payload.patientId) {
+        console.log("⏭️ [PUSH] Skipping local notification - current user is not the patient recipient")
+        return false
+      }
+
       // Check if we can send local notifications
       if (typeof window === "undefined") return false
       if (!("Notification" in window)) return false
@@ -121,7 +128,6 @@ export class PushNotificationService {
     }
   }
 
-  // Store in database
   private async storeInDatabase(payload: NotificationPayload): Promise<void> {
     try {
       const notificationType = payload.type || "general"
@@ -148,9 +154,8 @@ export class PushNotificationService {
     }
   }
 
-  // Enviar notificação de nova prescrição
   async sendNewPrescription(patientId: string, prescriptionTitle: string) {
-    return this.sendViaAPI({
+    return this.sendToPatient({
       patientId,
       title: "📋 Nova Prescrição Médica",
       body: `Você recebeu uma nova prescrição: ${prescriptionTitle}`,
@@ -168,7 +173,7 @@ export class PushNotificationService {
       minute: "2-digit",
     })
 
-    return this.sendViaAPI({
+    return this.sendToPatient({
       patientId,
       title: "📅 Nova Consulta Agendada",
       body: `${appointmentTitle} • ${formattedDate}`,
@@ -178,7 +183,7 @@ export class PushNotificationService {
   }
 
   async sendNewMedication(patientId: string, medicationName: string) {
-    return this.sendViaAPI({
+    return this.sendToPatient({
       patientId,
       title: "💊 Novo Medicamento Prescrito",
       body: `Você recebeu um novo medicamento: ${medicationName}`,
@@ -188,7 +193,7 @@ export class PushNotificationService {
   }
 
   async sendNewDiet(patientId: string, dietTitle: string) {
-    return this.sendViaAPI({
+    return this.sendToPatient({
       patientId,
       title: "🥗 Nova Receita de Dieta",
       body: `Você recebeu uma nova receita: ${dietTitle}`,
@@ -198,7 +203,7 @@ export class PushNotificationService {
   }
 
   async sendNewSupplement(patientId: string, supplementName: string) {
-    return this.sendViaAPI({
+    return this.sendToPatient({
       patientId,
       title: "💪 Novo Suplemento Recomendado",
       body: `Você recebeu uma recomendação: ${supplementName}`,
@@ -208,5 +213,4 @@ export class PushNotificationService {
   }
 }
 
-// Instância global
 export const pushNotifications = new PushNotificationService()
