@@ -16,19 +16,21 @@ export class PushNotificationService {
     try {
       console.log("🚀 [PUSH] Starting push notification for patient:", payload.patientId)
       
-      // FIRST: Send via API for cross-device push
+      // FIRST: Store in database for notification center
+      await this.storeInDatabase(payload)
+      console.log("💾 [PUSH] Stored in database for patient:", payload.patientId)
+      
+      // SECOND: Try to send via API (for real push notifications)
       const apiResult = await this.sendViaAPI(payload)
       
-      // SECOND: Send local notification for immediate feedback (like test button)
-      const localResult = await this.sendLocalNotification(payload)
-      
-      // THIRD: Store in database for notification center
-      await this.storeInDatabase(payload)
+      // THIRD: Only show local notification if current user IS the patient
+      const localResult = await this.sendLocalNotificationIfPatient(payload)
       
       return {
+        storedInDB: true,
         apiSuccess: apiResult,
         localSuccess: localResult,
-        message: "Notificação enviada"
+        message: "Notificação enviada ao paciente"
       }
     } catch (error) {
       console.error("❌ [PUSH] Error sending notification:", error)
@@ -36,9 +38,11 @@ export class PushNotificationService {
     }
   }
 
-  // Send via API (for push to other devices)
+  // Send via API (for push to patient's other devices)
   private async sendViaAPI(payload: NotificationPayload): Promise<boolean> {
     try {
+      console.log("📤 [PUSH] Trying API for patient:", payload.patientId)
+      
       const response = await fetch("/api/push/send", {
         method: "POST",
         headers: {
@@ -54,8 +58,7 @@ export class PushNotificationService {
       })
 
       if (!response.ok) {
-        const errorText = await response.text()
-        console.error("❌ [PUSH] API error:", response.status, errorText)
+        console.log("⚠️ [PUSH] API not configured or patient has no push subscription")
         return false
       }
 
@@ -68,21 +71,34 @@ export class PushNotificationService {
     }
   }
 
-  // Send local notification (like test button)
-  private async sendLocalNotification(payload: NotificationPayload): Promise<boolean> {
+  // ONLY show local notification if current user IS the patient
+  private async sendLocalNotificationIfPatient(payload: NotificationPayload): Promise<boolean> {
     try {
-      // Check if we can send local notifications
+      // Check if we're in browser
       if (typeof window === 'undefined') return false
+      
+      // Check if current user is the patient
+      const { data: { user } } = await this.supabase.auth.getUser()
+      if (!user || user.id !== payload.patientId) {
+        console.log("👨‍⚕️ Current user is doctor, not showing local notification")
+        return false
+      }
+      
+      // Only proceed if current user IS the patient
+      console.log("👤 Current user IS the patient, showing local notification")
+      
       if (!('Notification' in window) || Notification.permission !== 'granted') {
+        console.log("🔕 Patient hasn't granted notification permission")
         return false
       }
 
       if (!('serviceWorker' in navigator)) {
+        console.log("🔕 Service worker not supported")
         return false
       }
 
       const registration = await navigator.serviceWorker.ready
-      const uniqueTag = `local-${Date.now()}`
+      const uniqueTag = `patient-local-${Date.now()}`
 
       await registration.showNotification(payload.title, {
         body: payload.body || payload.title,
@@ -94,11 +110,11 @@ export class PushNotificationService {
           type: payload.type || "general",
           url: payload.url || "/notifications",
           patientId: payload.patientId,
-          source: "local"
+          source: "patient-local"
         }
       })
 
-      console.log("✅ [PUSH] Local notification shown")
+      console.log("✅ [PUSH] Local notification shown to PATIENT")
       return true
     } catch (error) {
       console.error("❌ [PUSH] Local notification failed:", error)
@@ -109,16 +125,19 @@ export class PushNotificationService {
   // Store in database
   private async storeInDatabase(payload: NotificationPayload): Promise<void> {
     try {
-      const notificationType = payload.type || "general"
+      // Get doctor info (current user)
+      const { data: { user: doctor } } = await this.supabase.auth.getUser()
+      const doctorId = doctor?.id || "system"
       
       await this.supabase.from("notifications").insert({
         title: payload.title,
         message: payload.body || payload.title,
-        notification_type: notificationType,
-        user_id: payload.patientId,
+        notification_type: payload.type || "general",
+        user_id: payload.patientId, // STORE FOR PATIENT
         data: {
-          type: notificationType,
+          type: payload.type || "general",
           patientId: payload.patientId,
+          doctorId: doctorId,
           url: payload.url || "/notifications",
           timestamp: new Date().toISOString()
         },
@@ -127,13 +146,14 @@ export class PushNotificationService {
         updated_at: new Date().toISOString()
       })
       
-      console.log("✅ [PUSH] Stored in database")
+      console.log("💾 [PUSH] Stored in database for patient:", payload.patientId)
     } catch (error) {
       console.error("❌ [PUSH] Database storage failed:", error)
+      throw error
     }
   }
 
-  // Enviar notificação de nova prescrição
+  // Helper methods
   async sendNewPrescription(patientId: string, prescriptionTitle: string) {
     return this.sendToPatient({
       patientId,
