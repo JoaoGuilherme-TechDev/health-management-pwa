@@ -19,7 +19,7 @@ export class PushNotificationService {
       // FIRST: Send via API for cross-device push
       const apiResult = await this.sendViaAPI(payload)
 
-      // SECOND: Send local notification for immediate feedback (like test button)
+      // SECOND: Send local notification ONLY if current user is the patient
       const localResult = await this.sendLocalNotification(payload)
 
       // THIRD: Store in database for notification center
@@ -71,6 +71,14 @@ export class PushNotificationService {
   // Send local notification (like test button)
   private async sendLocalNotification(payload: NotificationPayload): Promise<boolean> {
     try {
+      const {
+        data: { user },
+      } = await this.supabase.auth.getUser()
+      if (!user || user.id !== payload.patientId) {
+        console.log("⏭️ [PUSH] Skipping local notification - current user is not the patient recipient")
+        return false
+      }
+
       // Check if we can send local notifications
       if (typeof window === "undefined") return false
       if (!("Notification" in window)) return false
