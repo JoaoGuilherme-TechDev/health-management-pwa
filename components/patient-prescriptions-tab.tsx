@@ -183,9 +183,9 @@ export function PatientPrescriptionsTab({ patientId }: { patientId: string }) {
       if (data && data.length > 0) {
         console.log("[v0] Receita adicionada com sucesso:", data[0])
 
-        if (isPatient) {
-          await pushNotifications.sendNewPrescription(patientId, formData.title)
-        }
+      
+        await pushNotifications.sendNewPrescription(patientId, formData.title)
+        
 
         alert("Receita adicionada com sucesso!")
 
