@@ -6,6 +6,7 @@ interface NotificationPayload {
   url?: string
   type?: 
     | "prescription_created" 
+    | "prescription_added"
     | "appointment_scheduled" 
     | "diet_added" 
     | "medication_added" 
@@ -138,7 +139,7 @@ export class PushNotificationService {
       const { data: { user: doctor } } = await this.supabase.auth.getUser()
       const doctorId = doctor?.id || "system"
       
-      await this.supabase.from("notifications").insert({
+      const { error } = await this.supabase.from("notifications").insert({
         title: payload.title,
         message: payload.body || payload.title,
         notification_type: payload.type || "general",
@@ -155,6 +156,11 @@ export class PushNotificationService {
         updated_at: new Date().toISOString()
       })
       
+      if (error) {
+        console.error("❌ [PUSH] Database storage failed (insert error):", error)
+        throw error
+      }
+      
       console.log("💾 [PUSH] Stored in database for patient:", payload.patientId)
     } catch (error) {
       console.error("❌ [PUSH] Database storage failed:", error)
@@ -169,7 +175,7 @@ export class PushNotificationService {
       title: "📋 Nova Prescrição Médica",
       body: `Você recebeu uma nova prescrição: ${prescriptionTitle}`,
       url: `/patient/prescriptions`,
-      type: "prescription_created",
+      type: "prescription_added",
     })
   }
 

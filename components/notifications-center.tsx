@@ -82,6 +82,60 @@ const notificationConfig: Record<
     bgColor: "bg-pink-100",
     label: "Evolução",
   },
+  medication_added: {
+    icon: Pill,
+    color: "text-blue-600",
+    bgColor: "bg-blue-100",
+    label: "Medicamento",
+  },
+  prescription_added: {
+    icon: FileText,
+    color: "text-purple-600",
+    bgColor: "bg-purple-100",
+    label: "Receita",
+  },
+  diet_added: {
+    icon: ChefHat,
+    color: "text-orange-600",
+    bgColor: "bg-orange-100",
+    label: "Receita de Dieta",
+  },
+  supplement_added: {
+    icon: Dumbbell,
+    color: "text-teal-600",
+    bgColor: "bg-teal-100",
+    label: "Suplemento",
+  },
+  evolution_added: {
+    icon: Activity,
+    color: "text-pink-600",
+    bgColor: "bg-pink-100",
+    label: "Evolução",
+  },
+  metric_added: {
+    icon: Activity,
+    color: "text-indigo-600",
+    bgColor: "bg-indigo-100",
+    label: "Métrica",
+  },
+  health_alert: {
+    icon: Activity,
+    color: "text-red-600",
+    bgColor: "bg-red-100",
+    label: "Alerta de Saúde",
+  },
+  info: {
+    icon: Bell,
+    color: "text-blue-600",
+    bgColor: "bg-blue-100",
+    label: "Informação",
+  },
+  warning: {
+    icon: Bell,
+    color: "text-yellow-600",
+    bgColor: "bg-yellow-100",
+    label: "Aviso",
+  },
 }
 
 function NotificationItem({

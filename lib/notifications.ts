@@ -7,12 +7,21 @@ import { pushNotifications } from "@/lib/push-notifications"
 // Notification types
 export type NotificationType =
   | "medication_created"
+  | "medication_added"
   | "appointment_scheduled"
   | "appointment_reminder"
   | "diet_recipe_created"
+  | "diet_added"
   | "prescription_created"
+  | "prescription_added"
   | "supplement_created"
+  | "supplement_added"
   | "evolution_created"
+  | "evolution_added"
+  | "metric_added"
+  | "health_alert"
+  | "info"
+  | "warning"
 
 export interface Notification {
   id: string
@@ -136,7 +145,7 @@ export async function notifyPrescriptionCreated(
         title: "📋 Nova Prescrição Médica",
         body: `Você recebeu uma nova prescrição: ${prescriptionTitle}`,
         url: "/patient/prescriptions",
-        type: "prescription_created",
+        type: "prescription_added",
       })
       console.log("Push notification sent successfully")
     } catch (error) {
