@@ -17,5 +17,10 @@ export default function ClientLayout({
     setIsClient(true)
   }, [])
 
-  
+  return (
+    <body className="font-sans antialiased">
+      {children}
+      <Analytics />
+    </body>
+  )
 }
