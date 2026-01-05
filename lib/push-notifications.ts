@@ -206,7 +206,7 @@ export class PushNotificationService {
     })
   }
 
-  async sendMedicationReminder(patientId: string, medicationName: string) {
+  async sendNewMedicationReminder(patientId: string, medicationName: string) {
     return this.sendToPatient({
       patientId,
       title: "⏰ Lembrete de Medicamento",
