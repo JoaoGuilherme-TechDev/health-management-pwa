@@ -5,7 +5,7 @@ interface NotificationPayload {
   body?: string
   url?: string
   type?: 
-    | "prescription_created" 
+    | "prescription_added" 
     | "appointment_scheduled" 
     | "diet_added" 
     | "medication_added" 
@@ -112,7 +112,7 @@ export class PushNotificationService {
       await registration.showNotification(payload.title, {
         body: payload.body || payload.title,
         icon: "/icon-light-32x32.png",
-        badge: "/badge-72x72.png",
+        badge: "/icon-light-32x32.png",
         tag: uniqueTag,
         requireInteraction: true,
         data: {
@@ -169,7 +169,7 @@ export class PushNotificationService {
       title: "📋 Nova Prescrição Médica",
       body: `Você recebeu uma nova prescrição: ${prescriptionTitle}`,
       url: `/patient/prescriptions`,
-      type: "prescription_created",
+      type: "prescription_added",
     })
   }
 

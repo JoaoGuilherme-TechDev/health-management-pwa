@@ -136,7 +136,7 @@ export async function notifyPrescriptionCreated(
         title: "📋 Nova Prescrição Médica",
         body: `Você recebeu uma nova prescrição: ${prescriptionTitle}`,
         url: "/patient/prescriptions",
-        type: "prescription_created",
+        type: "prescription_added",
       })
       console.log("Push notification sent successfully")
     } catch (error) {
