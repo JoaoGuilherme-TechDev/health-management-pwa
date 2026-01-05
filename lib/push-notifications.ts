@@ -10,6 +10,7 @@ interface NotificationPayload {
     | "appointment_scheduled"
     | "diet_added"
     | "medication_added"
+    | "medication_reminder"
     | "supplement_added"
     | "evolution_added"
     | "info"
@@ -202,6 +203,16 @@ export class PushNotificationService {
       body: `Você recebeu um novo medicamento: ${medicationName}`,
       url: `/patient/medications`,
       type: "medication_added",
+    })
+  }
+
+  async sendMedicationReminder(patientId: string, medicationName: string) {
+    return this.sendToPatient({
+      patientId,
+      title: "⏰ Lembrete de Medicamento",
+      body: `Lembrete: tome ${medicationName}`,
+      url: `/patient/medications`,
+      type: "medication_reminder",
     })
   }
 
