@@ -46,7 +46,7 @@ const notificationConfig: Record<
     bgColor: "bg-blue-100",
     label: "Medicamento",
   },
-  appointment_created: {
+  appointment_scheduled: {
     icon: Calendar,
     color: "text-green-600",
     bgColor: "bg-green-100",
