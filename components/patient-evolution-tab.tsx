@@ -26,8 +26,25 @@ export function PatientEvolutionTab({ patientId }: { patientId: string }) {
     bmr: "",
     body_water_percentage: "",
     bone_mass: "",
+    bmi: "",
     notes: "",
   })
+
+  // Auto-calculate BMI
+  useEffect(() => {
+    if (formData.weight && formData.height) {
+      const weight = Number.parseFloat(formData.weight)
+      const height = Number.parseFloat(formData.height) / 100 // convert to meters
+      
+      if (weight > 0 && height > 0) {
+        const bmi = (weight / (height * height)).toFixed(2)
+        // Only update if different to avoid loops (though useEffect dependency handles this)
+        if (formData.bmi !== bmi) {
+          setFormData(prev => ({ ...prev, bmi }))
+        }
+      }
+    }
+  }, [formData.weight, formData.height])
 
   useEffect(() => {
     loadEvolution()
@@ -83,6 +100,7 @@ export function PatientEvolutionTab({ patientId }: { patientId: string }) {
         bmr: formData.bmr ? Number.parseFloat(formData.bmr) : null,
         body_water_percentage: formData.body_water_percentage ? Number.parseFloat(formData.body_water_percentage) : null,
         bone_mass: formData.bone_mass ? Number.parseFloat(formData.bone_mass) : null,
+        bmi: formData.bmi ? Number.parseFloat(formData.bmi) : null,
         notes: formData.notes,
       }).select().single()
 
@@ -126,6 +144,7 @@ export function PatientEvolutionTab({ patientId }: { patientId: string }) {
         bmr: "",
         body_water_percentage: "",
         bone_mass: "",
+        bmi: "",
         notes: "",
       })
       loadEvolution()
@@ -205,6 +224,12 @@ export function PatientEvolutionTab({ patientId }: { patientId: string }) {
                       <div className="p-3 rounded-lg bg-card border border-border">
                         <p className="text-xs text-muted-foreground mb-1">Altura</p>
                         <p className="text-lg font-semibold text-foreground">{evo.height} cm</p>
+                      </div>
+                    )}
+                    {evo.bmi && (
+                      <div className="p-3 rounded-lg bg-card border border-border">
+                        <p className="text-xs text-muted-foreground mb-1">IMC</p>
+                        <p className="text-lg font-semibold text-foreground">{evo.bmi}</p>
                       </div>
                     )}
                     {evo.muscle_mass && (

@@ -1,7 +1,6 @@
 "use client"
 
 import type React from "react"
-
 import { createClient } from "@/lib/supabase/client"
 import { useEffect, useState } from "react"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
@@ -49,6 +48,8 @@ export default function PatientDashboard() {
     supplements: 0,
     recentNotifications: 0,
   })
+  const [latestRecipes, setLatestRecipes] = useState<DietRecipe[]>([])  // ✅ ADDED
+  const [latestSupplements, setLatestSupplements] = useState<Supplement[]>([])  // ✅ ADDED
 
   useEffect(() => {
     const supabase = createClient()
@@ -73,8 +74,8 @@ export default function PatientDashboard() {
           setProfile(profileData)
         }
 
-        // Load stats
-        const [medRes, appoRes, dietRes, suppRes, notifRes, recipesRes] = await Promise.all([
+        // Load stats and data
+        const [medRes, appoRes, dietRes, suppRes, notifRes, recipesRes, suppDataRes] = await Promise.all([
           supabase.from("medications").select("*", { count: "exact" }).eq("user_id", user.id).eq("is_active", true),
 
           supabase
@@ -90,7 +91,9 @@ export default function PatientDashboard() {
 
           supabase.from("notifications").select("*", { count: "exact" }).eq("user_id", user.id).eq("is_read", false),
 
-          supabase.from("patient_diet_recipes").select("*").eq("patient_id", user.id),
+          supabase.from("patient_diet_recipes").select("*").eq("patient_id", user.id).order('created_at', { ascending: false }).limit(4),
+
+          supabase.from("supplements").select("*").eq("user_id", user.id).eq("is_active", true).order('created_at', { ascending: false }).limit(4),
         ])
 
         if (isMounted) {
@@ -101,6 +104,8 @@ export default function PatientDashboard() {
             supplements: suppRes.count || 0,
             recentNotifications: notifRes.count || 0,
           })
+          setLatestRecipes(recipesRes.data as DietRecipe[] || [])  // ✅ FIXED
+          setLatestSupplements(suppDataRes.data as Supplement[] || [])  // ✅ FIXED
         }
       } catch (error) {
         console.error("[v0] Error loading dashboard:", error)
@@ -273,8 +278,8 @@ export default function PatientDashboard() {
         <p className="text-muted-foreground mt-2">Visão geral do seu gerenciamento de saúde</p>
       </div>
 
-      {/* Health Stats Grid */}
-      <div className="grid grid-cols-2 md:grid-cols-5 gap-3 md:gap-4">
+      {/* Health Stats Grid - Simplified */}
+      <div className="grid grid-cols-2 lg:grid-cols-5 gap-4">
         <StatCard
           title="Medicamentos"
           value={stats.activeMedications}
@@ -306,68 +311,133 @@ export default function PatientDashboard() {
         />
       </div>
 
-      {/* Health Overview Cards */}
-      <div className="grid md:grid-cols-2 gap-6">
-        <Card>
-          <CardHeader>
-            <CardTitle className="flex items-center gap-2">
-              <Heart className="h-5 w-5 text-red-500" />
-              Saúde Geral
-            </CardTitle>
-            <CardDescription>Seu perfil de saúde</CardDescription>
-          </CardHeader>
-          <CardContent className="space-y-4">
-            <div className="p-4 rounded-lg border border-border bg-muted/30">
-              <p className="text-sm text-muted-foreground mb-1">Nome Completo</p>
-              <p className="font-medium text-foreground">
-                {profile?.first_name} {profile?.last_name}
-              </p>
+      <div className="grid lg:grid-cols-3 gap-8">
+        {/* Main Content Area */}
+        <div className="lg:col-span-2 space-y-8">
+          
+          {/* Recipes with Images */}
+          {latestRecipes.length > 0 && (
+            <div>
+              <h2 className="text-xl font-semibold mb-4 flex items-center gap-2">
+                <Utensils className="h-5 w-5 text-orange-500" />
+                Receitas Recentes
+              </h2>
+              <div className="grid sm:grid-cols-2 gap-4">
+                {latestRecipes.map((recipe: DietRecipe) => (  // ✅ ADDED TYPE
+                  <Card key={recipe.id} className="overflow-hidden hover:shadow-md transition-shadow">
+                    {recipe.image_url ? (
+                      <div className="aspect-video w-full relative">
+                        <img 
+                          src={recipe.image_url} 
+                          alt={recipe.title} 
+                          className="w-full h-full object-cover"
+                        />
+                      </div>
+                    ) : (
+                      <div className="aspect-video w-full bg-muted flex items-center justify-center">
+                        <Utensils className="h-10 w-10 text-muted-foreground/50" />
+                      </div>
+                    )}
+                    <CardHeader className="p-4">
+                      <CardTitle className="text-base line-clamp-1">{recipe.title}</CardTitle>
+                    </CardHeader>
+                  </Card>
+                ))}
+              </div>
             </div>
-            {profile?.allergies && (
-              <div className="p-4 rounded-lg border border-red-200 bg-red-50 dark:border-red-800 dark:bg-red-950">
-                <p className="text-sm text-red-700 dark:text-red-200 font-medium mb-1">Alergias Conhecidas</p>
-                <p className="text-sm text-red-600 dark:text-red-300">{profile.allergies}</p>
-              </div>
-            )}
-            {profile?.phone && (
-              <div className="p-4 rounded-lg border border-border bg-muted/30">
-                <p className="text-sm text-muted-foreground mb-1">Telefone</p>
-                <p className="font-medium text-foreground">{profile.phone}</p>
-              </div>
-            )}
-          </CardContent>
-        </Card>
+          )}
 
-        <Card>
-          <CardHeader>
-            <CardTitle>Próximas Ações</CardTitle>
-            <CardDescription>Coisas para fazer agora</CardDescription>
-          </CardHeader>
-          <CardContent className="space-y-3">
-            <Button asChild variant="outline" className="w-full justify-start bg-transparent">
-              <Link href="/patient/medications">
-                <Pill className="h-4 w-4 mr-2" />
-                Ver Medicamentos ({stats.activeMedications})
-              </Link>
-            </Button>
-            <Button asChild variant="outline" className="w-full justify-start bg-transparent">
-              <Link href="/patient/appointments">
-                <Calendar className="h-4 w-4 mr-2" />
-                Ver Consultas ({stats.upcomingAppointments})
-              </Link>
-            </Button>
-            <Button asChild variant="outline" className="w-full justify-start bg-transparent">
-              <Link href="/patient/diet">
-                <Utensils className="h-4 w-4 mr-2" />
-                Ver Dietas ({stats.activeDiets})
-              </Link>
-            </Button>
-            <Button asChild variant="outline" className="w-full justify-start bg-transparent">
-              <Link href="/patient/settings">Editar Perfil</Link>
-            </Button>
-          </CardContent>
-        </Card>
+          {/* Supplements with Images */}
+          {latestSupplements.length > 0 && (
+            <div>
+              <h2 className="text-xl font-semibold mb-4 flex items-center gap-2">
+                <Activity className="h-5 w-5 text-purple-500" />
+                Suplementos Recomendados
+              </h2>
+              <div className="grid sm:grid-cols-2 gap-4">
+                {latestSupplements.map((supp: Supplement) => (  // ✅ ADDED TYPE
+                  <Card key={supp.id} className="overflow-hidden hover:shadow-md transition-shadow">
+                    {supp.image_url ? (
+                      <div className="aspect-video w-full relative">
+                        <img 
+                          src={supp.image_url} 
+                          alt={supp.supplement_name} 
+                          className="w-full h-full object-cover"
+                        />
+                      </div>
+                    ) : (
+                      <div className="aspect-video w-full bg-muted flex items-center justify-center">
+                        <Activity className="h-10 w-10 text-muted-foreground/50" />
+                      </div>
+                    )}
+                    <CardHeader className="p-4">
+                      <CardTitle className="text-base line-clamp-1">{supp.supplement_name}</CardTitle>
+                    </CardHeader>
+                  </Card>
+                ))}
+              </div>
+            </div>
+          )}
+        </div>
+
+        {/* Sidebar */}
+        <div className="space-y-6">
+          <Card>
+            <CardHeader>
+              <CardTitle className="flex items-center gap-2">
+                <Heart className="h-5 w-5 text-red-500" />
+                Saúde Geral
+              </CardTitle>
+            </CardHeader>
+            <CardContent className="space-y-4">
+              <div className="p-3 rounded-lg border border-border bg-muted/30">
+                <p className="text-xs text-muted-foreground mb-1">Paciente</p>
+                <p className="font-medium text-foreground">
+                  {profile?.first_name} {profile?.last_name}
+                </p>
+              </div>
+              {profile?.allergies && (
+                <div className="p-3 rounded-lg border border-red-200 bg-red-50 dark:border-red-800 dark:bg-red-950">
+                  <p className="text-xs text-red-700 dark:text-red-200 font-medium mb-1">Alergias</p>
+                  <p className="text-sm text-red-600 dark:text-red-300">{profile.allergies}</p>
+                </div>
+              )}
+            </CardContent>
+          </Card>
+
+          <Card>
+            <CardHeader>
+              <CardTitle>Acesso Rápido</CardTitle>
+            </CardHeader>
+            <CardContent className="space-y-2">
+              <Button asChild variant="ghost" className="w-full justify-start">
+                <Link href="/patient/medications">
+                  <Pill className="h-4 w-4 mr-2 text-blue-500" />
+                  Medicamentos
+                </Link>
+              </Button>
+              <Button asChild variant="ghost" className="w-full justify-start">
+                <Link href="/patient/appointments">
+                  <Calendar className="h-4 w-4 mr-2 text-green-500" />
+                  Consultas
+                </Link>
+              </Button>
+              <Button asChild variant="ghost" className="w-full justify-start">
+                <Link href="/patient/diet">
+                  <Utensils className="h-4 w-4 mr-2 text-orange-500" />
+                  Dieta
+                </Link>
+              </Button>
+              <Button asChild variant="ghost" className="w-full justify-start">
+                <Link href="/patient/settings">
+                   Configurações
+                </Link>
+              </Button>
+            </CardContent>
+          </Card>
+        </div>
       </div>
+
     </div>
   )
 }

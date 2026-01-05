@@ -4,7 +4,16 @@ interface NotificationPayload {
   title: string
   body?: string
   url?: string
-  type?: "prescription" | "appointment" | "diet" | "medication" | "supplement" | "general" | "evolution"
+  type?: 
+    | "prescription_added" 
+    | "appointment_scheduled" 
+    | "diet_added" 
+    | "medication_added" 
+    | "supplement_added" 
+    | "evolution_added"
+    | "info"
+    | "warning"
+    | "health_alert"
   patientId: string
 }
 
@@ -53,7 +62,7 @@ export class PushNotificationService {
           title: payload.title,
           body: payload.body,
           url: payload.url || "/notifications",
-          type: payload.type || "general",
+          type: payload.type || "info",
         }),
       })
 
@@ -160,7 +169,7 @@ export class PushNotificationService {
       title: "📋 Nova Prescrição Médica",
       body: `Você recebeu uma nova prescrição: ${prescriptionTitle}`,
       url: `/patient/prescriptions`,
-      type: "prescription",
+      type: "prescription_added",
     })
   }
 
@@ -178,7 +187,7 @@ export class PushNotificationService {
       title: "📅 Nova Consulta Agendada",
       body: `${appointmentTitle} • ${formattedDate}`,
       url: `/patient/appointments`,
-      type: "appointment",
+      type: "appointment_scheduled",
     })
   }
 
@@ -188,7 +197,7 @@ export class PushNotificationService {
       title: "💊 Novo Medicamento Prescrito",
       body: `Você recebeu um novo medicamento: ${medicationName}`,
       url: `/patient/medications`,
-      type: "medication",
+      type: "medication_added",
     })
   }
 
@@ -198,7 +207,7 @@ export class PushNotificationService {
       title: "🥗 Nova Receita de Dieta",
       body: `Você recebeu uma nova receita: ${dietTitle}`,
       url: `/patient/diet`,
-      type: "diet",
+      type: "diet_added",
     })
   }
 
@@ -208,7 +217,7 @@ export class PushNotificationService {
       title: "💪 Novo Suplemento Recomendado",
       body: `Você recebeu uma recomendação: ${supplementName}`,
       url: `/patient`,
-      type: "supplement",
+      type: "supplement_added",
     })
   }
 }

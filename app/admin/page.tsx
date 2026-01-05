@@ -48,85 +48,76 @@ export default function AdminDashboard() {
         </div>
       </div>
 
-      <div className="grid md:grid-cols-2 gap-6">
-        <StatCard title="Total de Pacientes" value={stats.totalPatients} icon={Users} />
+      <div className="grid md:grid-cols-2 lg:grid-cols-4 gap-6">
+        <StatCard 
+          title="Total de Pacientes" 
+          value={stats.totalPatients} 
+          icon={Users} 
+          actionLink="/admin/patients"
+          actionLabel="Gerenciar Pacientes"
+        />
         <StatCard title="Total de Medicamentos" value={stats.totalMedications} icon={Activity} />
       </div>
 
-      <Card>
-        <CardHeader>
-          <CardTitle>Ações de Gerenciamento</CardTitle>
-          <CardDescription>Acesso rápido às funções administrativas comuns</CardDescription>
-        </CardHeader>
-        <CardContent>
-          <div className="grid sm:grid-cols-2 gap-4">
-            <a
-              href="/admin/patients"
-              className="p-4 rounded-lg border border-border hover:border-primary transition-colors cursor-pointer"
-            >
-              <Users className="h-6 w-6 text-primary mb-2" />
-              <h3 className="font-semibold text-foreground mb-1">Gerenciar Pacientes</h3>
-              <p className="text-sm text-muted-foreground">Visualizar e gerenciar todas as contas de pacientes</p>
-            </a>
-            <a
-              href="/admin/settings"
-              className="p-4 rounded-lg border border-border hover:border-primary transition-colors cursor-pointer"
-            >
-              <Activity className="h-6 w-6 text-primary mb-2" />
-              <h3 className="font-semibold text-foreground mb-1">Configurações</h3>
-              <p className="text-sm text-muted-foreground">Configurar preferências administrativas</p>
-            </a>
-          </div>
-        </CardContent>
-      </Card>
+      <div className="grid md:grid-cols-2 gap-8">
+        <Card className="h-full">
+          <CardHeader>
+            <CardTitle>Acesso Rápido</CardTitle>
+            <CardDescription>Ferramentas administrativas</CardDescription>
+          </CardHeader>
+          <CardContent className="grid gap-4">
+             <Button asChild className="w-full justify-start h-12 text-lg" variant="outline">
+              <a href="/admin/patients">
+                <Users className="mr-3 h-5 w-5 text-primary" />
+                Gerenciar Pacientes
+              </a>
+            </Button>
+            <Button asChild className="w-full justify-start h-12 text-lg" variant="outline">
+              <a href="/admin/settings">
+                <Activity className="mr-3 h-5 w-5 text-primary" />
+                Configurações do Sistema
+              </a>
+            </Button>
+          </CardContent>
+        </Card>
 
-      <Card>
-        <CardHeader>
-          <CardTitle>Visão Geral do Sistema</CardTitle>
-          <CardDescription>Métricas principais e status do sistema</CardDescription>
-        </CardHeader>
-        <CardContent>
-          <div className="grid md:grid-cols-2 gap-6">
-            <div className="space-y-3">
-              <h3 className="font-semibold text-foreground">Atividade Recente</h3>
-              <div className="space-y-2">
-                <div className="flex justify-between items-center p-3 rounded-lg bg-muted/50">
-                  <span className="text-sm text-muted-foreground">Últimas 24 horas</span>
-                  <span className="font-semibold text-foreground">Ativo</span>
+        <Card className="h-full">
+          <CardHeader>
+            <CardTitle>Métricas do Sistema</CardTitle>
+            <CardDescription>Indicadores de desempenho</CardDescription>
+          </CardHeader>
+          <CardContent className="space-y-6">
+             <div className="flex items-center justify-between">
+                <div className="space-y-1">
+                  <p className="text-sm font-medium leading-none">Média de Medicamentos</p>
+                  <p className="text-sm text-muted-foreground">Por paciente ativo</p>
                 </div>
-                <div className="flex justify-between items-center p-3 rounded-lg bg-muted/50">
-                  <span className="text-sm text-muted-foreground">Status de sincronização</span>
-                  <span className="font-semibold text-green-600 dark:text-green-400">Sincronizado</span>
+                <div className="font-bold text-2xl">
+                  {stats.totalPatients > 0 ? (stats.totalMedications / stats.totalPatients).toFixed(1) : 0}
                 </div>
-              </div>
-            </div>
-            <div className="space-y-3">
-              <h3 className="font-semibold text-foreground">Estatísticas Rápidas</h3>
-              <div className="space-y-2">
-                <div className="flex justify-between items-center p-3 rounded-lg bg-muted/50">
-                  <span className="text-sm text-muted-foreground">Total de Pacientes</span>
-                  <span className="font-semibold text-foreground">{stats.totalPatients}</span>
+             </div>
+             <div className="flex items-center justify-between border-t pt-4">
+                <div className="space-y-1">
+                  <p className="text-sm font-medium leading-none">Status do Servidor</p>
+                  <p className="text-sm text-muted-foreground">Conectividade com banco de dados</p>
                 </div>
-                <div className="flex justify-between items-center p-3 rounded-lg bg-muted/50">
-                  <span className="text-sm text-muted-foreground">Medicamentos por paciente</span>
-                  <span className="font-semibold text-foreground">
-                    {stats.totalPatients > 0 ? (stats.totalMedications / stats.totalPatients).toFixed(1) : 0}
-                  </span>
+                <div className="flex items-center text-green-600 font-medium">
+                  <Activity className="mr-2 h-4 w-4" />
+                  Online
                 </div>
-              </div>
-            </div>
-          </div>
-        </CardContent>
-      </Card>
+             </div>
+          </CardContent>
+        </Card>
+      </div>
     </div>
   )
 }
 
-function StatCard({ title, value, icon: Icon }: any) {
+function StatCard({ title, value, icon: Icon, actionLink, actionLabel }: any) {
   return (
     <Card>
       <CardContent className="pt-6">
-        <div className="flex items-start justify-between">
+        <div className="flex items-start justify-between mb-4">
           <div>
             <p className="text-sm text-muted-foreground">{title}</p>
             <p className="text-3xl font-bold text-foreground mt-2">{value}</p>
@@ -135,7 +126,13 @@ function StatCard({ title, value, icon: Icon }: any) {
             <Icon className="h-6 w-6 text-primary" />
           </div>
         </div>
+        {actionLink && (
+          <Button asChild variant="secondary" className="w-full text-xs h-8">
+            <a href={actionLink}>{actionLabel || "Ver Detalhes"}</a>
+          </Button>
+        )}
       </CardContent>
     </Card>
   )
 }
+
