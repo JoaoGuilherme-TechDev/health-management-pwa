@@ -112,6 +112,7 @@ export default function RecipesPage() {
       {recipes.length === 0 && !showForm && (
         <Card>
           <CardContent className="pt-12 text-center">
+            
             <p className="text-muted-foreground mb-4">Nenhuma receita ainda. Crie a sua primeira!</p>
             <Button onClick={() => setShowForm(true)}>
               <Plus className="h-4 w-4 mr-2" />

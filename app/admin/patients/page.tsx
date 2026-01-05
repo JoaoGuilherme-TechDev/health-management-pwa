@@ -62,7 +62,7 @@ export default function PatientsPage() {
     setDeleting(true)
     const supabase = createClient()
 
-    const { error } = await supabase.rpc("delete_patient_cascade", { patient_id: patientToDelete.id })
+    const { error } = await supabase.rpc("delete_patient_cascade", { target_patient_id: patientToDelete.id })
 
     if (error) {
       alert(`Erro ao deletar paciente: ${error.message}`)
