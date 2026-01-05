@@ -87,7 +87,18 @@ export default function MedicationsPage() {
         medication_schedules: schedulesData?.filter(s => s.medication_id === med.id) || []
       }))
 
-      setMedications(medicationsWithSchedules)
+      // Filter out medications that have ended (end_date < today)
+      const today = new Date()
+      today.setHours(0, 0, 0, 0)
+      
+      const activeMedications = medicationsWithSchedules.filter(med => {
+        if (!med.end_date) return true // Keep if no end date
+        const endDate = new Date(med.end_date)
+        endDate.setHours(23, 59, 59, 999) // End of the day
+        return endDate >= today
+      })
+
+      setMedications(activeMedications)
       
     } catch (error: any) {
       console.error("Unexpected error:", error)
