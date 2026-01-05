@@ -76,7 +76,7 @@ export function NotificationPermissionManager() {
 
   return (
     <Dialog open={open} onOpenChange={setOpen}>
-      <DialogContent className="sm:max-w-[425px]">
+      <DialogContent className="sm:max-w-106.25">
         <DialogHeader>
           <div className="mx-auto bg-primary/10 p-4 rounded-full mb-4">
             <Bell className="h-8 w-8 text-primary" />

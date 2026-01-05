@@ -7,7 +7,7 @@ import { pushNotifications } from "@/lib/push-notifications"
 // Notification types
 export type NotificationType =
   | "medication_created"
-  | "appointment_created"
+  | "appointment_scheduled"
   | "appointment_reminder"
   | "diet_recipe_created"
   | "prescription_created"
@@ -136,7 +136,7 @@ export async function notifyPrescriptionCreated(
         title: "📋 Nova Prescrição Médica",
         body: `Você recebeu uma nova prescrição: ${prescriptionTitle}`,
         url: "/patient/prescriptions",
-        type: "prescription",
+        type: "prescription_added",
       })
       console.log("Push notification sent successfully")
     } catch (error) {
@@ -168,7 +168,7 @@ export async function notifyAppointmentCreated(
         title: "📅 Nova Consulta Agendada",
         body: `${appointmentTitle} • ${formattedDate}`,
         url: "/patient/appointments",
-        type: "appointment",
+        type: "appointment_scheduled",
       })
     } catch (error) {
       console.error("Failed to send push notification:", error)
@@ -190,7 +190,7 @@ export async function notifyMedicationCreated(
         title: "💊 Novo Medicamento Prescrito",
         body: `Você recebeu um novo medicamento: ${medicationName}`,
         url: "/patient/medications",
-        type: "medication",
+        type: "medication_added",
       })
     } catch (error) {
       console.error("Failed to send push notification:", error)
@@ -212,7 +212,7 @@ export async function notifyDietCreated(
         title: "🥗 Nova Receita de Dieta",
         body: `Você recebeu uma nova receita: ${dietTitle}`,
         url: "/patient/diet",
-        type: "diet",
+        type: "diet_added",
       })
     } catch (error) {
       console.error("Failed to send push notification:", error)
@@ -234,7 +234,7 @@ export async function notifySuplementCreated(
         title: "💪 Novo Suplemento Recomendado",
         body: `Você recebeu uma recomendação: ${supplementName}`,
         url: "/patient",
-        type: "supplement",
+        type: "supplement_added",
       })
     } catch (error) {
       console.error("Failed to send push notification:", error)
@@ -259,7 +259,7 @@ export async function notifyEvolutionCreated(
         title: "📊 Nova Evolução Física",
         body: measurementDetails,
         url: "/patient/evolution",
-        type: "general",
+        type: "evolution_added",
       })
       console.log("Push notification sent successfully")
     } catch (error) {
