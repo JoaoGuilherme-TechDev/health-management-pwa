@@ -4,8 +4,6 @@ import type React from "react"
 
 import { useEffect, useState } from "react"
 import { Analytics } from "@vercel/analytics/next"
-
-
 import { NotificationPermissionManager } from "@/components/NotificationPermissionManager"
 import { useMedicationReminders } from "@/hooks/use-medication-reminders"
 
