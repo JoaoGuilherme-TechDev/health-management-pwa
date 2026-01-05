@@ -5,7 +5,7 @@ interface NotificationPayload {
   body?: string
   url?: string
   type?: 
-    | "prescription_added" 
+    | "prescription_created" 
     | "appointment_scheduled" 
     | "diet_added" 
     | "medication_added" 
@@ -169,7 +169,7 @@ export class PushNotificationService {
       title: "📋 Nova Prescrição Médica",
       body: `Você recebeu uma nova prescrição: ${prescriptionTitle}`,
       url: `/patient/prescriptions`,
-      type: "prescription_added",
+      type: "prescription_created",
     })
   }
 
