@@ -1,14 +1,11 @@
 "use client"
 
-import { useEffect, useRef, useState } from "react"
+import { useEffect, useRef } from "react"
 import { createClient } from "@/lib/supabase/client"
 import { toast } from "sonner"
 
 export function useMedicationReminders() {
-  const [schedules, setSchedules] = useState<any[]>([])
-  const [settings, setSettings] = useState<any>(null)
   const audioContextRef = useRef<AudioContext | null>(null)
-  const lastCheckedMinuteRef = useRef<string>("")
 
   useEffect(() => {
     // Initialize AudioContext
@@ -17,82 +14,45 @@ export function useMedicationReminders() {
       audioContextRef.current = new AudioContext()
     }
 
-    const init = async () => {
-      await loadSettings()
-      await loadSchedules()
+    const setupListener = async () => {
+      const supabase = createClient()
+      const { data: { user } } = await supabase.auth.getUser()
+      
+      if (!user) return
+
+      // Subscribe to NEW notifications
+      const channel = supabase
+        .channel('medication-reminders-alerts')
+        .on(
+          'postgres_changes', 
+          { 
+            event: 'INSERT', 
+            schema: 'public', 
+            table: 'notifications',
+            filter: `user_id=eq.${user.id}`
+          }, 
+          (payload) => {
+            const newNotification = payload.new as any
+            
+            // Check if it's a medication reminder
+            if (newNotification.notification_type === 'medication_reminder') {
+              triggerAlert(newNotification.title, newNotification.message)
+            }
+          }
+        )
+        .subscribe()
+
+      return () => {
+        supabase.removeChannel(channel)
+      }
     }
 
-    init()
-
-    // Set up polling
-    const intervalId = setInterval(checkSchedules, 30000) // Check every 30 seconds
-
-    // Subscribe to changes
-    const supabase = createClient()
-    const channel = supabase
-      .channel('medication-reminders-updates')
-      .on('postgres_changes', { event: '*', schema: 'public', table: 'medication_schedules' }, () => loadSchedules())
-      .on('postgres_changes', { event: '*', schema: 'public', table: 'medications' }, () => loadSchedules())
-      .on('postgres_changes', { event: '*', schema: 'public', table: 'notification_settings' }, () => loadSettings())
-      .subscribe()
+    const cleanupPromise = setupListener()
 
     return () => {
-      clearInterval(intervalId)
-      supabase.removeChannel(channel)
+      cleanupPromise.then(cleanup => cleanup && cleanup())
     }
   }, [])
-
-  const loadSettings = async () => {
-    try {
-      const supabase = createClient()
-      const { data: { user } } = await supabase.auth.getUser()
-      if (!user) return
-
-      const { data } = await supabase
-        .from('notification_settings')
-        .select('*')
-        .eq('user_id', user.id)
-        .single()
-
-      if (data) {
-        setSettings(data)
-      }
-    } catch (error) {
-      console.error("Error loading notification settings:", error)
-    }
-  }
-
-  const loadSchedules = async () => {
-    try {
-      const supabase = createClient()
-      const { data: { user } } = await supabase.auth.getUser()
-      if (!user) return
-
-      // Fetch active medications and their schedules
-      const { data, error } = await supabase
-        .from('medication_schedules')
-        .select(`
-          *,
-          medication:medications (
-            id,
-            name,
-            start_date,
-            end_date,
-            is_active
-          )
-        `)
-        .eq('user_id', user.id)
-        .eq('is_active', true)
-
-      if (error) throw error
-
-      if (data) {
-        setSchedules(data)
-      }
-    } catch (error) {
-      console.error("Error loading medication schedules for reminders:", error)
-    }
-  }
 
   const playAlarm = () => {
     if (!audioContextRef.current) return
@@ -141,55 +101,7 @@ export function useMedicationReminders() {
     }
   }
 
-  const checkSchedules = () => {
-    // Check if notifications are enabled in settings
-    if (settings && (settings.enabled === false || settings.medication_reminders === false)) {
-      return
-    }
-
-    const now = new Date()
-    const currentMinute = now.toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' })
-    const currentDay = now.getDay() // 0-6
-    
-    // Avoid double checking in the same minute
-    if (lastCheckedMinuteRef.current === currentMinute) return
-    lastCheckedMinuteRef.current = currentMinute
-
-    schedules.forEach(schedule => {
-      const med = schedule.medication
-      if (!med || !med.is_active) return
-
-      // Check date range
-      const startDate = new Date(med.start_date)
-      // Reset time part of start date to 00:00 for correct comparison
-      startDate.setHours(0,0,0,0)
-      
-      const endDate = med.end_date ? new Date(med.end_date) : null
-      if (endDate) endDate.setHours(23,59,59,999)
-
-      // Check if today is within range
-      const today = new Date()
-      today.setHours(0,0,0,0)
-
-      if (today < startDate) return
-      if (endDate && today > endDate) return
-
-      // Check day of week
-      if (schedule.days_of_week && !schedule.days_of_week.includes(currentDay)) return
-
-      // Check time
-      const scheduleTime = schedule.scheduled_time.substring(0, 5)
-      
-      if (scheduleTime === currentMinute) {
-        triggerNotification(med.name, scheduleTime)
-      }
-    })
-  }
-
-  const triggerNotification = (medName: string, time: string) => {
-    const title = "Hora do Medicamento!"
-    const body = `Está na hora de tomar: ${medName} (${time})`
-
+  const triggerAlert = (title: string, body: string) => {
     // Play sound
     playAlarm()
 
@@ -198,13 +110,13 @@ export function useMedicationReminders() {
       description: body,
       action: {
         label: "Confirmar",
-        onClick: () => console.log("Tomado"), // Future: Log to DB
+        onClick: () => console.log("Confirmado"), 
       },
       duration: Infinity, 
     })
 
-    // Show system notification
-    if (Notification.permission === "granted") {
+    // Show system notification if in background
+    if (Notification.permission === "granted" && document.hidden) {
       try {
         if ('serviceWorker' in navigator && navigator.serviceWorker.ready) {
           navigator.serviceWorker.ready.then(registration => {
