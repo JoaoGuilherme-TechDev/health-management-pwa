@@ -6,13 +6,12 @@ interface NotificationPayload {
   url?: string
   type?:
     | "prescription_created"
-    | "prescription_added"
     | "appointment_scheduled"
-    | "diet_added"
-    | "medication_added"
+    | "diet_created"
+    | "medication_created"
     | "medication_reminder"
-    | "supplement_added"
-    | "evolution_added"
+    | "supplement_created"
+    | "evolution_created"
     | "info"
     | "warning"
     | "health_alert"
@@ -174,7 +173,7 @@ export class PushNotificationService {
       title: "📋 Nova Prescrição Médica",
       body: `Você recebeu uma nova prescrição: ${prescriptionTitle}`,
       url: `/patient/prescriptions`,
-      type: "prescription_added",
+      type: "prescription_created",
     })
   }
 
@@ -202,7 +201,7 @@ export class PushNotificationService {
       title: "💊 Novo Medicamento Prescrito",
       body: `Você recebeu um novo medicamento: ${medicationName}`,
       url: `/patient/medications`,
-      type: "medication_added",
+      type: "medication_created",
     })
   }
 
@@ -222,7 +221,7 @@ export class PushNotificationService {
       title: "🥗 Nova Receita de Dieta",
       body: `Você recebeu uma nova receita: ${dietTitle}`,
       url: `/patient/diet`,
-      type: "diet_added",
+      type: "diet_created",
     })
   }
 
@@ -232,7 +231,7 @@ export class PushNotificationService {
       title: "💪 Novo Suplemento Recomendado",
       body: `Você recebeu uma recomendação: ${supplementName}`,
       url: `/patient`,
-      type: "supplement_added",
+      type: "supplement_created",
     })
   }
 }
