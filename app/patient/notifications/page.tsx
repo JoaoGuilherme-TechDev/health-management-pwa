@@ -11,7 +11,7 @@ export default function NotificationsPage() {
   const [userId, setUserId] = useState<string | null>(null)
   const [loading, setLoading] = useState(true)
 
-  const { notifications, loading: notificationsLoading, markAsRead, deleteNotification } = useNotifications(userId ?? undefined)
+  const { notifications, loading: notificationsLoading, markAsRead, deleteNotification, markAllAsRead, deleteAll } = useNotifications(userId ?? undefined)
 
   useEffect(() => {
     const getUser = async () => {
@@ -28,7 +28,14 @@ export default function NotificationsPage() {
 
   return (
     <div>
-      <NotificationsCenter notifications={notifications} onMarkAsRead={markAsRead} onDelete={deleteNotification} loading={notificationsLoading} />
+      <NotificationsCenter 
+        notifications={notifications} 
+        onMarkAsRead={markAsRead} 
+        onDelete={deleteNotification} 
+        onMarkAllAsRead={markAllAsRead}
+        onDeleteAll={deleteAll}
+        loading={notificationsLoading} 
+      />
     </div>
   )
 }

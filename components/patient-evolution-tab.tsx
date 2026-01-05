@@ -10,7 +10,7 @@ import { createClient } from "@/lib/supabase/client"
 import { Plus, TrendingUp, Trash2 } from "lucide-react"
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog"
 import { formatBrasiliaDate } from "@/lib/timezone"
-import { NotificationService } from "@/lib/notification-service"
+import { notifyEvolutionCreated } from "@/lib/notifications"
 
 export function PatientEvolutionTab({ patientId }: { patientId: string }) {
   const [evolution, setEvolution] = useState<any[]>([])
@@ -99,29 +99,18 @@ export function PatientEvolutionTab({ patientId }: { patientId: string }) {
         // Create a meaningful message for the evolution notification
         let measurementDetails = "Nova medição de evolução física registrada"
         
-        if (formData.weight || formData.body_fat_percentage) {
-          const parts = []
-          if (formData.weight) parts.push(`Peso: ${formData.weight}kg`)
-          if (formData.body_fat_percentage) parts.push(`Gordura: ${formData.body_fat_percentage}%`)
-          if (parts.length > 0) {
-            measurementDetails = parts.join(" • ")
-          }
+        const details = []
+        if (formData.weight) details.push(`${formData.weight}kg`)
+        if (formData.body_fat_percentage) details.push(`${formData.body_fat_percentage}% gordura`)
+        
+        if (details.length > 0) {
+          measurementDetails = `Nova medição: ${details.join(" • ")}`
         }
 
-        // Use NotificationService for evolution notification (just like other components)
-        const notification = await NotificationService.sendEvolutionNotification(
-          patientId,
-          measurementDetails,
-          true // sendPush
-        )
-        
-        if (notification) {
-          console.log("Evolution notification sent successfully:", notification)
-        } else {
-          console.warn("Failed to create evolution notification")
-        }
-      } catch (notificationError) {
-        console.error("Erro ao enviar notificações:", notificationError)
+        await notifyEvolutionCreated(patientId, measurementDetails, true)
+      } catch (notifError) {
+        console.error("Erro ao enviar notificação:", notifError)
+        // Don't fail the whole operation if notification fails
       }
 
       alert("Medição registrada com sucesso!")
