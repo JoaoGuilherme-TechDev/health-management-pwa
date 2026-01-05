@@ -219,11 +219,34 @@ export function PatientMedicationsTab({ patientId }: { patientId: string }) {
           console.error("Erro ao adicionar horários:", scheduleError)
           alert("Medicamento adicionado, mas houve erro ao configurar os horários")
         }
+
+        if (!scheduleError && medication.start_date) {
+          const today = new Date(medication.start_date)
+          for (const time of schedules) {
+            const [hours, minutes] = time.split(":").map(Number)
+            const reminderDate = new Date(medication.start_date)
+            const reminderDateTime = new Date(
+              reminderDate.getFullYear(),
+              reminderDate.getMonth(),
+              reminderDate.getDate(),
+              hours,
+              minutes,
+              0,
+            )
+
+            await supabase.from("medication_reminders").insert({
+              medication_id: medication.id,
+              user_id: patientId,
+              reminder_time: time,
+              reminder_date: medication.start_date,
+            })
+          }
+        }
       }
 
+      await pushNotifications.sendMedicationScheduleReminders(patientId, formData.name, schedules)
 
-        await pushNotifications.sendNewMedication(patientId, formData.name)
-
+      await pushNotifications.sendNewMedication(patientId, formData.name)
 
       alert("Medicamento e horários adicionados com sucesso!")
 
