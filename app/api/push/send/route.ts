@@ -20,28 +20,58 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: "Não autorizado" }, { status: 401 })
     }
 
-    const subscription = await request.json()
+    const payload = await request.json()
+    const { patientId, title, body, url, type } = payload
 
-    // Validar subscription
-    if (!subscription.endpoint || !subscription.keys || !subscription.keys.p256dh || !subscription.keys.auth) {
-      return NextResponse.json({ error: "Subscription inválida" }, { status: 400 })
+    // Validar payload
+    if (!patientId || !title) {
+      return NextResponse.json({ error: "Dados incompletos (patientId, title são obrigatórios)" }, { status: 400 })
     }
 
-    // Salvar no banco de dados
-    const { error } = await supabase.from("push_subscriptions").upsert({
-      user_id: userData.user.id,
-      subscription: subscription, // Store the entire subscription object as JSONB
-      updated_at: new Date().toISOString(),
+    console.log(`[PUSH API] Preparing to send to patient: ${patientId}`)
+
+    // Buscar subscription do paciente no banco
+    const { data: subscriptionData, error: dbError } = await supabase
+      .from("push_subscriptions")
+      .select("subscription")
+      .eq("user_id", patientId)
+      .single()
+
+    if (dbError || !subscriptionData || !subscriptionData.subscription) {
+      console.log(`[PUSH API] No subscription found for patient ${patientId}`)
+      // Não é um erro 500, apenas o paciente não tem push ativado
+      return NextResponse.json({ success: false, message: "Paciente não possui push notifications ativado" }, { status: 200 })
+    }
+
+    const pushSubscription = subscriptionData.subscription
+
+    // Payload para o service worker
+    const notificationPayload = JSON.stringify({
+      title,
+      body,
+      url,
+      type,
+      timestamp: Date.now(),
     })
 
-    if (error) {
-      console.error("Erro ao salvar subscription:", error)
-      return NextResponse.json({ error: "Erro ao salvar subscription" }, { status: 500 })
+    try {
+      await webpush.sendNotification(pushSubscription, notificationPayload)
+      console.log(`[PUSH API] Notification sent successfully to ${patientId}`)
+      return NextResponse.json({ success: true, message: "Notificação enviada com sucesso" })
+    } catch (pushError: any) {
+      console.error("[PUSH API] Error sending via web-push:", pushError)
+
+      // Se der erro 410 (Gone), a subscription não existe mais e deve ser removida
+      if (pushError.statusCode === 410) {
+        await supabase.from("push_subscriptions").delete().eq("user_id", patientId)
+        console.log(`[PUSH API] Removed invalid subscription for patient ${patientId}`)
+      }
+
+      return NextResponse.json({ error: "Erro ao enviar notificação push" }, { status: 500 })
     }
 
-    return NextResponse.json({ success: true, message: "Subscription salva com sucesso" })
   } catch (error) {
-    console.error("Erro na API de subscribe:", error)
+    console.error("[PUSH API] Internal server error:", error)
     return NextResponse.json({ error: "Erro interno do servidor" }, { status: 500 })
   }
 }

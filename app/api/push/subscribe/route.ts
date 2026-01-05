@@ -55,3 +55,30 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ error: "Erro interno do servidor" }, { status: 500 })
   }
 }
+
+export async function DELETE(request: NextRequest) {
+  try {
+    const supabase = await createClient()
+    const { searchParams } = new URL(request.url)
+    const userId = searchParams.get("userId")
+
+    if (!userId) {
+      return NextResponse.json({ error: "userId é obrigatório" }, { status: 400 })
+    }
+
+    const { error } = await supabase
+      .from("push_subscriptions")
+      .delete()
+      .eq("user_id", userId)
+
+    if (error) {
+      console.error("Erro ao deletar subscription:", error)
+      return NextResponse.json({ error: "Erro ao deletar subscription" }, { status: 500 })
+    }
+
+    return NextResponse.json({ success: true, message: "Subscription removida com sucesso" })
+  } catch (error) {
+    console.error("Erro na API de unsubscribe:", error)
+    return NextResponse.json({ error: "Erro interno do servidor" }, { status: 500 })
+  }
+}
