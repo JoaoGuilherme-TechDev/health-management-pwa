@@ -244,7 +244,7 @@ export function PatientMedicationsTab({ patientId }: { patientId: string }) {
         }
       }
 
-      await pushNotifications.sendMedicationScheduleReminders(patientId, formData.name, schedules)
+      await pushNotifications.sendNewMedicationReminder(patientId, formData.name)
 
       await pushNotifications.sendNewMedication(patientId, formData.name)
 
