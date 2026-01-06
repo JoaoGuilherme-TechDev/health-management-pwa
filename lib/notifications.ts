@@ -133,8 +133,8 @@ export async function notifyPrescriptionCreated(
       console.log("Sending push notification for prescription...")
       await pushNotifications.sendToPatient({
         patientId: userId,
-        title: "📋 Nova Prescrição Médica",
-        body: `Você recebeu uma nova prescrição: ${prescriptionTitle}`,
+        title: "📋 Nova Receita Médica",
+        body: `Você recebeu uma nova Receita: ${prescriptionTitle}`,
         url: "/patient/prescriptions",
         type: "prescription_created",
       })

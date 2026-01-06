@@ -170,8 +170,8 @@ export class PushNotificationService {
   async sendNewPrescription(patientId: string, prescriptionTitle: string) {
     return this.sendToPatient({
       patientId,
-      title: "📋 Nova Prescrição Médica",
-      body: `Você recebeu uma nova prescrição: ${prescriptionTitle}`,
+      title: "📋 Nova Receita Médica",
+      body: `Você recebeu uma nova Receita: ${prescriptionTitle}`,
       url: `/patient/prescriptions`,
       type: "prescription_created",
     })

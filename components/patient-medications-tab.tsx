@@ -466,7 +466,7 @@ export function PatientMedicationsTab({ patientId }: { patientId: string }) {
             </div>
 
             <div>
-              <Label>Motivo da Prescrição</Label>
+              <Label>Motivo da Receita</Label>
               <Textarea
                 value={formData.reason}
                 onChange={(e) => setFormData({ ...formData, reason: e.target.value })}
