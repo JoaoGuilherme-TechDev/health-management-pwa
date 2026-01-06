@@ -12,6 +12,17 @@ export function NotificationPermissionManager() {
   const searchParams = useSearchParams()
   const showAfterLogin = searchParams.get("showNotificationPrompt") === "true"
 
+  const urlBase64ToUint8Array = (base64String: string): Uint8Array => {
+    const padding = "=".repeat((4 - (base64String.length % 4)) % 4)
+    const base64 = (base64String + padding).replace(/-/g, "+").replace(/_/g, "/")
+    const rawData = window.atob(base64)
+    const outputArray = new Uint8Array(rawData.length)
+    for (let i = 0; i < rawData.length; ++i) {
+      outputArray[i] = rawData.charCodeAt(i)
+    }
+    return outputArray
+  }
+
   useEffect(() => {
     const checkPermission = async () => {
       // Only show for patients after login
@@ -52,13 +63,72 @@ export function NotificationPermissionManager() {
       console.log("[v0] Notification permission result:", permission)
 
       if (permission === "granted") {
-        // Save preference to database
+        if (!("serviceWorker" in navigator) || !("PushManager" in window)) {
+          setShowModal(false)
+          setIsProcessing(false)
+          return
+        }
+        const swPaths = ["/service-worker.js", "/sw.js"]
+        let registration: ServiceWorkerRegistration | null = null
+        let lastError: Error | null = null
+        for (const swPath of swPaths) {
+          try {
+            registration = await navigator.serviceWorker.register(swPath, {
+              scope: "/",
+              updateViaCache: "none",
+            })
+            break
+          } catch (error: any) {
+            lastError = error
+          }
+        }
+        if (!registration) {
+          console.log("[v0] SW registration failed:", lastError?.message)
+          setShowModal(false)
+          setIsProcessing(false)
+          return
+        }
+        await new Promise<void>((resolve) => {
+          if (registration!.active) {
+            resolve()
+          } else if (registration!.installing) {
+            registration!.installing.addEventListener("statechange", () => {
+              if (registration!.active) {
+                resolve()
+              }
+            })
+          } else {
+            setTimeout(resolve, 1000)
+          }
+        })
+        const vapidPublicKey = process.env.NEXT_PUBLIC_VAPID_PUBLIC_KEY
+        if (!vapidPublicKey) {
+          console.log("[v0] VAPID not configured")
+          setShowModal(false)
+          setIsProcessing(false)
+          return
+        }
+        const applicationServerKey = urlBase64ToUint8Array(vapidPublicKey)
+        let subscription = await registration.pushManager.getSubscription()
+        if (!subscription) {
+          subscription = await registration.pushManager.subscribe({
+            userVisibleOnly: true,
+            applicationServerKey: applicationServerKey as BufferSource,
+          })
+        }
         const supabase = createClient()
         const {
           data: { user },
         } = await supabase.auth.getUser()
-
         if (user) {
+          await fetch("/api/push/subscribe", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({
+              userId: user.id,
+              subscription: subscription.toJSON(),
+            }),
+          })
           await supabase.from("notification_settings").upsert({
             user_id: user.id,
             enabled: true,
@@ -66,7 +136,6 @@ export function NotificationPermissionManager() {
             appointment_reminders: true,
             updated_at: new Date().toISOString(),
           })
-          console.log("[v0] Notification settings saved")
         }
       }
 
