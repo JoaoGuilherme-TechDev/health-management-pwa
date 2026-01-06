@@ -588,6 +588,16 @@ export default function SettingsPage() {
           >
             Saúde
           </button>
+          <button
+            onClick={() => setSelectedTab("notifications")}
+            className={`pb-3 px-4 font-medium text-sm transition-colors ${
+              selectedTab === "notifications"
+                ? "border-b-2 border-primary text-primary"
+                : "text-muted-foreground hover:text-foreground"
+            }`}
+          >
+            Notificações
+          </button>
         </div>
       </div>
 
