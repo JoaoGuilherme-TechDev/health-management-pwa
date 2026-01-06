@@ -27,8 +27,10 @@ export function NotificationPermissionManager() {
       return
     }
 
-    if (Notification.permission === "default") {
-      // Delay slightly to not overwhelm user immediately
+    const currentPermission = Notification.permission
+
+    // Only show dialog if permission is still in default state
+    if (currentPermission === "default") {
       const timer = setTimeout(
         () => {
           setOpen(true)
@@ -37,6 +39,8 @@ export function NotificationPermissionManager() {
       )
 
       return () => clearTimeout(timer)
+    } else if (currentPermission === "denied") {
+      setOpen(false)
     }
   }, [showAfterLogin])
 
@@ -57,8 +61,8 @@ export function NotificationPermissionManager() {
           await supabase.from("notification_settings").upsert({
             user_id: user.id,
             enabled: true,
-            medication_reminders: true, // Default to true
-            appointment_reminders: true, // Default to true
+            medication_reminders: true,
+            appointment_reminders: true,
             updated_at: new Date().toISOString(),
           })
         }
