@@ -13,6 +13,7 @@ import { Badge } from "@/components/ui/badge"
 import { formatBrasiliaDate } from "@/lib/timezone"
 import { Alert, AlertDescription } from "@/components/ui/alert"
 import { pushNotifications } from "@/lib/push-notifications"
+import { toast } from "sonner"
 
 export function PatientMedicationsTab({ patientId }: { patientId: string }) {
   const [medications, setMedications] = useState<any[]>([])
@@ -232,6 +233,7 @@ export function PatientMedicationsTab({ patientId }: { patientId: string }) {
       }
 
       await pushNotifications.sendNewMedication(patientId, formData.name)
+      toast("Hora de Tomar seu Remédio", { description: formData.name, duration: 10000 })
 
       alert("Medicamento e horários adicionados com sucesso!")
 
