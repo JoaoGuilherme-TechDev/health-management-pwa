@@ -5,6 +5,7 @@ import Link from "next/link"
 import { Heart, X } from "lucide-react"
 import { useState, useEffect } from "react"
 import { createClient } from "@/lib/supabase/client"
+import { useRouter } from "next/navigation"
 
 export default function Home() {
   const [selectedRecipe, setSelectedRecipe] = useState<number | null>(null)
@@ -12,82 +13,108 @@ export default function Home() {
   const [supplements, setSupplements] = useState<any[]>([])
   const [doctorInfo, setDoctorInfo] = useState<any>(null)
   const [loading, setLoading] = useState(true)
+  const router = useRouter()
 
   useEffect(() => {
-    loadContent()
-  }, [])
+    const checkSession = async () => {
+      try {
+        const supabase = createClient()
+        const {
+          data: { session },
+        } = await supabase.auth.getSession()
 
- // In app/page.tsx, update the loadContent function:
+        if (session) {
+          console.log("[v0] Sessão ativa encontrada, redirecionando...")
+          // Get user role to redirect to correct dashboard
+          const { data: profile } = await supabase.from("profiles").select("role").eq("id", session.user.id).single()
 
-const loadContent = async () => {
-  console.log("Starting loadContent...")
-  
-  try {
-    const supabase = createClient()
-    console.log("Supabase client created")
+          const userRole = profile?.role || "patient"
+          if (userRole === "admin") {
+            router.push("/admin")
+          } else {
+            router.push("/patient")
+          }
+          return
+        }
+      } catch (error) {
+        console.error("[v0] Erro ao verificar sessão:", error)
+      }
 
-    // Load doctor info
-    const { data: adminProfile, error: adminError } = await supabase
-      .from("profiles")
-      .select("doctor_full_name, doctor_crm, doctor_specialization")
-      .eq("role", "admin")
-      .single()
-
-    if (adminError) {
-      console.error("Error loading doctor info:", adminError)
-    } else {
-      console.log("Doctor info loaded:", adminProfile)
-      setDoctorInfo(adminProfile)
+      // Only load content if user is not logged in
+      loadContent()
     }
 
-    // Load recipes and supplements separately for better debugging
-    console.log("Loading recipes...")
-    const { data: recipesData, error: recipesError } = await supabase
-      .from("recipes")
-      .select("*")
-      .order("created_at", { ascending: false })
+    checkSession()
+  }, [router])
 
-    if (recipesError) {
-      console.error("Error loading recipes:", recipesError)
-    } else {
-      console.log("Recipes loaded:", recipesData?.length, "items")
-      setRecipes(recipesData || [])
+  const loadContent = async () => {
+    console.log("Starting loadContent...")
+
+    try {
+      const supabase = createClient()
+      console.log("Supabase client created")
+
+      // Load doctor info
+      const { data: adminProfile, error: adminError } = await supabase
+        .from("profiles")
+        .select("doctor_full_name, doctor_crm, doctor_specialization")
+        .eq("role", "admin")
+        .single()
+
+      if (adminError) {
+        console.error("Error loading doctor info:", adminError)
+      } else {
+        console.log("Doctor info loaded:", adminProfile)
+        setDoctorInfo(adminProfile)
+      }
+
+      // Load recipes and supplements separately for better debugging
+      console.log("Loading recipes...")
+      const { data: recipesData, error: recipesError } = await supabase
+        .from("recipes")
+        .select("*")
+        .order("created_at", { ascending: false })
+
+      if (recipesError) {
+        console.error("Error loading recipes:", recipesError)
+      } else {
+        console.log("Recipes loaded:", recipesData?.length, "items")
+        setRecipes(recipesData || [])
+      }
+
+      // Load supplements - make sure table name is correct
+      console.log("Loading supplements from supplement_catalog...")
+      const { data: supplementsData, error: supplementsError } = await supabase
+        .from("supplement_catalog")
+        .select("*")
+        .order("created_at", { ascending: false })
+
+      if (supplementsError) {
+        console.error("Error loading supplements:", supplementsError)
+        console.error("Full error details:", {
+          message: supplementsError.message,
+          code: supplementsError.code,
+          details: supplementsError.details,
+          hint: supplementsError.hint,
+        })
+      } else {
+        console.log("Supplements loaded:", supplementsData?.length, "items")
+        console.log("Sample supplement:", supplementsData?.[0])
+        setSupplements(supplementsData || [])
+      }
+    } catch (error) {
+      console.error("Unexpected error in loadContent:", error)
+    } finally {
+      console.log("Loading complete")
+      setLoading(false)
     }
-
-    // Load supplements - make sure table name is correct
-    console.log("Loading supplements from supplement_catalog...")
-    const { data: supplementsData, error: supplementsError } = await supabase
-      .from("supplement_catalog")
-      .select("*")
-      .order("created_at", { ascending: false })
-
-    if (supplementsError) {
-      console.error("Error loading supplements:", supplementsError)
-      console.error("Full error details:", {
-        message: supplementsError.message,
-        code: supplementsError.code,
-        details: supplementsError.details,
-        hint: supplementsError.hint
-      })
-    } else {
-      console.log("Supplements loaded:", supplementsData?.length, "items")
-      console.log("Sample supplement:", supplementsData?.[0])
-      setSupplements(supplementsData || [])
-    }
-
-  } catch (error) {
-    console.error("Unexpected error in loadContent:", error)
-  } finally {
-    console.log("Loading complete")
-    setLoading(false)
   }
-}
 
   if (loading) {
     return <div className="min-h-screen bg-background flex items-center justify-center">Carregando...</div>
   }
 
-   return (
+  return (
     <main className="min-h-screen bg-background">
       {/* Navigation */}
       <nav className="sticky top-0 z-50 border-b border-border bg-background/95 backdrop-blur supports-backdrop-filter:bg-background/60">
@@ -152,7 +179,7 @@ const loadContent = async () => {
               <p className="text-muted-foreground">Nenhuma receita disponível ainda.</p>
             </div>
           )}
-                  </div>
+        </div>
       </section>
 
       {/* Supplements Section */}
@@ -162,7 +189,7 @@ const loadContent = async () => {
             <h2 className="text-3xl sm:text-4xl font-bold text-foreground mb-4">Suplementos Recomendados</h2>
             <p className="text-lg text-muted-foreground max-w-2xl mx-auto">
               Suplementos essenciais para melhorar seu desempenho fitness e saúde
-              </p>
+            </p>
             {doctorInfo && (
               <div className="mt-6 inline-block px-6 py-3 rounded-lg border border-primary/20 bg-background">
                 <p className="text-sm font-medium text-foreground">
@@ -200,31 +227,30 @@ const loadContent = async () => {
         </div>
       </section>
 
-<footer className="border-t border-border bg-muted/30 py-12 px-4 sm:px-6 lg:px-8">
-  <div className="mx-auto max-w-6xl">
-    <div className="flex flex-col sm:flex-row justify-between items-center gap-8 mb-8">
-      <div className="flex items-center gap-2">
-        <Heart className="h-5 w-5 text-primary" />
-        <span className="font-semibold text-foreground">HealthCare+</span>
-      </div>
-      <div className="flex gap-6 text-sm text-muted-foreground">
-        <Link href="/privacy-policy" className="hover:text-foreground transition-colors">
-          Política de Privacidade
-        </Link> 
-        <Link href="/terms" className="hover:text-foreground transition-colors">
-          Termos de Serviço
-        </Link>
-        <Link href="https://wa.me/999999999999" className="hover:text-foreground transition-colors">
-          Contato
-        </Link>
-      </div>
-    </div>
-    <div className="border-t border-border pt-8 text-center text-sm text-muted-foreground">
-      <p>&copy; 2025 HealthCare+. Todos os direitos reservados. Sua saúde é nossa missão.</p>
-    </div>
-  </div>
-</footer>
-
+      <footer className="border-t border-border bg-muted/30 py-12 px-4 sm:px-6 lg:px-8">
+        <div className="mx-auto max-w-6xl">
+          <div className="flex flex-col sm:flex-row justify-between items-center gap-8 mb-8">
+            <div className="flex items-center gap-2">
+              <Heart className="h-5 w-5 text-primary" />
+              <span className="font-semibold text-foreground">HealthCare+</span>
+            </div>
+            <div className="flex gap-6 text-sm text-muted-foreground">
+              <Link href="/privacy-policy" className="hover:text-foreground transition-colors">
+                Política de Privacidade
+              </Link>
+              <Link href="/terms" className="hover:text-foreground transition-colors">
+                Termos de Serviço
+              </Link>
+              <Link href="https://wa.me/999999999999" className="hover:text-foreground transition-colors">
+                Contato
+              </Link>
+            </div>
+          </div>
+          <div className="border-t border-border pt-8 text-center text-sm text-muted-foreground">
+            <p>&copy; 2025 HealthCare+. Todos os direitos reservados. Sua saúde é nossa missão.</p>
+          </div>
+        </div>
+      </footer>
 
       {/* Recipe Detail Modal */}
       {selectedRecipe !== null && recipes[selectedRecipe] && (
@@ -285,6 +311,5 @@ const loadContent = async () => {
         </div>
       )}
     </main>
-    
   )
 }
