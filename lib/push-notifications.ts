@@ -229,8 +229,8 @@ export class PushNotificationService {
   async sendScheduledMedicationReminder(patientId: string, medicationName: string, scheduledTime: string) {
     return this.sendToPatient({
       patientId,
-      title: `⏰ Horário de tomar ${medicationName}`,
-      body: `Às ${scheduledTime} - ${medicationName}`,
+      title: `⏰ Horário de tomar seu remédio`,
+      body: `Está na hora de tomar ${medicationName}`,
       url: `/patient/medications`,
       type: "medication_reminder",
     })
