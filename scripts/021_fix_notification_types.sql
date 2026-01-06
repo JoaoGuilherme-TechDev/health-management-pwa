@@ -11,11 +11,11 @@ CHECK (notification_type IN (
   'health_alert',
   'info',
   'warning',
-  'general',
-  'medication_created',
+  'medication_added',
   'appointment_scheduled',
-  'prescription_created',
-  'diet_created',
-  'supplement_created',
-  'evolution_created'
+  'prescription_added',
+  'diet_added',
+  'supplement_added',
+  'metric_added',
+  'evolution_added'
 ));
