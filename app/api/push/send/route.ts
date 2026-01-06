@@ -30,22 +30,19 @@ export async function POST(request: NextRequest) {
 
     console.log(`[PUSH API] Preparing to send to patient: ${patientId}`)
 
-    // Buscar subscription do paciente no banco
-    const { data: subscriptionData, error: dbError } = await supabase
+    const { data: subscriptionsData, error: dbError } = await supabase
       .from("push_subscriptions")
       .select("subscription")
       .eq("user_id", patientId)
-      .single()
 
-    if (dbError || !subscriptionData || !subscriptionData.subscription) {
+    if (dbError || !subscriptionsData || subscriptionsData.length === 0) {
       console.log(`[PUSH API] No subscription found for patient ${patientId}`)
-      // Não é um erro 500, apenas o paciente não tem push ativado
-      return NextResponse.json({ success: false, message: "Paciente não possui push notifications ativado" }, { status: 200 })
+      return NextResponse.json(
+        { success: false, message: "Paciente não possui push notifications ativado" },
+        { status: 200 },
+      )
     }
 
-    const pushSubscription = subscriptionData.subscription
-
-    // Payload para o service worker
     const notificationPayload = JSON.stringify({
       title,
       body,
@@ -54,22 +51,33 @@ export async function POST(request: NextRequest) {
       timestamp: Date.now(),
     })
 
-    try {
-      await webpush.sendNotification(pushSubscription, notificationPayload)
-      console.log(`[PUSH API] Notification sent successfully to ${patientId}`)
-      return NextResponse.json({ success: true, message: "Notificação enviada com sucesso" })
-    } catch (pushError: any) {
-      console.error("[PUSH API] Error sending via web-push:", pushError)
+    let successCount = 0
+    let failureCount = 0
 
-      // Se der erro 410 (Gone), a subscription não existe mais e deve ser removida
-      if (pushError.statusCode === 410) {
-        await supabase.from("push_subscriptions").delete().eq("user_id", patientId)
-        console.log(`[PUSH API] Removed invalid subscription for patient ${patientId}`)
+    for (const subscriptionRecord of subscriptionsData) {
+      const pushSubscription = subscriptionRecord.subscription
+
+      try {
+        await webpush.sendNotification(pushSubscription, notificationPayload)
+        console.log(`[PUSH API] Notification sent successfully to device: ${pushSubscription.endpoint}`)
+        successCount++
+      } catch (pushError: any) {
+        console.error("[PUSH API] Error sending via web-push:", pushError)
+
+        // If error 410 (Gone), remove the invalid subscription
+        if (pushError.statusCode === 410) {
+          await supabase.from("push_subscriptions").delete().eq("subscription", pushSubscription)
+          console.log(`[PUSH API] Removed invalid subscription: ${pushSubscription.endpoint}`)
+        }
+        failureCount++
       }
-
-      return NextResponse.json({ error: "Erro ao enviar notificação push" }, { status: 500 })
     }
 
+    console.log(`[PUSH API] Send results - Success: ${successCount}, Failures: ${failureCount}`)
+    return NextResponse.json({
+      success: successCount > 0,
+      message: `Notificação enviada para ${successCount} dispositivo(s)`,
+    })
   } catch (error) {
     console.error("[PUSH API] Internal server error:", error)
     return NextResponse.json({ error: "Erro interno do servidor" }, { status: 500 })

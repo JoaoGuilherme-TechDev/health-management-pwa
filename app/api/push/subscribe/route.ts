@@ -32,16 +32,12 @@ export async function POST(request: NextRequest) {
 
     console.log("[v0] [SUBSCRIBE API] Saving subscription:", subscription.endpoint)
 
-    const { data, error } = await supabase.from("push_subscriptions").upsert(
-      {
-        user_id: userId,
-        subscription: subscription, // Store the entire subscription object as JSONB
-        updated_at: new Date().toISOString(),
-      },
-      {
-        onConflict: "user_id",
-      },
-    )
+    const { data, error } = await supabase.from("push_subscriptions").insert({
+      user_id: userId,
+      subscription: subscription,
+      created_at: new Date().toISOString(),
+      updated_at: new Date().toISOString(),
+    })
 
     if (error) {
       console.error("[v0] [SUBSCRIBE API] Database error:", error)
@@ -66,10 +62,7 @@ export async function DELETE(request: NextRequest) {
       return NextResponse.json({ error: "userId é obrigatório" }, { status: 400 })
     }
 
-    const { error } = await supabase
-      .from("push_subscriptions")
-      .delete()
-      .eq("user_id", userId)
+    const { error } = await supabase.from("push_subscriptions").delete().eq("user_id", userId)
 
     if (error) {
       console.error("Erro ao deletar subscription:", error)

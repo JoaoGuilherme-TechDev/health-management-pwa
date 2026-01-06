@@ -33,28 +33,7 @@ export function NotificationPermissionManager() {
     // Check if service worker is active (required for push notifications)
     const hasServiceWorker = "serviceWorker" in navigator && navigator.serviceWorker.controller
 
-    // Try to send a test notification to verify system permissions work
-    if (currentPermission === "granted" && hasServiceWorker) {
-      try {
-        const registration = await navigator.serviceWorker.ready
-        // This will fail silently on most systems if OS-level notifications are disabled
-        await registration.showNotification("Test", {
-          tag: "permission-test",
-          silent: true,
-        })
-        console.log("[v0] System notifications working")
-        // Close the test notification immediately
-        const notifications = await registration.getNotifications({
-          tag: "permission-test",
-        })
-        notifications.forEach((n) => n.close())
-      } catch (error) {
-        console.log("[v0] System notifications appear to be disabled:", error)
-        // System notifications are disabled, request permission again to trigger system popup
-        setShowSystemPrompt(true)
-        return
-      }
-    } else if (currentPermission === "default") {
+    if (currentPermission === "default") {
       setOpen(true)
     } else if (currentPermission === "denied") {
       setOpen(false)
