@@ -229,28 +229,7 @@ export function PatientMedicationsTab({ patientId }: { patientId: string }) {
           console.error("Erro ao adicionar horários:", scheduleError)
           alert("Medicamento adicionado, mas houve erro ao configurar os horários")
         }
-
-        if (!scheduleError && medication.start_date && formData.end_date) {
-          const { error: reminderError, data: reminderData } = await supabase.rpc(
-            "create_medication_reminders_for_period",
-            {
-              medication_id: medication.id,
-              patient_id: patientId,
-              start_date: medication.start_date,
-              end_date: formData.end_date,
-              scheduled_times: schedules,
-            },
-          )
-
-          if (reminderError) {
-            console.error("Erro ao criar lembretes:", reminderError)
-          } else {
-            console.log("Lembretes criados para o período:", reminderData)
-          }
-        }
       }
-
-      await pushNotifications.sendNewMedicationReminder(patientId, formData.name)
 
       await pushNotifications.sendNewMedication(patientId, formData.name)
 
