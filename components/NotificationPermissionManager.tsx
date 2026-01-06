@@ -37,6 +37,7 @@ export function NotificationPermissionManager() {
     checkPermission()
   }, [showAfterLogin])
 
+  
   const handleAllow = async () => {
     setIsProcessing(true)
 

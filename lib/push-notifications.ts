@@ -150,7 +150,6 @@ export class PushNotificationService {
         user_id: payload.patientId,
         action_url: payload.url || "/notifications",
         is_read: false,
-        is_active: true,
         created_at: new Date().toISOString(),
       })
 
