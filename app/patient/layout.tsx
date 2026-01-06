@@ -7,6 +7,7 @@ import { useEffect, useState } from "react"
 import { Button } from "@/components/ui/button"
 import { Heart, Home, Pill, Calendar, Settings, UtensilsCrossed, Activity, Bell, Dumbbell, FileText, LogOut } from "lucide-react"
 import { PatientNotificationListener } from "@/components/PatientNotificationListener"
+import { MedicationScheduler } from "@/components/medication-scheduler"
 import Link from "next/link"
 
 export default function PatientLayout({ children }: { children: React.ReactNode }) {
