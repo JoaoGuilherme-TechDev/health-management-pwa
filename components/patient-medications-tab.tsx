@@ -167,6 +167,16 @@ export function PatientMedicationsTab({ patientId }: { patientId: string }) {
       return
     }
 
+    if (!formData.start_date) {
+      alert("Data de início é obrigatória!")
+      return
+    }
+
+    if (!formData.end_date) {
+      alert("Data de término é obrigatória!")
+      return
+    }
+
     try {
       const supabase = createClient()
 
@@ -184,7 +194,7 @@ export function PatientMedicationsTab({ patientId }: { patientId: string }) {
         name: formData.name,
         dosage: formData.dosage,
         start_date: formData.start_date,
-        end_date: formData.end_date || null,
+        end_date: formData.end_date,
         reason: formData.reason,
         side_effects: formData.side_effects,
       }
@@ -220,26 +230,22 @@ export function PatientMedicationsTab({ patientId }: { patientId: string }) {
           alert("Medicamento adicionado, mas houve erro ao configurar os horários")
         }
 
-        if (!scheduleError && medication.start_date) {
-          const today = new Date(medication.start_date)
-          for (const time of schedules) {
-            const [hours, minutes] = time.split(":").map(Number)
-            const reminderDate = new Date(medication.start_date)
-            const reminderDateTime = new Date(
-              reminderDate.getFullYear(),
-              reminderDate.getMonth(),
-              reminderDate.getDate(),
-              hours,
-              minutes,
-              0,
-            )
-
-            await supabase.from("medication_reminders").insert({
+        if (!scheduleError && medication.start_date && formData.end_date) {
+          const { error: reminderError, data: reminderData } = await supabase.rpc(
+            "create_medication_reminders_for_period",
+            {
               medication_id: medication.id,
-              user_id: patientId,
-              reminder_time: time,
-              reminder_date: medication.start_date,
-            })
+              patient_id: patientId,
+              start_date: medication.start_date,
+              end_date: formData.end_date,
+              scheduled_times: schedules,
+            },
+          )
+
+          if (reminderError) {
+            console.error("Erro ao criar lembretes:", reminderError)
+          } else {
+            console.log("Lembretes criados para o período:", reminderData)
           }
         }
       }
@@ -423,11 +429,12 @@ export function PatientMedicationsTab({ patientId }: { patientId: string }) {
                 />
               </div>
               <div>
-                <Label>Data de Término</Label>
+                <Label>Data de Término *</Label>
                 <Input
                   type="date"
                   value={formData.end_date}
                   onChange={(e) => setFormData({ ...formData, end_date: e.target.value })}
+                  required
                 />
               </div>
             </div>
@@ -501,7 +508,13 @@ export function PatientMedicationsTab({ patientId }: { patientId: string }) {
               </Button>
               <Button
                 onClick={handleAdd}
-                disabled={!formData.name || !formData.dosage || !formData.start_date || schedules.length === 0}
+                disabled={
+                  !formData.name ||
+                  !formData.dosage ||
+                  !formData.start_date ||
+                  !formData.end_date ||
+                  schedules.length === 0
+                }
               >
                 Adicionar Medicamento
               </Button>
