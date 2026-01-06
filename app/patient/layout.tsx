@@ -116,6 +116,7 @@ export default function PatientLayout({ children }: { children: React.ReactNode 
         {/* Main Content - Mobile optimized padding */}
         <main className="flex-1 p-3 sm:p-6 lg:p-8 pb-20 md:pb-6">
           <PatientNotificationListener />
+          <MedicationScheduler />
           {children}
         </main>
       </div>
