@@ -703,7 +703,241 @@ export default function SettingsPage() {
         </Card>
       )}
 
-      
+     {selectedTab === 'notifications' && (
+      <Card>
+        <CardHeader>
+          <CardTitle className="flex items-center gap-2">
+            <BellRing className="h-5 w-5" />
+            Notificações Push
+          </CardTitle>
+          <CardDescription>
+            Configure as notificações para receber lembretes e atualizações importantes
+          </CardDescription>
+        </CardHeader>
+        <CardContent className="space-y-6">
+          <div className="space-y-4">
+            <div className="flex items-center justify-between">
+              <div>
+                <h3 className="font-medium text-foreground">Status das Notificações</h3>
+                <p className="text-sm text-muted-foreground">
+                   {notificationPermission === "granted" && isSubscribed
+                      ? "✅ Ativas - Você receberá notificações mesmo com o app fechado"
+                      : notificationPermission === "granted" && !isSubscribed
+                        ? "⚠️ Permissão concedida, mas não inscrito"
+                        : notificationPermission === "denied"
+                          ? "❌ Permissão negada"
+                          : "⏳ Aguardando sua decisão"}
+                  </p>              
+              </div>
+              <div className="flex items-center gap-2">
+                  {notificationPermission === "granted" && isSubscribed ? (
+                    <span className="px-3 py-1 bg-green-100 text-green-800 text-sm font-medium rounded-full flex items-center gap-1">
+                      <Bell className="h-3 w-3" />
+                      Ativo
+                    </span>
+                  ) : (
+                    <span className="px-3 py-1 bg-red-100 text-red-800 text-sm font-medium rounded-full flex items-center gap-1">
+                      <BellOff className="h-3 w-3" />
+                      Inativo
+                    </span>
+                  )}
+                </div>
+              </div>      
+
+                {/* Botões principais */}
+              <div className="space-y-3">
+                {!isSubscribed ? (
+                  <Button onClick={activatePushNotifications} className="w-full py-6" size="lg">
+                    <Bell className="h-5 w-5 mr-2" />
+                    Ativar Notificações Push
+                  </Button>
+                ) : (
+                  <>
+                    <Button
+                      onClick={deactivatePushNotifications}
+                      variant="outline"
+                      className="w-full py-6 bg-transparent"
+                      size="lg"
+                    >
+                      <BellOff className="h-5 w-5 mr-2" />
+                      Desativar Notificações
+                    </Button>
+
+                    <Button
+                      onClick={sendTestNotification}
+                      disabled={testingNotification}
+                      className="w-full"
+                      variant="secondary"
+                    >
+                      <TestTube className="h-4 w-4 mr-2" />
+                      {testingNotification ? "Enviando..." : "Enviar Notificação de Teste"}
+                    </Button>
+                  </>
+                )}
+
+                {/* Botão de diagnóstico */}
+                <Button onClick={runDiagnostics} variant="outline" className="w-full bg-transparent">
+                  <AlertCircle className="h-4 w-4 mr-2" />
+                  Diagnosticar Problema
+                </Button>
+              </div>
+
+              {/* Mensagem de erro */}
+              {pushError && (
+                <div className="p-3 bg-red-50 border border-red-200 rounded-lg">
+                  <div className="flex items-center gap-2">
+                    <AlertCircle className="h-4 w-4 text-red-600 shrink-0" />
+                    <p className="text-sm text-red-800 whitespace-pre-line">{pushError}</p>
+                  </div>
+                </div>
+              )}
+
+              {notificationPermission === "denied" && (
+                <div className="p-3 bg-yellow-50 border border-yellow-200 rounded-lg">
+                  <div className="flex items-center gap-2">
+                    <AlertCircle className="h-4 w-4 text-yellow-600 shrink-0" />
+                    <p className="text-sm text-yellow-800">
+                      Você bloqueou as notificações. Para ativá-las, acesse as configurações do seu navegador.
+                    </p>
+                  </div>
+                </div>
+              )}
+            </div>
+              
+            {/*Preferências (só aparecem se ativado) */}
+            {isSubscribed && (
+              <>
+                <div className="space-y-4">
+                  <h3 className="font-medium text-foreground">Preferências de Notificação</h3>
+                  <div className="space-y-3">
+                    <div className="flex items-center justify-between">
+                      <Label htmlFor="appointment-reminders" className="cursor-pointer">
+                        Lembretes de Consulta
+                      </Label>
+                      <input
+                        id="appointment-reminders"
+                        type="checkbox"
+                        checked={notificationSettings.appointment_reminders}
+                        onChange={(e) =>
+                          setNotificationSettings({
+                            ...notificationSettings,
+                            appointment_reminders: e.target.checked,
+                          })
+                        }
+                        className="h-4 w-4 rounded border-gray-300 text-blue-600 focus:ring-blue-500"
+                      />
+                    </div>
+                    <div className="flex items-center justify-between">
+                      <Label htmlFor="medication-reminders" className="cursor-pointer">
+                        Lembretes de Medicamento
+                      </Label>
+                      <input
+                        id="medication-reminders"
+                        type="checkbox"
+                        checked={notificationSettings.medication_reminders}
+                        onChange={(e) =>
+                          setNotificationSettings({
+                            ...notificationSettings,
+                            medication_reminders: e.target.checked,
+                          })
+                        }
+                        className="h-4 w-4 rounded border-gray-300 text-blue-600 focus:ring-blue-500"
+                      />
+                    </div>
+                    <div className="flex items-center justify-between">
+                      <Label htmlFor="lab-results" className="cursor-pointer">
+                        Resultados de Exames
+                      </Label>
+                      <input
+                        id="lab-results"
+                        type="checkbox"
+                        checked={notificationSettings.lab_results}
+                        onChange={(e) =>
+                          setNotificationSettings({
+                            ...notificationSettings,
+                            lab_results: e.target.checked,
+                          })
+                        }
+                        className="h-4 w-4 rounded border-gray-300 text-blue-600 focus:ring-blue-500"
+                      />
+                    </div>
+                        <div className="flex items-center justify-between">
+                      <Label htmlFor="doctor-messages" className="cursor-pointer">
+                        Mensagens do Médico
+                      </Label>
+                      <input
+                        id="doctor-messages"
+                        type="checkbox"
+                        checked={notificationSettings.doctor_messages}
+                        onChange={(e) =>
+                          setNotificationSettings({
+                            ...notificationSettings,
+                            doctor_messages: e.target.checked,
+                          })
+                        }
+                        className="h-4 w-4 rounded border-gray-300 text-blue-600 focus:ring-blue-500"
+                      />
+                    </div>
+              <div className="flex items-center justify-between">
+                      <Label htmlFor="promotions" className="cursor-pointer">
+                        Promoções e Ofertas
+                      </Label>
+                      <input
+                        id="promotions"
+                        type="checkbox"
+                        checked={notificationSettings.promotions}
+                        onChange={(e) =>
+                          setNotificationSettings({
+                            ...notificationSettings,
+                            promotions: e.target.checked,
+                          })
+                        }
+                        className="h-4 w-4 rounded border-gray-300 text-blue-600 focus:ring-blue-500"
+                      />
+                    </div>
+                  </div>
+                </div>
+                <div className="space-y-4">
+                  <h3 className="font-medium text-foreground">Horário Silencioso</h3>
+                  <p className="text-sm text-muted-foreground">
+                    Configure horários em que não deseja receber notificações
+                  </p>
+                  <div className="grid grid-cols-2 gap-4">
+                    <div className="space-y-2">
+                      <Label htmlFor="silent-start">Início</Label>
+                      <Input
+                        id="silent-start"
+                        type="time"
+                        value={notificationSettings.silent_hours_start}
+                        onChange={(e) =>
+                          setNotificationSettings({
+                            ...notificationSettings,
+                            silent_hours_start: e.target.value,
+                          })
+                        }
+                      />
+                    </div>
+                    <div className="space-y-2">
+                      <Label htmlFor="silent-end">Término</Label>
+                      <Input
+                        id="silent-end"
+                        type="time"
+                        value={notificationSettings.silent_hours_end}
+                        onChange={(e) =>
+                          setNotificationSettings({
+                            ...notificationSettings,
+                            silent_hours_end: e.target.value,
+                          })
+                        }
+                      />
+                    </div>
+                  </div>
+                </div>
+              </>
+            )}
+            </CardContent>
+          </Card>
+     )}
 
       {/* Save and Logout Buttons */}
       <div className="flex flex-col sm:flex-row gap-3 pt-4">
