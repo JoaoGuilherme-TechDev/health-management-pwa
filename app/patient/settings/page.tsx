@@ -703,34 +703,33 @@ export default function SettingsPage() {
         </Card>
       )}
 
-      {/* Notifications Tab */}
-      {selectedTab === "notifications" && (
-        <Card>
-          <CardHeader>
-            <CardTitle className="flex items-center gap-2">
-              <BellRing className="h-5 w-5" />
-              Notificações Push
-            </CardTitle>
-            <CardDescription>
-              Configure as notificações para receber lembretes e atualizações importantes
-            </CardDescription>
-          </CardHeader>
-          <CardContent className="space-y-6">
-            <div className="space-y-4">
-              <div className="flex items-center justify-between">
-                <div>
-                  <h3 className="font-medium text-foreground">Status das Notificações</h3>
-                  <p className="text-sm text-muted-foreground">
-                    {notificationPermission === "granted" && isSubscribed
+     {selectedTab === 'notifications' && (
+      <Card>
+        <CardHeader>
+          <CardTitle className="flex items-center gap-2">
+            <BellRing className="h-5 w-5" />
+            Notificações Push
+          </CardTitle>
+          <CardDescription>
+            Configure as notificações para receber lembretes e atualizações importantes
+          </CardDescription>
+        </CardHeader>
+        <CardContent className="space-y-6">
+          <div className="space-y-4">
+            <div className="flex items-center justify-between">
+              <div>
+                <h3 className="font-medium text-foreground">Status das Notificações</h3>
+                <p className="text-sm text-muted-foreground">
+                   {notificationPermission === "granted" && isSubscribed
                       ? "✅ Ativas - Você receberá notificações mesmo com o app fechado"
                       : notificationPermission === "granted" && !isSubscribed
                         ? "⚠️ Permissão concedida, mas não inscrito"
                         : notificationPermission === "denied"
                           ? "❌ Permissão negada"
                           : "⏳ Aguardando sua decisão"}
-                  </p>
-                </div>
-                <div className="flex items-center gap-2">
+                  </p>              
+              </div>
+              <div className="flex items-center gap-2">
                   {notificationPermission === "granted" && isSubscribed ? (
                     <span className="px-3 py-1 bg-green-100 text-green-800 text-sm font-medium rounded-full flex items-center gap-1">
                       <Bell className="h-3 w-3" />
@@ -743,9 +742,9 @@ export default function SettingsPage() {
                     </span>
                   )}
                 </div>
-              </div>
+              </div>      
 
-              {/* Botões principais */}
+                {/* Botões principais */}
               <div className="space-y-3">
                 {!isSubscribed ? (
                   <Button onClick={activatePushNotifications} className="w-full py-6" size="lg">
@@ -804,8 +803,8 @@ export default function SettingsPage() {
                 </div>
               )}
             </div>
-
-            {/* Preferências (só aparecem se ativado) */}
+              
+            {/*Preferências (só aparecem se ativado) */}
             {isSubscribed && (
               <>
                 <div className="space-y-4">
@@ -828,7 +827,6 @@ export default function SettingsPage() {
                         className="h-4 w-4 rounded border-gray-300 text-blue-600 focus:ring-blue-500"
                       />
                     </div>
-
                     <div className="flex items-center justify-between">
                       <Label htmlFor="medication-reminders" className="cursor-pointer">
                         Lembretes de Medicamento
@@ -846,7 +844,6 @@ export default function SettingsPage() {
                         className="h-4 w-4 rounded border-gray-300 text-blue-600 focus:ring-blue-500"
                       />
                     </div>
-
                     <div className="flex items-center justify-between">
                       <Label htmlFor="lab-results" className="cursor-pointer">
                         Resultados de Exames
@@ -864,8 +861,7 @@ export default function SettingsPage() {
                         className="h-4 w-4 rounded border-gray-300 text-blue-600 focus:ring-blue-500"
                       />
                     </div>
-
-                    <div className="flex items-center justify-between">
+                        <div className="flex items-center justify-between">
                       <Label htmlFor="doctor-messages" className="cursor-pointer">
                         Mensagens do Médico
                       </Label>
@@ -882,8 +878,7 @@ export default function SettingsPage() {
                         className="h-4 w-4 rounded border-gray-300 text-blue-600 focus:ring-blue-500"
                       />
                     </div>
-
-                    <div className="flex items-center justify-between">
+              <div className="flex items-center justify-between">
                       <Label htmlFor="promotions" className="cursor-pointer">
                         Promoções e Ofertas
                       </Label>
@@ -902,7 +897,6 @@ export default function SettingsPage() {
                     </div>
                   </div>
                 </div>
-
                 <div className="space-y-4">
                   <h3 className="font-medium text-foreground">Horário Silencioso</h3>
                   <p className="text-sm text-muted-foreground">
@@ -941,9 +935,9 @@ export default function SettingsPage() {
                 </div>
               </>
             )}
-          </CardContent>
-        </Card>
-      )}
+            </CardContent>
+          </Card>
+     )}
 
       {/* Save and Logout Buttons */}
       <div className="flex flex-col sm:flex-row gap-3 pt-4">
@@ -958,3 +952,4 @@ export default function SettingsPage() {
     </div>
   )
 }
+

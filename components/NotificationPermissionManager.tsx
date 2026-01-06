@@ -6,6 +6,7 @@ import { useSearchParams } from "next/navigation"
 import { Bell } from "lucide-react"
 import { Button } from "@/components/ui/button"
 
+
 export function NotificationPermissionManager() {
   const [showModal, setShowModal] = useState(false)
   const [isProcessing, setIsProcessing] = useState(false)

@@ -5,6 +5,7 @@ interface NotificationPayload {
   body?: string
   url?: string
   type?:
+
     | "prescription_created"
     | "appointment_scheduled"
     | "diet_created"
@@ -177,6 +178,16 @@ export class PushNotificationService {
     })
   }
 
+  async sendNewMedicationSchedule(patientId: string, medicationName: string, schedules: string[]) {
+    return this.sendToPatient({
+      patientId,
+      title: "⏰ Hora de Tomar Seu Remédio",
+      body: `Está na hora de tomar ${medicationName}`,
+      url: `/patient/medications`,
+      type: "medication_reminder",
+    })
+  }
+
   async sendNewAppointment(patientId: string, appointmentTitle: string, appointmentDate: string) {
     const formattedDate = new Date(appointmentDate).toLocaleDateString("pt-BR", {
       weekday: "long",
@@ -218,8 +229,8 @@ export class PushNotificationService {
   async sendScheduledMedicationReminder(patientId: string, medicationName: string, scheduledTime: string) {
     return this.sendToPatient({
       patientId,
-      title: `⏰ Horário de tomar ${medicationName}`,
-      body: `Às ${scheduledTime} - ${medicationName}`,
+      title: `⏰ Horário de tomar seu remédio`,
+      body: `Está na hora de tomar ${medicationName}`,
       url: `/patient/medications`,
       type: "medication_reminder",
     })

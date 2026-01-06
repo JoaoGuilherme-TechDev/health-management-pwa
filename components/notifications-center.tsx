@@ -46,6 +46,12 @@ const notificationConfig: Record<
     bgColor: "bg-blue-100",
     label: "Medicamento",
   },
+  medication_reminder: {
+    icon: Clock,
+    color: "text-yellow-600",
+    bgColor: "bg-yellow-100",
+    label: "Lembrete de Medicamento",
+  },
   appointment_scheduled: {
     icon: Calendar,
     color: "text-green-600",

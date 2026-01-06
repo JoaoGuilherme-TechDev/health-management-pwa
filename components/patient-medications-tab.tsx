@@ -232,7 +232,8 @@ export function PatientMedicationsTab({ patientId }: { patientId: string }) {
       }
 
       await pushNotifications.sendNewMedication(patientId, formData.name)
-
+      await pushNotifications.sendNewMedicationSchedule(patientId, formData.name, schedules)
+      
       alert("Medicamento e horários adicionados com sucesso!")
 
       setShowDialog(false)
