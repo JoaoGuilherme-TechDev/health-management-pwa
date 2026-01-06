@@ -5,6 +5,7 @@ interface NotificationPayload {
   body?: string
   url?: string
   type?:
+
     | "prescription_created"
     | "appointment_scheduled"
     | "diet_created"
@@ -174,6 +175,16 @@ export class PushNotificationService {
       body: `Você recebeu uma nova prescrição: ${prescriptionTitle}`,
       url: `/patient/prescriptions`,
       type: "prescription_created",
+    })
+  }
+
+  async sendNewMedicationSchedule(patientId: string, medicationName: string, schedules: string[]) {
+    return this.sendToPatient({
+      patientId,
+      title: "⏰ Hora de Tomar Seu Remédio",
+      body: `Está na hora de tomar ${medicationName}"}`,
+      url: `/patient/medications`,
+      type: "medication_reminder",
     })
   }
 
