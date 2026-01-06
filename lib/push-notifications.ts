@@ -182,7 +182,7 @@ export class PushNotificationService {
     return this.sendToPatient({
       patientId,
       title: "⏰ Hora de Tomar Seu Remédio",
-      body: `Está na hora de tomar ${medicationName}"}`,
+      body: `Está na hora de tomar ${medicationName}`,
       url: `/patient/medications`,
       type: "medication_reminder",
     })
