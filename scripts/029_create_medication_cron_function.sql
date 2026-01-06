@@ -60,5 +60,4 @@ BEGIN
 END;
 $$;
 
--- Instructions for setting up pg_cron (if extension is enabled):
--- SELECT cron.schedule('process_medications_minutely', '* * * * *', 'SELECT process_due_medications()');
+SELECT cron.schedule('process_medications_minutely', '* * * * *', 'SELECT process_due_medications()');

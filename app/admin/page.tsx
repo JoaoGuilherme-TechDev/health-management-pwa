@@ -154,7 +154,7 @@ export default function AdminDashboard() {
               <TrendingUp className="h-5 w-5" />
               Atividade Recente
             </CardTitle>
-            <CardDescription>Últimas operações do sistema</CardDescription>
+            <CardDescription>Últimos medicamentos adicionados</CardDescription>
           </CardHeader>
           <CardContent>
             <div className="space-y-2">
