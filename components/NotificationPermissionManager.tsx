@@ -13,9 +13,13 @@ import {
 } from "@/components/ui/dialog"
 import { Bell } from "lucide-react"
 import { toast } from "sonner"
+import { useSearchParams } from "next/navigation"
 
 export function NotificationPermissionManager() {
   const [open, setOpen] = useState(false)
+  const searchParams = useSearchParams()
+
+  const showAfterLogin = searchParams.get("showNotificationPrompt") === "true"
 
   useEffect(() => {
     // Check if browser supports notifications
@@ -23,28 +27,32 @@ export function NotificationPermissionManager() {
       return
     }
 
-    // Check if permission is already granted or denied
     if (Notification.permission === "default") {
       // Delay slightly to not overwhelm user immediately
-      const timer = setTimeout(() => {
-        setOpen(true)
-      }, 2000)
-      
+      const timer = setTimeout(
+        () => {
+          setOpen(true)
+        },
+        showAfterLogin ? 500 : 2000,
+      )
+
       return () => clearTimeout(timer)
     }
-  }, [])
+  }, [showAfterLogin])
 
   const handleEnable = async () => {
     try {
       const permission = await Notification.requestPermission()
-      
+
       if (permission === "granted") {
         toast.success("Notificações ativadas com sucesso!")
-        
+
         // Update database setting
         const supabase = createClient()
-        const { data: { user } } = await supabase.auth.getUser()
-        
+        const {
+          data: { user },
+        } = await supabase.auth.getUser()
+
         if (user) {
           await supabase.from("notification_settings").upsert({
             user_id: user.id,
@@ -57,7 +65,7 @@ export function NotificationPermissionManager() {
       } else if (permission === "denied") {
         toast.info("Notificações foram bloqueadas. Você pode alterar isso nas configurações do navegador.")
       }
-      
+
       setOpen(false)
     } catch (error) {
       console.error("Error requesting notification permission:", error)
@@ -67,11 +75,6 @@ export function NotificationPermissionManager() {
 
   const handleDismiss = () => {
     setOpen(false)
-    // We won't ask again this session, but Notification.permission remains 'default'
-    // so it might ask next time app is opened, which matches "first time" (meaning first time usage)
-    // If we want to NEVER ask again, we should store a flag in localStorage.
-    // User said "keep the button on the settings in case the user deactivates for mistake", implies they want control.
-    // We'll just close it.
   }
 
   return (
@@ -83,11 +86,12 @@ export function NotificationPermissionManager() {
           </div>
           <DialogTitle className="text-center">Ativar Notificações?</DialogTitle>
           <DialogDescription className="text-center">
-            Para que o aplicativo funcione corretamente e lembre você de seus medicamentos e consultas, precisamos da sua permissão para enviar notificações.
+            Para que o aplicativo funcione corretamente e lembre você de seus medicamentos e consultas, precisamos da
+            sua permissão para enviar notificações.
           </DialogDescription>
         </DialogHeader>
         <DialogFooter className="flex-col sm:flex-row gap-2">
-          <Button variant="outline" onClick={handleDismiss} className="w-full sm:w-auto">
+          <Button variant="outline" onClick={handleDismiss} className="w-full sm:w-auto bg-transparent">
             Agora não
           </Button>
           <Button onClick={handleEnable} className="w-full sm:w-auto">

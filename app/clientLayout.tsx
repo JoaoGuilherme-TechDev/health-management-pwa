@@ -6,6 +6,8 @@ import { useEffect, useState } from "react"
 import { Analytics } from "@vercel/analytics/next"
 import { NotificationPermissionManager } from "@/components/NotificationPermissionManager"
 import { useMedicationReminders } from "@/hooks/use-medication-reminders"
+import { createClient } from "@/lib/supabase/client"
+import { useRouter } from "next/navigation"
 
 export default function ClientLayout({
   children,
@@ -13,13 +15,38 @@ export default function ClientLayout({
   children: React.ReactNode
 }>) {
   const [isClient, setIsClient] = useState(false)
+  const [isLoading, setIsLoading] = useState(true)
+  const router = useRouter()
 
   // Initialize medication reminders
   useMedicationReminders()
 
   useEffect(() => {
-    setIsClient(true)
+    const checkSession = async () => {
+      try {
+        const supabase = createClient()
+        const {
+          data: { session },
+        } = await supabase.auth.getSession()
+
+        if (session) {
+          console.log("[v0] Sessão persistente encontrada para usuário:", session.user.id)
+          // User is logged in, no need to redirect to login
+        }
+      } catch (error) {
+        console.error("[v0] Erro ao verificar sessão:", error)
+      } finally {
+        setIsLoading(false)
+        setIsClient(true)
+      }
+    }
+
+    checkSession()
   }, [])
+
+  if (isLoading) {
+    return null // Don't render anything while checking session
+  }
 
   return (
     <body className="font-sans antialiased">
