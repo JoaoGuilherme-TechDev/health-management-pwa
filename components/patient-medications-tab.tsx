@@ -232,6 +232,10 @@ export function PatientMedicationsTab({ patientId }: { patientId: string }) {
       }
 
       await pushNotifications.sendNewMedication(patientId, formData.name)
+
+      if (medication) {
+        // Schedule check will happen automatically via MedicationScheduler
+      }
     
       alert("Medicamento e horários adicionados com sucesso!")
 

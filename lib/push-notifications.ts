@@ -242,6 +242,16 @@ export class PushNotificationService {
         return { storedInDB: false, apiSuccess: false, localSuccess: false, message: "Not scheduled time" }
       }
 
+      // Deduplication check: Prevent multiple notifications for the same medication at the same time (e.g., from multiple tabs or frequent checks)
+      if (typeof window !== "undefined") {
+        const dedupKey = `medication_reminder_${medicationId}_${today.toISOString().split("T")[0]}_${currentTime}`
+        if (localStorage.getItem(dedupKey)) {
+          console.log(`Notification already sent for ${medicationName} at ${currentTime}`)
+          return { storedInDB: false, apiSuccess: false, localSuccess: false, message: "Already sent" }
+        }
+        localStorage.setItem(dedupKey, "true")
+      }
+
       console.log(`It's time to take ${medicationName}! Sending notification...`)
 
       return this.sendToPatient({
