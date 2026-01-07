@@ -5,7 +5,6 @@ import type React from "react"
 import { useEffect, useState } from "react"
 import { Analytics } from "@vercel/analytics/next"
 import { NotificationPermissionManager } from "@/components/NotificationPermissionManager"
-import { useMedicationReminders } from "@/hooks/use-medication-reminders"
 import { createClient } from "@/lib/supabase/client"
 import { useRouter } from "next/navigation"
 
@@ -18,8 +17,7 @@ export default function ClientLayout({
   const [isLoading, setIsLoading] = useState(true)
   const router = useRouter()
 
-  // Initialize medication reminders
-  useMedicationReminders()
+
 
   useEffect(() => {
     const checkSession = async () => {
