@@ -38,7 +38,7 @@ export function PatientEvolutionTab({ patientId }: { patientId: string }) {
       if (weight > 0 && height > 0) {
         const bmi = (weight / (height * height)).toFixed(2)
         // Only update if different to avoid loops (though useEffect dependency handles this)
-        if (formData.bmi !== bmi) {
+        if ((formData as any).bmi !== bmi) {
           setFormData(prev => ({ ...prev, bmi }))
         }
       }
