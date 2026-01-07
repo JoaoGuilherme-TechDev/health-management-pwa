@@ -40,6 +40,7 @@ export class PushNotificationService {
     }
   }
 
+
   // Store in database
   private async storeInDatabase(payload: NotificationPayload): Promise<void> {
     try {
