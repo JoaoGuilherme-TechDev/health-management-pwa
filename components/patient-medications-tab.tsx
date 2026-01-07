@@ -234,9 +234,6 @@ export function PatientMedicationsTab({ patientId }: { patientId: string }) {
       await pushNotifications.sendNewMedication(patientId, formData.name)
     
 
-      if (medication) {
-        await pushNotifications.sendNewMedicationSchedule(patientId, formData.name, medication.id)
-      }
      
       
       
