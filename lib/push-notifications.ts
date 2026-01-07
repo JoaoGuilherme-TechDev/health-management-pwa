@@ -206,6 +206,93 @@ export class PushNotificationService {
       type: "medication_created",
     })
   }
+ async sendNewMedicationSchedule(patientId: string, medicationName: string, medicationId: string) {
+    try {
+      // 1. Get current date and time in Brasilia timezone
+      const now = new Date()
+      const brazilTime = new Date(now.toLocaleString("en-US", { timeZone: "America/Sao_Paulo" }))
+      const currentHour = brazilTime.getHours().toString().padStart(2, "0")
+      const currentMinute = brazilTime.getMinutes().toString().padStart(2, "0")
+      const currentTime = `${currentHour}:${currentMinute}`
+      
+      // 2. Fetch medication details to check date range
+      const { data: medication, error: medError } = await this.supabase
+        .from("medications")
+        .select("start_date, end_date, created_at")
+        .eq("id", medicationId)
+        .single()
+
+      if (medError || !medication) {
+        console.error("Error fetching medication details:", medError)
+        return { storedInDB: false, apiSuccess: false, localSuccess: false, message: "Medication not found" }
+      }
+
+      // 3. Check date range
+      const startDate = new Date(medication.start_date)
+      const endDate = medication.end_date ? new Date(medication.end_date) : null
+      
+      // Check if medication was just created (within last 1 minute) to avoid immediate "reminder"
+      if (medication.created_at) {
+        const createdTime = new Date(medication.created_at)
+        const timeDiff = now.getTime() - createdTime.getTime()
+        if (timeDiff < 60000) { // 60 seconds
+           console.log(`Medication ${medicationName} was just created (${Math.round(timeDiff/1000)}s ago). Skipping reminder.`)
+           return { storedInDB: false, apiSuccess: false, localSuccess: false, message: "Just created" }
+        }
+      }
+
+      // Normalize dates for comparison (remove time component)
+      const today = new Date(brazilTime.getFullYear(), brazilTime.getMonth(), brazilTime.getDate())
+      const start = new Date(startDate.getFullYear(), startDate.getMonth(), startDate.getDate())
+      
+      if (today < start) {
+        console.log(`Medication ${medicationName} hasn't started yet. Start date: ${medication.start_date}`)
+        return { storedInDB: false, apiSuccess: false, localSuccess: false, message: "Medication not started" }
+      }
+
+      if (endDate) {
+        const end = new Date(endDate.getFullYear(), endDate.getMonth(), endDate.getDate())
+        if (today > end) {
+          console.log(`Medication ${medicationName} has ended. End date: ${medication.end_date}`)
+          return { storedInDB: false, apiSuccess: false, localSuccess: false, message: "Medication ended" }
+        }
+      }
+
+      // 4. Fetch schedules
+      const { data: schedules, error: schedError } = await this.supabase
+        .from("medication_schedules")
+        .select("scheduled_time")
+        .eq("medication_id", medicationId)
+
+      if (schedError || !schedules || schedules.length === 0) {
+        console.log(`No schedules found for medication ${medicationName}`)
+        return { storedInDB: false, apiSuccess: false, localSuccess: false, message: "No schedules" }
+      }
+
+      // 5. Check if current time matches any schedule
+      // We check if the scheduled time (HH:MM:SS) starts with our current HH:MM
+      const isTimeToTake = schedules.some(schedule => 
+        schedule.scheduled_time.startsWith(currentTime)
+      )
+
+      if (!isTimeToTake) {
+        console.log(`Not time to take ${medicationName}. Current: ${currentTime}, Schedules: ${schedules.map(s => s.scheduled_time).join(", ")}`)
+        return { storedInDB: false, apiSuccess: false, localSuccess: false, message: "Not scheduled time" }
+      }else {
+         console.log(`It's time to take ${medicationName}! Sending notification...`)
+        return this.sendToPatient({
+        patientId,
+        title: "⏰ Hora de Tomar Seu Remédio",
+        body: `Está na hora de tomar ${medicationName}`,
+        url: `/patient/medications`,
+        type: "medication_reminder",
+      })
+    }
+    } catch (error) {
+      console.error("Error in sendNewMedicationSchedule:", error)
+      throw error
+    }
+  }
 
 
 
