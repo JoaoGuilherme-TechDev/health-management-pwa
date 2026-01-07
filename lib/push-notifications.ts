@@ -20,19 +20,8 @@ interface NotificationPayload {
 
 export class PushNotificationService {
   private supabase = createClient()
-  private sentMedicationCache = new Map<string, number>() // Cache for recent medication notifications
 
-  // Clear old cache entries (older than 5 minutes)
-  private cleanupCache() {
-    const now = Date.now()
-    for (const [key, timestamp] of this.sentMedicationCache.entries()) {
-      if (now - timestamp > 5 * 60 * 1000) { // 5 minutes
-        this.sentMedicationCache.delete(key)
-      }
-    }
-  }
-
-  // Send notification to patient
+  // Enviar notificação para um paciente
   async sendToPatient(payload: NotificationPayload) {
     try {
       console.log("🚀 [PUSH] Starting push notification for patient:", payload.patientId)
@@ -51,30 +40,16 @@ export class PushNotificationService {
     }
   }
 
-  // Store in database with duplicate prevention
+
+  // Store in database
   private async storeInDatabase(payload: NotificationPayload): Promise<void> {
     try {
-      // Check for recent duplicate notification (last 2 minutes)
-      const duplicateCheck = await this.supabase
-        .from("notifications")
-        .select("id, created_at")
-        .eq("user_id", payload.patientId)
-        .eq("notification_type", payload.type || "general")
-        .ilike("title", `%${payload.title}%`)
-        .gte("created_at", new Date(Date.now() - 2 * 60 * 1000).toISOString()) // Last 2 minutes
-        .limit(1)
+      // Get doctor info (current user)
+      const {
+        data: { user: doctor },
+      } = await this.supabase.auth.getUser()
+      const doctorId = doctor?.id || "system"
 
-      if (duplicateCheck.data && duplicateCheck.data.length > 0) {
-        console.log("🔄 [PUSH] Duplicate notification prevented:", {
-          patientId: payload.patientId,
-          type: payload.type,
-          existingId: duplicateCheck.data[0].id,
-          timeAgo: duplicateCheck.data[0].created_at
-        })
-        throw new Error("Duplicate notification prevented")
-      }
-
-      // Insert new notification
       const { error } = await this.supabase.from("notifications").insert({
         title: payload.title,
         message: payload.body || payload.title,
@@ -111,32 +86,12 @@ export class PushNotificationService {
 
   async sendNewMedicationSchedule(patientId: string, medicationName: string, medicationId: string) {
     try {
-      this.cleanupCache() // Clean old cache entries
-
-      // Create cache key for duplicate prevention
+      // 1. Get current date and time in Brasilia timezone
       const now = new Date()
       const brazilTime = new Date(now.toLocaleString("en-US", { timeZone: "America/Sao_Paulo" }))
       const currentHour = brazilTime.getHours().toString().padStart(2, "0")
       const currentMinute = brazilTime.getMinutes().toString().padStart(2, "0")
       const currentTime = `${currentHour}:${currentMinute}`
-      
-      const cacheKey = `${patientId}-${medicationId}-${currentTime}`
-      
-      // Check memory cache first
-      if (this.sentMedicationCache.has(cacheKey)) {
-        console.log(`🔄 [CACHE] Medication notification already sent in memory: ${cacheKey}`)
-        return { 
-          storedInDB: false, 
-          apiSuccess: false, 
-          localSuccess: false, 
-          message: "Already sent (cached)" 
-        }
-      }
-
-      // 1. Get current date and time in Brasilia timezone
-      const currentDate = brazilTime.getFullYear() + '-' + 
-                         (brazilTime.getMonth() + 1).toString().padStart(2, "0") + '-' + 
-                         brazilTime.getDate().toString().padStart(2, "0")
 
       // 2. Fetch medication details to check date range
       const { data: medication, error: medError } = await this.supabase
@@ -183,56 +138,42 @@ export class PushNotificationService {
       }
 
       // 5. Check if current time matches any schedule
-      const isTimeToTake = schedules.some((schedule) => {
-        // Extract time part from scheduled_time (format: "HH:MM")
-        const scheduledTime = schedule.scheduled_time.substring(0, 5)
-        return scheduledTime === currentTime
-      })
+      const isTimeToTake = schedules.some((schedule) => schedule.scheduled_time.startsWith(currentTime))
 
       if (!isTimeToTake) {
         console.log(
-          `Not time to take ${medicationName}. Current: ${currentTime}, Schedules: ${schedules.map((s) => s.scheduled_time.substring(0, 5)).join(", ")}`,
+          `Not time to take ${medicationName}. Current: ${currentTime}, Schedules: ${schedules.map((s) => s.scheduled_time).join(", ")}`,
         )
         return { storedInDB: false, apiSuccess: false, localSuccess: false, message: "Not scheduled time" }
       }
 
-      // 6. Database-level duplicate check (last 5 minutes)
-      const { data: existingNotifications } = await this.supabase
-        .from("notifications")
-        .select("id")
-        .eq("user_id", patientId)
-        .eq("notification_type", "medication_reminder")
-        .ilike("title", `%${medicationName}%`)
-        .gte("created_at", new Date(Date.now() - 5 * 60000).toISOString()) // Last 5 minutes
-        .limit(1)
+      console.log(`It's time to take ${medicationName}! Sending notification...`)
 
-      if (existingNotifications && existingNotifications.length > 0) {
-        console.log(`🔄 [DB] Duplicate notification prevented for ${medicationName}`)
-        // Still add to cache to prevent retries
-        this.sentMedicationCache.set(cacheKey, Date.now())
-        return { 
-          storedInDB: false, 
-          message: "Duplicate prevented (DB check)" 
-        }
-      }
+      // Add this check before sending notification
+  const { data: existingNotifications } = await this.supabase
+  .from("notifications")
+  .select("id")
+  .eq("user_id", patientId)
+  .eq("notification_type", "medication_reminder")
+  .ilike("message", `%${medicationName}%`)
+  .gte("created_at", new Date(Date.now() - 5 * 60000).toISOString()) // Last 5 minutes
+  .limit(1)
 
-      console.log(`✅ It's time to take ${medicationName}! Sending notification...`)
+  if (existingNotifications && existingNotifications.length > 0) {
+    console.log(`Duplicate notification prevented for ${medicationName}`)
+    return { 
+      storedInDB: false, 
+      message: "Duplicate prevented" 
+    }
+  }
 
-      // Send notification
-      const result = await this.sendToPatient({
+      return this.sendToPatient({
         patientId,
-        title: "⏰ Hora de Tomar Seu Remédio",
+        title: "⏰Hora de Tomar Seu Remédio",
         body: `Está na hora de tomar ${medicationName}`,
-        url: `/patient/medications?action=confirm&medicationId=${medicationId}&name=${encodeURIComponent(medicationName)}&time=${currentTime}`,
+        url: `/patient/medications?action=confirm&medicationId=${medicationId}&name=${encodeURIComponent(medicationName)}`,
         type: "medication_reminder",
       })
-
-      // Add to cache if successful
-      if (result.storedInDB) {
-        this.sentMedicationCache.set(cacheKey, Date.now())
-      }
-
-      return result
     } catch (error) {
       console.error("Error in sendNewMedicationSchedule:", error)
       throw error
@@ -286,13 +227,7 @@ export class PushNotificationService {
       type: "supplement_created",
     })
   }
-
-  // Optional: Method to manually clear cache (useful for testing)
-  clearCache() {
-    this.sentMedicationCache.clear()
-    console.log("🧹 Notification cache cleared")
-  }
 }
 
-// Global instance
+// Instância global
 export const pushNotifications = new PushNotificationService()
