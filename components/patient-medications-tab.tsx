@@ -234,10 +234,6 @@ export function PatientMedicationsTab({ patientId }: { patientId: string }) {
       await pushNotifications.sendNewMedication(patientId, formData.name)
     
 
-      if (medication) {
-        await pushNotifications.sendNewMedicationSchedule(patientId, formData.name, medication.id)
-      }
-     
       
       
       alert("Medicamento e horários adicionados com sucesso!")
@@ -305,7 +301,7 @@ export function PatientMedicationsTab({ patientId }: { patientId: string }) {
       <Card>
         <CardHeader>
           <div className="flex items-center justify-between">
-            <CardTitle>Medicamentos Prescritos</CardTitle>
+            <CardTitle>Medicamentos Receitados</CardTitle>
             <Button onClick={() => setShowDialog(true)} className="gap-2">
               <Plus className="h-4 w-4" />
               Adicionar Medicamento
@@ -316,7 +312,7 @@ export function PatientMedicationsTab({ patientId }: { patientId: string }) {
           {medications.length === 0 ? (
             <div className="text-center py-8 text-muted-foreground">
               <Pill className="h-12 w-12 mx-auto mb-4 opacity-50" />
-              <p>Nenhum medicamento prescrito ainda</p>
+              <p>Nenhum medicamento receitado ainda</p>
             </div>
           ) : (
             <div className="space-y-4">
