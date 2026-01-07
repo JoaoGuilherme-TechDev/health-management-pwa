@@ -17,6 +17,7 @@ interface NotificationPayload {
     | "warning"
     | "health_alert"
   patientId: string
+  tag?: string
 }
 
 export class PushNotificationService {
@@ -111,7 +112,7 @@ export class PushNotificationService {
       }
 
       const registration = await navigator.serviceWorker.ready
-      const uniqueTag = `patient-local-${Date.now()}`
+      const uniqueTag = payload.tag || `patient-local-${Date.now()}`
 
       await registration.showNotification(payload.title, {
         body: payload.body || payload.title,
@@ -190,7 +191,7 @@ export class PushNotificationService {
       // 2. Fetch medication details to check date range
       const { data: medication, error: medError } = await this.supabase
         .from("medications")
-        .select("start_date, end_date")
+        .select("start_date, end_date, created_at")
         .eq("id", medicationId)
         .single()
 
@@ -203,6 +204,16 @@ export class PushNotificationService {
       const startDate = new Date(medication.start_date)
       const endDate = medication.end_date ? new Date(medication.end_date) : null
       
+      // Check if medication was just created (within last 1 minute) to avoid immediate "reminder"
+      if (medication.created_at) {
+        const createdTime = new Date(medication.created_at)
+        const timeDiff = now.getTime() - createdTime.getTime()
+        if (timeDiff < 60000) { // 60 seconds
+           console.log(`Medication ${medicationName} was just created (${Math.round(timeDiff/1000)}s ago). Skipping reminder.`)
+           return { storedInDB: false, apiSuccess: false, localSuccess: false, message: "Just created" }
+        }
+      }
+
       // Normalize dates for comparison (remove time component)
       const today = new Date(brazilTime.getFullYear(), brazilTime.getMonth(), brazilTime.getDate())
       const start = new Date(startDate.getFullYear(), startDate.getMonth(), startDate.getDate())
@@ -242,17 +253,9 @@ export class PushNotificationService {
         return { storedInDB: false, apiSuccess: false, localSuccess: false, message: "Not scheduled time" }
       }
 
-      // Deduplication check: Prevent multiple notifications for the same medication at the same time (e.g., from multiple tabs or frequent checks)
-      if (typeof window !== "undefined") {
-        const dedupKey = `medication_reminder_${medicationId}_${today.toISOString().split("T")[0]}_${currentTime}`
-        if (localStorage.getItem(dedupKey)) {
-          console.log(`Notification already sent for ${medicationName} at ${currentTime}`)
-          return { storedInDB: false, apiSuccess: false, localSuccess: false, message: "Already sent" }
-        }
-        localStorage.setItem(dedupKey, "true")
-      }
-
       console.log(`It's time to take ${medicationName}! Sending notification...`)
+
+      const tag = `medication-reminder-${medicationId}-${today.toISOString().split("T")[0]}-${currentTime}`
 
       return this.sendToPatient({
         patientId,
@@ -260,6 +263,7 @@ export class PushNotificationService {
         body: `Está na hora de tomar ${medicationName}`,
         url: `/patient/medications?action=confirm&medicationId=${medicationId}&name=${encodeURIComponent(medicationName)}`,
         type: "medication_reminder",
+        tag,
       })
     } catch (error) {
       console.error("Error in sendNewMedicationSchedule:", error)
