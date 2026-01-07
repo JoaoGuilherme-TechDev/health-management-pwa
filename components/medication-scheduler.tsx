@@ -41,6 +41,13 @@ export function MedicationScheduler() {
         return
       }
 
+      // Check each medication
+      // We use Promise.allSettled to ensure one failure doesn't stop others
+      await Promise.allSettled(
+        medications.map(med => 
+          pushNotifications.sendNewMedicationSchedule(user.id, med.name, med.id)
+        )
+      )
     }
 
     // Run immediately on mount

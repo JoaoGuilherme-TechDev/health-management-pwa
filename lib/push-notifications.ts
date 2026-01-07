@@ -63,7 +63,7 @@ export class PushNotificationService {
           patientId: payload.patientId,
           title: payload.title,
           body: payload.body,
-          url: payload.url || "/patient/notifications",
+          url: payload.url || "patient/notifications",
           type: payload.type || "info",
         }),
       })
