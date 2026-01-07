@@ -56,7 +56,7 @@ export function MedicationScheduler() {
           // Send notification and mark as sent
           try {
             const result = await pushNotifications.sendNewMedicationSchedule(user.id, med.name, med.id)
-            if (result.apiSuccess || result.localSuccess) {
+            if (result.storedInDB) {
               sentNotificationsRef.current.add(key)
               console.log(`Marked as sent: ${key}`)
             }

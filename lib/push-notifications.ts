@@ -30,16 +30,8 @@ export class PushNotificationService {
       await this.storeInDatabase(payload)
       console.log("💾 [PUSH] Stored in database for patient:", payload.patientId)
 
-      // SECOND: Try to send via API (for real push notifications)
-      const apiResult = await this.sendViaAPI(payload)
-
-      // THIRD: Only show local notification if current user IS the patient
-      const localResult = await this.sendLocalNotificationIfPatient(payload)
-
       return {
         storedInDB: true,
-        apiSuccess: apiResult,
-        localSuccess: localResult,
         message: "Notificação enviada ao paciente",
       }
     } catch (error) {
