@@ -10,7 +10,7 @@ import { createClient } from "@/lib/supabase/client"
 import { Plus, Pill, Trash2, Clock, X, AlertCircle } from "lucide-react"
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog"
 import { Badge } from "@/components/ui/badge"
-import { formatBrasiliaDate } from "@/lib/timezone"
+import { formatBrasiliaDate, getCurrentBrasiliaTime } from "@/lib/timezone"
 import { Alert, AlertDescription } from "@/components/ui/alert"
 import { pushNotifications } from "@/lib/push-notifications"
 
@@ -231,8 +231,7 @@ export function PatientMedicationsTab({ patientId }: { patientId: string }) {
         }
       }
 
-      await pushNotifications.sendNewMedication(patientId, formData.name, medication.id, schedules)
-
+      
       alert("Medicamento e horários adicionados com sucesso!")
 
       setShowDialog(false)
