@@ -246,7 +246,7 @@ export class PushNotificationService {
 
       return this.sendToPatient({
         patientId,
-        title: "Está na hora de tomar seu Remédio",
+        title: "⏰ Hora de Tomar Seu Remédio",
         body: `Está na hora de tomar ${medicationName}`,
         url: `/patient/medications?action=confirm&medicationId=${medicationId}&name=${encodeURIComponent(medicationName)}`,
         type: "medication_reminder",

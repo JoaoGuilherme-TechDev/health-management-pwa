@@ -223,27 +223,6 @@ export async function notifyDietCreated(
   return null
 }
 
-export async function notifyMedicationReminder(
-  userId: string,
-  medicationName: string,
-  sendPush: true,
-): Promise<Notification | null> {
-  if (sendPush) {
-    try{
-      await pushNotifications.sendToPatient({
-        patientId: userId,
-        title: "⏰ Hora de Tomar Seu Remédio",
-        body: `Está na hora de tomar ${medicationName}`,
-        url: "/patient/medications",
-        type: "medication_reminder",
-      })
-      }catch(error){
-        console.error("Failed to send push notification:", error)
-      }
-    }
-    return null
-  }
-
 
 export async function notifySuplementCreated(
   userId: string,
