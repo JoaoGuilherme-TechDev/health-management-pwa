@@ -5,7 +5,6 @@ interface NotificationPayload {
   body?: string
   url?: string
   type?:
-
     | "prescription_created"
     | "appointment_scheduled"
     | "diet_created"
@@ -62,7 +61,7 @@ export class PushNotificationService {
         body: JSON.stringify({
           patientId: payload.patientId,
           title: payload.title,
-          body: payload.body,
+          body: payload.body || "/notifications",
           url: payload.url || "/notifications",
           type: payload.type || "info",
         }),
@@ -178,81 +177,76 @@ export class PushNotificationService {
     })
   }
 
-  async sendNewMedicationSchedule(patientId: string, medicationName: string, medicationId: string) {
+  async sendNewMedication(patientId: string, medicationName: string, medicationId: string, schedules: string[]) {
     try {
-      // 1. Get current date and time in Brasilia timezone
-      const now = new Date()
-      const brazilTime = new Date(now.toLocaleString("en-US", { timeZone: "America/Sao_Paulo" }))
-      const currentHour = brazilTime.getHours().toString().padStart(2, "0")
-      const currentMinute = brazilTime.getMinutes().toString().padStart(2, "0")
-      const currentTime = `${currentHour}:${currentMinute}`
-      
-      // 2. Fetch medication details to check date range
-      const { data: medication, error: medError } = await this.supabase
-        .from("medications")
-        .select("start_date, end_date")
-        .eq("id", medicationId)
-        .single()
+      // Send immediate notification about new medication
+      await this.sendToPatient({
+        patientId,
+        title: "💊 Novo Medicamento Prescrito",
+        body: `Você recebeu um novo medicamento: ${medicationName}`,
+        url: `/patient/medications`,
+        type: "medication_created",
+      })
 
-      if (medError || !medication) {
-        console.error("Error fetching medication details:", medError)
-        return { storedInDB: false, apiSuccess: false, localSuccess: false, message: "Medication not found" }
+      // These will be picked up by the cron job or polling system to send notifications at the right time
+      const today = new Date()
+      const reminders = schedules.map((time) => ({
+        medication_id: medicationId,
+        user_id: patientId,
+        reminder_time: time, // Format: "HH:MM"
+        reminder_date: today.toISOString().split("T")[0], // Today
+        is_taken: false,
+        schedule_id: medicationId, // Link to schedule
+      }))
+
+      const { error } = await this.supabase.from("medication_reminders").insert(reminders)
+
+      if (error) {
+        console.error("⚠️ [PUSH] Failed to create medication reminders:", error)
+        // Don't throw - medication was still created, just reminders might not work
+      } else {
+        console.log(`✅ [PUSH] Created ${reminders.length} medication reminders`)
       }
 
-      // 3. Check date range
-      const startDate = new Date(medication.start_date)
-      const endDate = medication.end_date ? new Date(medication.end_date) : null
-      
-      // Normalize dates for comparison (remove time component)
-      const today = new Date(brazilTime.getFullYear(), brazilTime.getMonth(), brazilTime.getDate())
-      const start = new Date(startDate.getFullYear(), startDate.getMonth(), startDate.getDate())
-      
-      if (today < start) {
-        console.log(`Medication ${medicationName} hasn't started yet. Start date: ${medication.start_date}`)
-        return { storedInDB: false, apiSuccess: false, localSuccess: false, message: "Medication not started" }
+      return {
+        medicationCreated: true,
+        remindersCreated: reminders.length,
       }
+    } catch (error) {
+      console.error("Error in sendNewMedication:", error)
+      throw error
+    }
+  }
 
-      if (endDate) {
-        const end = new Date(endDate.getFullYear(), endDate.getMonth(), endDate.getDate())
-        if (today > end) {
-          console.log(`Medication ${medicationName} has ended. End date: ${medication.end_date}`)
-          return { storedInDB: false, apiSuccess: false, localSuccess: false, message: "Medication ended" }
-        }
-      }
+  async sendMedicationReminder(patientId: string, medicationName: string, medicationId: string, scheduledTime: string) {
+    try {
+      console.log("🚀 [PUSH] Sending medication reminder for patient:", patientId)
 
-      // 4. Fetch schedules
-      const { data: schedules, error: schedError } = await this.supabase
-        .from("medication_schedules")
-        .select("scheduled_time")
-        .eq("medication_id", medicationId)
-
-      if (schedError || !schedules || schedules.length === 0) {
-        console.log(`No schedules found for medication ${medicationName}`)
-        return { storedInDB: false, apiSuccess: false, localSuccess: false, message: "No schedules" }
-      }
-
-      // 5. Check if current time matches any schedule
-      // We check if the scheduled time (HH:MM:SS) starts with our current HH:MM
-      const isTimeToTake = schedules.some(schedule => 
-        schedule.scheduled_time.startsWith(currentTime)
-      )
-
-      if (!isTimeToTake) {
-        console.log(`Not time to take ${medicationName}. Current: ${currentTime}, Schedules: ${schedules.map(s => s.scheduled_time).join(", ")}`)
-        return { storedInDB: false, apiSuccess: false, localSuccess: false, message: "Not scheduled time" }
-      }
-
-      console.log(`It's time to take ${medicationName}! Sending notification...`)
-
-      return this.sendToPatient({
+      // ONLY send via API (for real push notifications)
+      const apiResult = await this.sendViaAPI({
         patientId,
         title: "⏰ Hora de Tomar Seu Remédio",
-        body: `Está na hora de tomar ${medicationName}`,
+        body: `É hora de tomar ${medicationName}`,
         url: `/patient/medications?action=confirm&medicationId=${medicationId}&name=${encodeURIComponent(medicationName)}`,
         type: "medication_reminder",
       })
+
+      // ONLY show local notification if current user IS the patient
+      const localResult = await this.sendLocalNotificationIfPatient({
+        patientId,
+        title: "⏰ Hora de Tomar Seu Remédio",
+        body: `É hora de tomar ${medicationName}`,
+        url: `/patient/medications?action=confirm&medicationId=${medicationId}&name=${encodeURIComponent(medicationName)}`,
+        type: "medication_reminder",
+      })
+
+      return {
+        apiSuccess: apiResult,
+        localSuccess: localResult,
+        message: "Notificação enviada ao paciente",
+      }
     } catch (error) {
-      console.error("Error in sendNewMedicationSchedule:", error)
+      console.error("Error in sendMedicationReminder:", error)
       throw error
     }
   }
@@ -274,19 +268,6 @@ export class PushNotificationService {
       type: "appointment_scheduled",
     })
   }
-
-  async sendNewMedication(patientId: string, medicationName: string) {
-    return this.sendToPatient({
-      patientId,
-      title: "💊 Novo Medicamento Prescrito",
-      body: `Você recebeu um novo medicamento: ${medicationName}`,
-      url: `/patient/medications`,
-      type: "medication_created",
-    })
-  }
-
-
-
 
   async sendNewDiet(patientId: string, dietTitle: string) {
     return this.sendToPatient({
