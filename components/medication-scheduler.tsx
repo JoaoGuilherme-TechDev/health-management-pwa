@@ -70,7 +70,7 @@ export function MedicationScheduler() {
     // Run immediately on mount
     checkSchedules()
 
-
+    // Run every 10 seconds to ensure we catch the minute change promptly
     const intervalId = setInterval(checkSchedules, 70000)
 
     return () => clearInterval(intervalId)
