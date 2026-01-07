@@ -40,7 +40,7 @@ self.addEventListener('push', event => {
   const options = {
     body: data.body || 'Nova notificação',
     icon: data.icon || '/icon-light-32x32.png',
-    badge: data.badge || '/icon-light-32x32.png',
+    badge: data.badge || '/badge-72x72.png',
     tag: data.tag || `notification-${Date.now()}`,
     data: data.data || {},
     requireInteraction: data.requireInteraction || false,

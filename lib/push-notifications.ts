@@ -17,7 +17,6 @@ interface NotificationPayload {
     | "warning"
     | "health_alert"
   patientId: string
-  tag?: string
 }
 
 export class PushNotificationService {
@@ -112,7 +111,7 @@ export class PushNotificationService {
       }
 
       const registration = await navigator.serviceWorker.ready
-      const uniqueTag = payload.tag || `patient-local-${Date.now()}`
+      const uniqueTag = `patient-local-${Date.now()}`
 
       await registration.showNotification(payload.title, {
         body: payload.body || payload.title,
@@ -251,20 +250,16 @@ export class PushNotificationService {
       if (!isTimeToTake) {
         console.log(`Not time to take ${medicationName}. Current: ${currentTime}, Schedules: ${schedules.map(s => s.scheduled_time).join(", ")}`)
         return { storedInDB: false, apiSuccess: false, localSuccess: false, message: "Not scheduled time" }
-      }
-
-      console.log(`It's time to take ${medicationName}! Sending notification...`)
-
-      const tag = `medication-reminder-${medicationId}-${today.toISOString().split("T")[0]}-${currentTime}`
-
-      return this.sendToPatient({
+      }else {
+         console.log(`It's time to take ${medicationName}! Sending notification...`)
+        return this.sendToPatient({
         patientId,
         title: "⏰ Hora de Tomar Seu Remédio",
         body: `Está na hora de tomar ${medicationName}`,
-        url: `/patient/medications?action=confirm&medicationId=${medicationId}&name=${encodeURIComponent(medicationName)}`,
+        url: `/patient/medications`,
         type: "medication_reminder",
-        tag,
       })
+    }
     } catch (error) {
       console.error("Error in sendNewMedicationSchedule:", error)
       throw error
