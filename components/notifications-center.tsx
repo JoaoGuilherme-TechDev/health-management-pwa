@@ -123,15 +123,15 @@ function NotificationItem({
       {/* Content */}
       <div className="flex-1 min-w-0">
         <div className="flex items-center gap-2 mb-1">
-          <h4 className="font-medium text-sm truncate flex-1">{notification.title}</h4>
-          {!notification.is_read && <span className="h-2 w-2 rounded-full bg-primary shrink-0" />}
+          <h4 className="font-medium text-sm truncate">{notification.title}</h4>
+          {!notification.is_read && <span className="h-2 w-2 rounded-full bg-primary" />}
         </div>
-        <p className="text-sm text-muted-foreground line-clamp-2 wrap-break-word">{notification.message}</p>
-        <div className="flex flex-wrap items-center gap-2 mt-2">
-          <Badge variant="secondary" className="text-xs whitespace-nowrap">
+        <p className="text-sm text-muted-foreground line-clamp-2">{notification.message}</p>
+        <div className="flex items-center gap-2 mt-2">
+          <Badge variant="secondary" className="text-xs">
             {config.label}
           </Badge>
-          <span className="text-xs text-muted-foreground whitespace-nowrap">{createdAt}</span>
+          <span className="text-xs text-muted-foreground">{createdAt}</span>
         </div>
       </div>
 

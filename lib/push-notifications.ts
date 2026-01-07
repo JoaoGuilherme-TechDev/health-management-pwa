@@ -178,35 +178,7 @@ export class PushNotificationService {
     })
   }
 
- 
-  async sendNewAppointment(patientId: string, appointmentTitle: string, appointmentDate: string) {
-    const formattedDate = new Date(appointmentDate).toLocaleDateString("pt-BR", {
-      weekday: "long",
-      day: "numeric",
-      month: "long",
-      hour: "2-digit",
-      minute: "2-digit",
-    })
-
-    return this.sendToPatient({
-      patientId,
-      title: "📅 Nova Consulta Agendada",
-      body: `${appointmentTitle} • ${formattedDate}`,
-      url: `/patient/appointments`,
-      type: "appointment_scheduled",
-    })
-  }
-
-  async sendNewMedication(patientId: string, medicationName: string) {
-    return this.sendToPatient({
-      patientId,
-      title: "💊 Novo Medicamento Prescrito",
-      body: `Você recebeu um novo medicamento: ${medicationName}`,
-      url: `/patient/medications`,
-      type: "medication_created",
-    })
-  }
- async sendNewMedicationSchedule(patientId: string, medicationName: string, medicationId: string) {
+  async sendNewMedicationSchedule(patientId: string, medicationName: string, medicationId: string) {
     try {
       // 1. Get current date and time in Brasilia timezone
       const now = new Date()
@@ -218,7 +190,7 @@ export class PushNotificationService {
       // 2. Fetch medication details to check date range
       const { data: medication, error: medError } = await this.supabase
         .from("medications")
-        .select("start_date, end_date, created_at")
+        .select("start_date, end_date")
         .eq("id", medicationId)
         .single()
 
@@ -231,16 +203,6 @@ export class PushNotificationService {
       const startDate = new Date(medication.start_date)
       const endDate = medication.end_date ? new Date(medication.end_date) : null
       
-      // Check if medication was just created (within last 1 minute) to avoid immediate "reminder"
-      if (medication.created_at) {
-        const createdTime = new Date(medication.created_at)
-        const timeDiff = now.getTime() - createdTime.getTime()
-        if (timeDiff < 60000) { // 60 seconds
-           console.log(`Medication ${medicationName} was just created (${Math.round(timeDiff/1000)}s ago). Skipping reminder.`)
-           return { storedInDB: false, apiSuccess: false, localSuccess: false, message: "Just created" }
-        }
-      }
-
       // Normalize dates for comparison (remove time component)
       const today = new Date(brazilTime.getFullYear(), brazilTime.getMonth(), brazilTime.getDate())
       const start = new Date(startDate.getFullYear(), startDate.getMonth(), startDate.getDate())
@@ -278,20 +240,49 @@ export class PushNotificationService {
       if (!isTimeToTake) {
         console.log(`Not time to take ${medicationName}. Current: ${currentTime}, Schedules: ${schedules.map(s => s.scheduled_time).join(", ")}`)
         return { storedInDB: false, apiSuccess: false, localSuccess: false, message: "Not scheduled time" }
-      }else {
-         console.log(`It's time to take ${medicationName}! Sending notification...`)
-        return this.sendToPatient({
+      }
+
+      console.log(`It's time to take ${medicationName}! Sending notification...`)
+
+      return this.sendToPatient({
         patientId,
         title: "⏰ Hora de Tomar Seu Remédio",
         body: `Está na hora de tomar ${medicationName}`,
-        url: `/patient/medications`,
+        url: `/patient/medications?action=confirm&medicationId=${medicationId}&name=${encodeURIComponent(medicationName)}`,
         type: "medication_reminder",
       })
-    }
     } catch (error) {
       console.error("Error in sendNewMedicationSchedule:", error)
       throw error
     }
+  }
+
+  async sendNewAppointment(patientId: string, appointmentTitle: string, appointmentDate: string) {
+    const formattedDate = new Date(appointmentDate).toLocaleDateString("pt-BR", {
+      weekday: "long",
+      day: "numeric",
+      month: "long",
+      hour: "2-digit",
+      minute: "2-digit",
+    })
+
+    return this.sendToPatient({
+      patientId,
+      title: "📅 Nova Consulta Agendada",
+      body: `${appointmentTitle} • ${formattedDate}`,
+      url: `/patient/appointments`,
+      type: "appointment_scheduled",
+    })
+  }
+
+  async sendNewMedication(patientId: string, medicationName: string) {
+    return this.sendToPatient({
+      patientId,
+      title: "💊 Novo Medicamento Prescrito",
+      body: `Você recebeu um novo medicamento: ${medicationName}`,
+      url: `/patient/medications`,
+      type: "medication_created",
+    })
   }
 
 
