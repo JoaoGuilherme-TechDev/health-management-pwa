@@ -6,6 +6,7 @@ import { pushNotifications } from "@/lib/push-notifications"
 
 export function MedicationScheduler() {
   const lastCheckedMinute = useRef<string | null>(null)
+  const sentNotificationsRef = useRef<Set<string>>(new Set())
 
   useEffect(() => {
     const checkSchedules = async () => {
@@ -16,17 +17,18 @@ export function MedicationScheduler() {
       const currentMinute = brazilTime.getMinutes().toString().padStart(2, "0")
       const currentTimeString = `${currentHour}:${currentMinute}`
 
-      // Prevent checking multiple times in the same minute
-      if (lastCheckedMinute.current === currentTimeString) {
-        return
+      if (lastCheckedMinute.current !== currentTimeString) {
+        lastCheckedMinute.current = currentTimeString
+        sentNotificationsRef.current.clear()
       }
-      
-      lastCheckedMinute.current = currentTimeString
+
       console.log(`Checking medication schedules for ${currentTimeString}...`)
 
       const supabase = createClient()
-      const { data: { user } } = await supabase.auth.getUser()
-      
+      const {
+        data: { user },
+      } = await supabase.auth.getUser()
+
       if (!user) return
 
       // Fetch all active medications for the user
@@ -41,12 +43,27 @@ export function MedicationScheduler() {
         return
       }
 
-      // Check each medication
-      // We use Promise.allSettled to ensure one failure doesn't stop others
       await Promise.allSettled(
-        medications.map(med => 
-          pushNotifications.sendNewMedicationSchedule(user.id, med.name, med.id)
-        )
+        medications.map(async (med) => {
+          const key = `${med.id}-${currentTimeString}`
+
+          // Skip if we already sent notification for this medication this minute
+          if (sentNotificationsRef.current.has(key)) {
+            console.log(`Skipping duplicate for ${med.name} at ${currentTimeString}`)
+            return
+          }
+
+          // Send notification and mark as sent
+          try {
+            const result = await pushNotifications.sendNewMedicationSchedule(user.id, med.name, med.id)
+            if (result.apiSuccess || result.localSuccess) {
+              sentNotificationsRef.current.add(key)
+              console.log(`Marked as sent: ${key}`)
+            }
+          } catch (error) {
+            console.error(`Error sending notification for ${med.name}:`, error)
+          }
+        }),
       )
     }
 

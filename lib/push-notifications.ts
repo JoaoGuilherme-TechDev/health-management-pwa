@@ -5,7 +5,6 @@ interface NotificationPayload {
   body?: string
   url?: string
   type?:
-
     | "prescription_created"
     | "appointment_scheduled"
     | "diet_created"
@@ -186,7 +185,7 @@ export class PushNotificationService {
       const currentHour = brazilTime.getHours().toString().padStart(2, "0")
       const currentMinute = brazilTime.getMinutes().toString().padStart(2, "0")
       const currentTime = `${currentHour}:${currentMinute}`
-      
+
       // 2. Fetch medication details to check date range
       const { data: medication, error: medError } = await this.supabase
         .from("medications")
@@ -202,11 +201,11 @@ export class PushNotificationService {
       // 3. Check date range
       const startDate = new Date(medication.start_date)
       const endDate = medication.end_date ? new Date(medication.end_date) : null
-      
+
       // Normalize dates for comparison (remove time component)
       const today = new Date(brazilTime.getFullYear(), brazilTime.getMonth(), brazilTime.getDate())
       const start = new Date(startDate.getFullYear(), startDate.getMonth(), startDate.getDate())
-      
+
       if (today < start) {
         console.log(`Medication ${medicationName} hasn't started yet. Start date: ${medication.start_date}`)
         return { storedInDB: false, apiSuccess: false, localSuccess: false, message: "Medication not started" }
@@ -232,13 +231,12 @@ export class PushNotificationService {
       }
 
       // 5. Check if current time matches any schedule
-      // We check if the scheduled time (HH:MM:SS) starts with our current HH:MM
-      const isTimeToTake = schedules.some(schedule => 
-        schedule.scheduled_time.startsWith(currentTime)
-      )
+      const isTimeToTake = schedules.some((schedule) => schedule.scheduled_time.startsWith(currentTime))
 
       if (!isTimeToTake) {
-        console.log(`Not time to take ${medicationName}. Current: ${currentTime}, Schedules: ${schedules.map(s => s.scheduled_time).join(", ")}`)
+        console.log(
+          `Not time to take ${medicationName}. Current: ${currentTime}, Schedules: ${schedules.map((s) => s.scheduled_time).join(", ")}`,
+        )
         return { storedInDB: false, apiSuccess: false, localSuccess: false, message: "Not scheduled time" }
       }
 
@@ -246,7 +244,7 @@ export class PushNotificationService {
 
       return this.sendToPatient({
         patientId,
-        title: "Hora de Tomar Seu Remédio",
+        title: "⏰Hora de Tomar Seu Remédio",
         body: `Está na hora de tomar ${medicationName}`,
         url: `/patient/medications?action=confirm&medicationId=${medicationId}&name=${encodeURIComponent(medicationName)}`,
         type: "medication_reminder",
@@ -284,9 +282,6 @@ export class PushNotificationService {
       type: "medication_created",
     })
   }
-
-
-
 
   async sendNewDiet(patientId: string, dietTitle: string) {
     return this.sendToPatient({
