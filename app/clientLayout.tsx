@@ -17,8 +17,6 @@ export default function ClientLayout({
   const [isLoading, setIsLoading] = useState(true)
   const router = useRouter()
 
-
-
   useEffect(() => {
     const checkSession = async () => {
       try {
@@ -41,6 +39,21 @@ export default function ClientLayout({
 
     checkSession()
   }, [])
+
+  useEffect(() => {
+    if (!isClient || isLoading) return
+
+    if ("serviceWorker" in navigator) {
+      navigator.serviceWorker
+        .register("/sw.js", { scope: "/" })
+        .then((registration) => {
+          console.log("[v0] Service Worker registered successfully:", registration)
+        })
+        .catch((error) => {
+          console.error("[v0] Service Worker registration failed:", error)
+        })
+    }
+  }, [isClient, isLoading])
 
   if (isLoading) {
     return null // Don't render anything while checking session
