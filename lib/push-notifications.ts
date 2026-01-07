@@ -285,25 +285,8 @@ export class PushNotificationService {
     })
   }
 
-  async sendNewMedicationReminder(patientId: string, medicationName: string) {
-    return this.sendToPatient({
-      patientId,
-      title: "⏰ Lembrete de Medicamento",
-      body: `Lembrete: tome ${medicationName}`,
-      url: `/patient/medications`,
-      type: "medication_reminder",
-    })
-  }
 
-  async sendScheduledMedicationReminder(patientId: string, medicationName: string, scheduledTime: string) {
-    return this.sendToPatient({
-      patientId,
-      title: `⏰ Horário de tomar seu remédio`,
-      body: `Está na hora de tomar ${medicationName}`,
-      url: `/patient/medications`,
-      type: "medication_reminder",
-    })
-  }
+
 
   async sendNewDiet(patientId: string, dietTitle: string) {
     return this.sendToPatient({
