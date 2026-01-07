@@ -63,7 +63,7 @@ export class PushNotificationService {
           patientId: payload.patientId,
           title: payload.title,
           body: payload.body,
-          url: payload.url || "/notifications",
+          url: payload.url || "/patient/notifications",
           type: payload.type || "info",
         }),
       })
@@ -121,7 +121,7 @@ export class PushNotificationService {
         requireInteraction: true,
         data: {
           type: payload.type || "general",
-          url: payload.url || "/notifications",
+          url: payload.url || "/patient/notifications",
           patientId: payload.patientId,
           source: "patient-local",
         },
@@ -149,7 +149,7 @@ export class PushNotificationService {
         message: payload.body || payload.title,
         notification_type: payload.type || "general",
         user_id: payload.patientId,
-        action_url: payload.url || "/notifications",
+        action_url: payload.url || "patient/notifications",
         is_read: false,
         is_active: true,
         created_at: new Date().toISOString(),
@@ -303,7 +303,7 @@ export class PushNotificationService {
       patientId,
       title: "💪 Novo Suplemento Recomendado",
       body: `Você recebeu uma recomendação: ${supplementName}`,
-      url: `/patient`,
+      url: `/patient/supplements`,
       type: "supplement_created",
     })
   }
