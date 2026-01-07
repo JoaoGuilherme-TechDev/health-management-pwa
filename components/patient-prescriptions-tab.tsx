@@ -183,9 +183,7 @@ export function PatientPrescriptionsTab({ patientId }: { patientId: string }) {
       if (data && data.length > 0) {
         console.log("[v0] Receita adicionada com sucesso:", data[0])
 
-      
         await pushNotifications.sendNewPrescription(patientId, formData.title)
-        
 
         alert("Receita adicionada com sucesso!")
 
@@ -253,17 +251,26 @@ export function PatientPrescriptionsTab({ patientId }: { patientId: string }) {
                     <div className="flex-1">
                       <h4 className="font-semibold text-foreground text-lg">{pres.title}</h4>
                       {pres.description && <p className="text-sm text-muted-foreground mt-2">{pres.description}</p>}
-                      {pres.prescription_file_url && (
-                        <a
-                          href={pres.prescription_file_url}
-                          target="_blank"
-                          rel="noopener noreferrer"
-                          className="inline-flex items-center gap-2 text-sm text-primary hover:underline mt-2"
-                        >
-                          <ExternalLink className="h-4 w-4" />
-                          Ver Documento Anexado
-                        </a>
-                      )}
+                      {pres.prescription_file_url &&
+                        (() => {
+                          const isExpired = pres.valid_until && new Date(pres.valid_until) < new Date()
+                          return isExpired ? (
+                            <div className="inline-flex items-center gap-2 text-sm text-red-600 mt-2 opacity-60 cursor-not-allowed">
+                              <ExternalLink className="h-4 w-4" />
+                              Documento indisponível (receita expirada)
+                            </div>
+                          ) : (
+                            <a
+                              href={pres.prescription_file_url}
+                              target="_blank"
+                              rel="noopener noreferrer"
+                              className="inline-flex items-center gap-2 text-sm text-primary hover:underline mt-2"
+                            >
+                              <ExternalLink className="h-4 w-4" />
+                              Ver Documento Anexado
+                            </a>
+                          )
+                        })()}
                       {pres.valid_until && (
                         <p className="text-sm text-muted-foreground mt-2">
                           Válido até: {formatBrasiliaDate(pres.valid_until, "date")}
