@@ -7,6 +7,7 @@ import { useEffect, useState } from "react"
 import { Button } from "@/components/ui/button"
 import { Heart, Home, Pill, Calendar, Settings, UtensilsCrossed, Activity, Bell, Dumbbell, FileText, LogOut } from "lucide-react"
 import { PatientNotificationListener } from "@/components/PatientNotificationListener"
+import { MedicationScheduler } from "@/components/medication-scheduler"
 import Link from "next/link"
 
 export default function PatientLayout({ children }: { children: React.ReactNode }) {
@@ -115,6 +116,7 @@ export default function PatientLayout({ children }: { children: React.ReactNode 
         {/* Main Content - Mobile optimized padding */}
         <main className="flex-1 p-3 sm:p-6 lg:p-8 pb-20 md:pb-6">
           <PatientNotificationListener />
+          <MedicationScheduler />
           {children}
         </main>
       </div>
