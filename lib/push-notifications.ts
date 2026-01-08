@@ -28,11 +28,8 @@ export class PushNotificationService {
       console.log("🚀 [PUSH] Starting push notification for patient:", payload.patientId)
 
       // FIRST: Store in database for notification center
-      const dbResult = await this.storeInDatabase(payload)
-      console.log("💾 [PUSH] Database storage result:", dbResult)
-
-      const apiResult = await this.sendViaPushAPI(payload)
-      console.log("📤 [PUSH] API send result:", apiResult)
+      await this.storeInDatabase(payload)
+      console.log("💾 [PUSH] Stored in database for patient:", payload.patientId)
 
       return {
         storedInDB: true,
@@ -43,6 +40,7 @@ export class PushNotificationService {
       throw error
     }
   }
+
 
   // Store in database
   private async storeInDatabase(payload: NotificationPayload): Promise<void> {
@@ -73,30 +71,6 @@ export class PushNotificationService {
     } catch (error) {
       console.error("❌ [PUSH] Database storage failed:", error)
       throw error
-    }
-  }
-
-  // Send via push API for background notifications
-  private async sendViaPushAPI(payload: NotificationPayload): Promise<boolean> {
-    try {
-      const response = await fetch("/api/push/send", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(payload),
-      })
-
-      if (!response.ok) {
-        console.error(`[PUSH] API error: ${response.status} - ${response.statusText}`)
-        const errorText = await response.text()
-        console.error(`[PUSH] API error response:`, errorText)
-        return false
-      } else {
-        console.log(`[PUSH] Successfully sent via API for patient: ${payload.patientId}`)
-        return true
-      }
-    } catch (error) {
-      console.error("[PUSH] Error calling push API:", error)
-      return false
     }
   }
 
@@ -177,22 +151,22 @@ export class PushNotificationService {
       console.log(`It's time to take ${medicationName}! Sending notification...`)
 
       // Add this check before sending notification
-      const { data: existingNotifications } = await this.supabase
-        .from("notifications")
-        .select("id")
-        .eq("user_id", patientId)
-        .eq("notification_type", "medication_reminder")
-        .ilike("message", `%${medicationName}%`)
-        .gte("created_at", new Date(Date.now() - 1 * 60000).toISOString()) // Last 1 minute
-        .limit(1)
+  const { data: existingNotifications } = await this.supabase
+  .from("notifications")
+  .select("id")
+  .eq("user_id", patientId)
+  .eq("notification_type", "medication_reminder")
+  .ilike("message", `%${medicationName}%`)
+  .gte("created_at", new Date(Date.now() - 5 * 60000).toISOString()) // Last 5 minutes
+  .limit(1)
 
-      if (existingNotifications && existingNotifications.length > 0) {
-        console.log(`Duplicate notification prevented for ${medicationName}`)
-        return {
-          storedInDB: false,
-          message: "Duplicate prevented",
-        }
-      }
+  if (existingNotifications && existingNotifications.length > 0) {
+    console.log(`Duplicate notification prevented for ${medicationName}`)
+    return { 
+      storedInDB: false, 
+      message: "Duplicate prevented" 
+    }
+  }
 
       return this.sendToPatient({
         patientId,
@@ -242,16 +216,6 @@ export class PushNotificationService {
       body: `Você recebeu uma nova receita: ${dietTitle}`,
       url: `/patient/diet`,
       type: "diet_created",
-    })
-  }
-
-  async sendAppointmentReminder(patientId: string, reminderTime: string) {
-    return this.sendToPatient({
-      patientId,
-      title: "⏰ Lembrete de Consulta",
-      body: `Consulta agendada para amanhã ${reminderTime}`,
-      url: "/patient/appointments",
-      type: "appointment_reminder",
     })
   }
 

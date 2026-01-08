@@ -45,7 +45,7 @@ export default function ClientLayout({
 
     if ("serviceWorker" in navigator) {
       navigator.serviceWorker
-        .register("/api/sw", { scope: "/" })
+        .register("/sw.js", { scope: "/" })
         .then((registration) => {
           console.log("[v0] Service Worker registered successfully:", registration)
         })
