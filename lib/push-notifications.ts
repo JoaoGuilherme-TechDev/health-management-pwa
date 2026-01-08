@@ -150,23 +150,7 @@ export class PushNotificationService {
 
       console.log(`It's time to take ${medicationName}! Sending notification...`)
 
-      // Add this check before sending notification
-  const { data: existingNotifications } = await this.supabase
-  .from("notifications")
-  .select("id")
-  .eq("user_id", patientId)
-  .eq("notification_type", "medication_reminder")
-  .ilike("message", `%${medicationName}%`)
-  .gte("created_at", new Date(Date.now() - 5 * 60000).toISOString()) // Last 5 minutes
-  .limit(1)
-
-  if (existingNotifications && existingNotifications.length > 0) {
-    console.log(`Duplicate notification prevented for ${medicationName}`)
-    return { 
-      storedInDB: false, 
-      message: "Duplicate prevented" 
-    }
-  }
+ 
 
       return this.sendToPatient({
         patientId,
