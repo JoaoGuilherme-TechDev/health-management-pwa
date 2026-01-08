@@ -7,6 +7,7 @@ import { Analytics } from "@vercel/analytics/next"
 import { NotificationPermissionManager } from "@/components/NotificationPermissionManager"
 import { createClient } from "@/lib/supabase/client"
 import { useRouter } from "next/navigation"
+import { MedicationScheduler } from "@/components/medication-scheduler"
 
 export default function ClientLayout({
   children,
@@ -63,6 +64,7 @@ export default function ClientLayout({
     <body className="font-sans antialiased">
       {children}
       <Analytics />
+      <MedicationScheduler/>
       <NotificationPermissionManager />
     </body>
   )
