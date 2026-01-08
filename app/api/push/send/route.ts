@@ -13,13 +13,6 @@ if (process.env.VAPID_PRIVATE_KEY && process.env.NEXT_PUBLIC_VAPID_PUBLIC_KEY) {
 
 export async function POST(request: NextRequest) {
   try {
-    const supabase = await createClient()
-    const { data: userData } = await supabase.auth.getUser()
-
-    if (!userData.user) {
-      return NextResponse.json({ error: "Não autorizado" }, { status: 401 })
-    }
-
     const payload = await request.json()
     const { patientId, title, body, url, type } = payload
 
@@ -30,6 +23,7 @@ export async function POST(request: NextRequest) {
 
     console.log(`[PUSH API] Preparing to send to patient: ${patientId}`)
 
+    const supabase = await createClient()
     const { data: subscriptionsData, error: dbError } = await supabase
       .from("push_subscriptions")
       .select("subscription")
