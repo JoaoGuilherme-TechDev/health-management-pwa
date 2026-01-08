@@ -37,6 +37,15 @@ self.addEventListener('push', event => {
     }
   }
 
+  // Custom vibration for medication reminders (ALARM like)
+  let vibrationPattern = [100, 50, 100];
+  const isMedication = data.type === 'medication_reminder' || (data.data && data.data.type === 'medication_reminder');
+  
+  if (isMedication) {
+    // Long, persistent-feeling vibration pattern
+    vibrationPattern = [500, 200, 500, 200, 500, 200, 500, 200, 500]; 
+  }
+
   const options = {
     body: data.body || 'Nova notificação',
     icon: data.icon || '/icon-light-32x32.png',
@@ -46,8 +55,8 @@ self.addEventListener('push', event => {
       ...data.data,
       url: data.url || '/patient/notifications'
     },
-    requireInteraction: true,
-    vibrate: [100, 50, 100],
+    requireInteraction: true, // Keep notification on screen
+    vibrate: vibrationPattern,
     timestamp: Date.now(),
     actions: [
       { action: 'open', title: 'Ver Detalhes' },
