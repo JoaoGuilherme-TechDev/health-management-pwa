@@ -41,7 +41,7 @@ export default function ClientLayout({
   }, [])
 
   useEffect(() => {
-    if (!isClient || isLoading) return
+    if (!isClient) return
 
     if ("serviceWorker" in navigator) {
       navigator.serviceWorker
@@ -53,11 +53,7 @@ export default function ClientLayout({
           console.error("[v0] Service Worker registration failed:", error)
         })
     }
-  }, [isClient, isLoading])
-
-  if (isLoading) {
-    return null // Don't render anything while checking session
-  }
+  }, [isClient])
 
   return (
     <body className="font-sans antialiased">
