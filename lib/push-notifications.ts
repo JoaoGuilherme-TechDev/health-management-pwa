@@ -1,4 +1,5 @@
 import { createClient } from "@/lib/supabase/client"
+import { type SupabaseClient } from "@supabase/supabase-js"
 
 interface NotificationPayload {
   title: string
@@ -17,7 +18,11 @@ interface NotificationPayload {
 }
 
 export class PushNotificationService {
-  private supabase = createClient()
+  private supabase: SupabaseClient
+
+  constructor(supabaseClient?: SupabaseClient) {
+    this.supabase = supabaseClient || createClient()
+  }
 
   // Enviar notificação para um paciente
   async sendToPatient(payload: NotificationPayload) {

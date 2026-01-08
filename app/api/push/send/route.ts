@@ -23,7 +23,14 @@ export async function POST(request: NextRequest) {
     const payload = await request.json()
     
     // O Supabase envia o novo registro no campo 'record' ou 'new' dependendo da configuração
-    const notification = payload.record || payload.new
+    // Também aceitamos chamadas diretas com patientId
+    const notification = payload.record || payload.new || {
+      user_id: payload.patientId,
+      title: payload.title,
+      message: payload.body,
+      action_url: payload.url,
+      notification_type: payload.type
+    }
     
     if (!notification || !notification.user_id) {
       return NextResponse.json({ error: "Payload inválido" }, { status: 400 })
