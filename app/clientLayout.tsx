@@ -41,11 +41,11 @@ export default function ClientLayout({
   }, [])
 
   useEffect(() => {
-    if (!isClient) return
+    if (!isClient || isLoading) return
 
     if ("serviceWorker" in navigator) {
       navigator.serviceWorker
-        .register("/api/sw", { scope: "/" })
+        .register("/sw.js", { scope: "/" })
         .then((registration) => {
           console.log("[v0] Service Worker registered successfully:", registration)
         })
@@ -53,7 +53,11 @@ export default function ClientLayout({
           console.error("[v0] Service Worker registration failed:", error)
         })
     }
-  }, [isClient])
+  }, [isClient, isLoading])
+
+  if (isLoading) {
+    return null // Don't render anything while checking session
+  }
 
   return (
     <body className="font-sans antialiased">
