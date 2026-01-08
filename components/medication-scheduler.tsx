@@ -71,7 +71,7 @@ export function MedicationScheduler() {
     checkSchedules()
 
     // Run every 10 seconds to ensure we catch the minute change promptly
-    const intervalId = setInterval(checkSchedules, 70000)
+    const intervalId = setInterval(checkSchedules, 60000)
 
     return () => clearInterval(intervalId)
   }, [])
