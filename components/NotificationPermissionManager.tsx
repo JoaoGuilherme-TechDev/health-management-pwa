@@ -5,9 +5,9 @@ import { useEffect, useState } from "react"
 import { useSearchParams } from "next/navigation"
 import { Bell } from "lucide-react"
 import { Button } from "@/components/ui/button"
-import { Suspense } from "react"
 
-function NotificationPermissionContent() {
+
+export function NotificationPermissionManager() {
   const [showModal, setShowModal] = useState(false)
   const [isProcessing, setIsProcessing] = useState(false)
   const searchParams = useSearchParams()
@@ -135,13 +135,5 @@ function NotificationPermissionContent() {
         </div>
       </div>
     </div>
-  )
-}
-
-export function NotificationPermissionManager() {
-  return (
-    <Suspense fallback={null}>
-      <NotificationPermissionContent />
-    </Suspense>
   )
 }
