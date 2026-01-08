@@ -13,9 +13,6 @@ interface NotificationPayload {
     | "medication_reminder"
     | "supplement_created"
     | "evolution_created"
-    | "info"
-    | "warning"
-    | "health_alert"
   patientId: string
 }
 

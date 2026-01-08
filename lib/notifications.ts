@@ -234,7 +234,7 @@ export async function notifyDietCreated(
       await pushNotifications.sendToPatient({
         patientId: userId,
         title: "🥗 Nova Receita de Dieta",
-        body: `Você recebeu uma nova receita: ${dietTitle}`,
+        body: `Você recebeu uma nova dieta: ${dietTitle}`,
         url: "/patient/diet",
         type: "diet_created",
       })
