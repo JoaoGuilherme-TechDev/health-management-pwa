@@ -24,20 +24,22 @@ export class PushNotificationService {
   // Enviar notificação para um paciente
   async sendToPatient(payload: NotificationPayload) {
     try {
-      console.log("🚀 [PUSH] Sending push notification for patient:", payload.patientId)
+      console.log("🚀 [PUSH] Starting push notification for patient:", payload.patientId)
 
-      // Send ONLY via Web Push API to the service worker
-      // This works whether app is open or closed
-      await this.sendViaAPI(payload)
+      // FIRST: Store in database for notification center
+      await this.storeInDatabase(payload)
+      console.log("💾 [PUSH] Stored in database for patient:", payload.patientId)
 
       return {
-        message: "Notificação enviada ao paciente via push",
+        storedInDB: true,
+        message: "Notificação enviada ao paciente",
       }
     } catch (error) {
       console.error("❌ [PUSH] Error sending notification:", error)
       throw error
     }
   }
+
 
   // Store in database
   private async storeInDatabase(payload: NotificationPayload): Promise<void> {
@@ -68,34 +70,6 @@ export class PushNotificationService {
     } catch (error) {
       console.error("❌ [PUSH] Database storage failed:", error)
       throw error
-    }
-  }
-
-  // Send push notifications via API
-  private async sendViaAPI(payload: NotificationPayload): Promise<void> {
-    try {
-      const response = await fetch("/api/push/send", {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify({
-          patientId: payload.patientId,
-          title: payload.title,
-          body: payload.body,
-          url: payload.url,
-          type: payload.type,
-        }),
-      })
-
-      if (!response.ok) {
-        const error = await response.json()
-        console.error("❌ [PUSH API] Failed to send push notification:", error)
-      } else {
-        console.log("✅ [PUSH API] Push notification sent successfully")
-      }
-    } catch (error) {
-      console.error("❌ [PUSH API] Error calling push send endpoint:", error)
     }
   }
 
@@ -176,22 +150,22 @@ export class PushNotificationService {
       console.log(`It's time to take ${medicationName}! Sending notification...`)
 
       // Add this check before sending notification
-      const { data: existingNotifications } = await this.supabase
-        .from("notifications")
-        .select("id")
-        .eq("user_id", patientId)
-        .eq("notification_type", "medication_reminder")
-        .ilike("message", `%${medicationName}%`)
-        .gte("created_at", new Date(Date.now() - 5 * 60000).toISOString()) // Last 5 minutes
-        .limit(1)
+  const { data: existingNotifications } = await this.supabase
+  .from("notifications")
+  .select("id")
+  .eq("user_id", patientId)
+  .eq("notification_type", "medication_reminder")
+  .ilike("message", `%${medicationName}%`)
+  .gte("created_at", new Date(Date.now() - 5 * 60000).toISOString()) // Last 5 minutes
+  .limit(1)
 
-      if (existingNotifications && existingNotifications.length > 0) {
-        console.log(`Duplicate notification prevented for ${medicationName}`)
-        return {
-          storedInDB: false,
-          message: "Duplicate prevented",
-        }
-      }
+  if (existingNotifications && existingNotifications.length > 0) {
+    console.log(`Duplicate notification prevented for ${medicationName}`)
+    return { 
+      storedInDB: false, 
+      message: "Duplicate prevented" 
+    }
+  }
 
       return this.sendToPatient({
         patientId,
@@ -251,16 +225,6 @@ export class PushNotificationService {
       body: `Você recebeu uma recomendação: ${supplementName}`,
       url: `/patient/supplements`,
       type: "supplement_created",
-    })
-  }
-
-  async sendNewEvolution(patientId: string, measurementDetails: string) {
-    return this.sendToPatient({
-      patientId,
-      title: "📊 Nova Medição de Evolução Física",
-      body: measurementDetails,
-      url: `/patient/evolution`,
-      type: "evolution_created",
     })
   }
 }
