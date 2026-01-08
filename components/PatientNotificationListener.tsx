@@ -59,7 +59,7 @@ async function showNotification(notification: any) {
       requireInteraction: true,
       data: {
         type: notification.notification_type || notification.type,
-        url: notification.data?.url || "/notifications",
+        url: notification.data?.url || "patient/notifications",
         notificationId: notification.id
       }
     })
