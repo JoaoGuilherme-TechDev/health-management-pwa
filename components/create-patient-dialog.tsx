@@ -1,7 +1,7 @@
 "use client"
 
 import type React from "react"
-import { useRouter } from "next/navigation"
+
 import { useState } from "react"
 import { createClient } from "@/lib/supabase/client"
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "@/components/ui/dialog"
@@ -19,94 +19,93 @@ interface CreatePatientDialogProps {
 export function CreatePatientDialog({ open, onOpenChange, onPatientCreated }: CreatePatientDialogProps) {
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
-  const router = useRouter()
   const [formData, setFormData] = useState({
     firstName: "",
     lastName: "",
     email: "",
     password: "",
   })
-  const [createdPatientId, setCreatedPatientId] = useState<string | null>(null)
 
   const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault()
-    setError(null)
-    setLoading(true)
+  e.preventDefault()
+  setError(null)
+  setLoading(true)
 
-    try {
-      console.log("[v0] Criando paciente...")
-      const supabase = createClient()
+  try {
+    console.log("[v0] Criando paciente...")
+    const supabase = createClient()
 
-      // Check if email exists
-      const { data: existingUser } = await supabase.from("profiles").select("id").eq("email", formData.email).single()
+    // Check if email exists
+    const { data: existingUser } = await supabase
+      .from("profiles")
+      .select("id")
+      .eq("email", formData.email)
+      .single()
 
-      if (existingUser) {
-        throw new Error("Este email já está registrado no sistema")
-      }
+    if (existingUser) {
+      throw new Error("Este email já está registrado no sistema")
+    }
 
-      // Create user with signup (will send confirmation email)
-      const { data: authData, error: signUpError } = await supabase.auth.signUp({
-        email: formData.email,
-        password: formData.password,
-        options: {
-          data: {
-            first_name: formData.firstName,
-            last_name: formData.lastName,
-            role: "patient",
-          },
-        },
-      })
-
-      if (signUpError) {
-        let errorMessage = signUpError.message
-        if (signUpError.message.includes("User already registered")) {
-          errorMessage = "Este email já está registrado no sistema"
-        } else if (signUpError.message.includes("Password should be at least")) {
-          errorMessage = "A senha deve ter pelo menos 6 caracteres"
-        } else if (signUpError.message.includes("Invalid email")) {
-          errorMessage = "Email inválido"
-        }
-        throw new Error(errorMessage)
-      }
-
-      if (!authData.user) {
-        throw new Error("Falha ao criar usuário")
-      }
-
-      // Wait and update profile
-      await new Promise((resolve) => setTimeout(resolve, 1000))
-
-      const { error: updateError } = await supabase
-        .from("profiles")
-        .update({
+    // Create user with signup (will send confirmation email)
+    const { data: authData, error: signUpError } = await supabase.auth.signUp({
+      email: formData.email,
+      password: formData.password,
+      options: {
+        data: {
           first_name: formData.firstName,
           last_name: formData.lastName,
-          role: "patient",
-        })
-        .eq("id", authData.user.id)
+          role: "patient"
+        },
+      },
+    })
 
-      if (updateError) {
-        console.warn("[v0] Aviso ao atualizar perfil:", updateError)
-        // Continue anyway - the trigger should have created it
+    if (signUpError) {
+      let errorMessage = signUpError.message
+      if (signUpError.message.includes("User already registered")) {
+        errorMessage = "Este email já está registrado no sistema"
+      } else if (signUpError.message.includes("Password should be at least")) {
+        errorMessage = "A senha deve ter pelo menos 6 caracteres"
+      } else if (signUpError.message.includes("Invalid email")) {
+        errorMessage = "Email inválido"
       }
-
-      // Success
-      setFormData({ firstName: "", lastName: "", email: "", password: "" })
-      setCreatedPatientId(authData.user.id)
-      onOpenChange(false)
-      onPatientCreated()
-      router.push(`/admin/patients/${authData.user.id}`)
-
-      alert(
-        `Paciente "${formData.firstName} ${formData.lastName}" criado!\n\nO paciente receberá um email para confirmar a conta.\n\nApós confirmar, pode fazer login com:\nEmail: ${formData.email}\nSenha: ${formData.password}`,
-      )
-    } catch (err) {
-      console.error("[v0] Erro:", err)
-      setError(err instanceof Error ? err.message : "Falha ao criar paciente")
-    } finally {
-      setLoading(false)
+      throw new Error(errorMessage)
     }
+
+    if (!authData.user) {
+      throw new Error("Falha ao criar usuário")
+    }
+
+    // Wait and update profile
+    await new Promise((resolve) => setTimeout(resolve, 1000))
+    
+    const { error: updateError } = await supabase
+      .from("profiles")
+      .update({
+        first_name: formData.firstName,
+        last_name: formData.lastName,
+        role: "patient",
+      })
+      .eq("id", authData.user.id)
+
+    if (updateError) {
+      console.warn("[v0] Aviso ao atualizar perfil:", updateError)
+      // Continue anyway - the trigger should have created it
+    }
+
+    // Success
+    setFormData({ firstName: "", lastName: "", email: "", password: "" })
+    onOpenChange(false)
+    onPatientCreated()
+    
+    alert(`Paciente "${formData.firstName} ${formData.lastName}" criado!\n\nO paciente pode fazer login com:\nEmail: ${formData.email}\nSenha: ${formData.password}`)
+
+  } catch (err) {
+    console.error("[v0] Erro:", err)
+    setError(err instanceof Error ? err.message : "Falha ao criar paciente")
+  } finally {
+    setLoading(false)
   }
+}
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
@@ -156,7 +155,7 @@ export function CreatePatientDialog({ open, onOpenChange, onPatientCreated }: Cr
           </div>
 
           <div className="space-y-2">
-            <Label htmlFor="password">Senha Temporária *</Label>
+            <Label htmlFor="password">Senha*</Label>
             <Input
               id="password"
               type="password"
@@ -167,13 +166,21 @@ export function CreatePatientDialog({ open, onOpenChange, onPatientCreated }: Cr
               minLength={6}
               placeholder="Mínimo 6 caracteres"
             />
-            <p className="text-xs text-muted-foreground">O paciente poderá alterar esta senha no primeiro acesso.</p>
           </div>
 
-          {error && <div className="p-3 bg-red-50 border border-red-200 rounded text-red-700 text-sm">{error}</div>}
+          {error && (
+            <div className="p-3 bg-red-50 border border-red-200 rounded text-red-700 text-sm">
+              {error}
+            </div>
+          )}
 
           <div className="flex gap-3 justify-end pt-4">
-            <Button type="button" variant="outline" onClick={() => onOpenChange(false)} disabled={loading}>
+            <Button 
+              type="button" 
+              variant="outline" 
+              onClick={() => onOpenChange(false)}
+              disabled={loading}
+            >
               Cancelar
             </Button>
             <Button type="submit" disabled={loading}>
