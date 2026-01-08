@@ -238,7 +238,7 @@ export default function Home() {
               <Link href="/privacy-policy" className="hover:text-foreground transition-colors">
                 Política de Privacidade
               </Link>
-              <Link href="/terms" className="hover:text-foreground transition-colors">
+              <Link href="/terms-of-service" className="hover:text-foreground transition-colors">
                 Termos de Serviço
               </Link>
               <Link href="https://wa.me/999999999999" className="hover:text-foreground transition-colors">

@@ -131,27 +131,6 @@
               />
             </div>
 
-            <div>
-              <label className="text-sm font-medium text-foreground">Imagem</label>
-              <div className="flex gap-4">
-                {formData.image_url && (
-                  <img
-                    src={formData.image_url || "/placeholder.svg"}
-                    alt="pré-visualização"
-                    className="w-24 h-24 object-cover rounded"
-                    
-                  />
-                )}
-                <input
-                  type="file"
-                  accept="image/*"
-                  onChange={(e) => e.target.files && handleImageUpload(e.target.files[0])}
-                  className="flex-1 p-2 border border-border rounded"
-              
-                />
-              </div>
-            </div>
-
             <div className="flex gap-2">
               <Button type="submit" disabled={loading}>
                 {loading ? "Salvando..." : supplement ? "Atualizar Suplemento" : "Adicionar Suplemento"}
