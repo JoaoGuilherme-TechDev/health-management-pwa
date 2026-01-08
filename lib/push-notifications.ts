@@ -28,9 +28,35 @@ export class PushNotificationService {
       await this.storeInDatabase(payload)
       console.log("💾 [PUSH] Stored in database for patient:", payload.patientId)
 
+      // SECOND: Send real push notification via API
+      let apiSuccess = false
+      try {
+        const baseUrl = typeof window !== 'undefined' ? window.location.origin : process.env.NEXT_PUBLIC_APP_URL || ''
+        const response = await fetch(`${baseUrl}/api/push/send`, {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify({
+            patientId: payload.patientId,
+            title: payload.title,
+            body: payload.body,
+            url: payload.url,
+            type: payload.type,
+          }),
+        })
+
+        const result = await response.json()
+        apiSuccess = result.success
+        console.log("📡 [PUSH] API Response:", result)
+      } catch (apiError) {
+        console.error("❌ [PUSH] API call failed:", apiError)
+      }
+
       return {
         storedInDB: true,
-        message: "Notificação enviada ao paciente",
+        apiSuccess,
+        message: apiSuccess ? "Notificação enviada com sucesso" : "Notificação salva, mas falha ao enviar push",
       }
     } catch (error) {
       console.error("❌ [PUSH] Error sending notification:", error)

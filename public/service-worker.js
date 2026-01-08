@@ -41,10 +41,18 @@ self.addEventListener('push', event => {
     body: data.body || 'Nova notificação',
     icon: data.icon || '/icon-light-32x32.png',
     badge: data.badge || '/icon-light-32x32.png',
-    tag: data.tag || `notification-${Date.now()}`,
-    data: data.data || {},
-    requireInteraction: data.requireInteraction || false,
-    timestamp: Date.now()
+    tag: data.tag || 'healthcare-notification',
+    data: {
+      ...data.data,
+      url: data.url || '/patient/notifications'
+    },
+    requireInteraction: true,
+    vibrate: [100, 50, 100],
+    timestamp: Date.now(),
+    actions: [
+      { action: 'open', title: 'Ver Detalhes' },
+      { action: 'close', title: 'Fechar' }
+    ]
   }
 
   console.log('[Service Worker] Showing notification:', data.title || 'HealthCare+')
@@ -63,14 +71,19 @@ self.addEventListener('notificationclick', event => {
   
   event.notification.close()
 
-  const urlToOpen = event.notification.data?.url || '/notifications'
+  if (event.action === 'close') {
+    return
+  }
+
+  const urlToOpen = event.notification.data?.url || '/patient/notifications'
 
   event.waitUntil(
     clients.matchAll({ type: 'window', includeUncontrolled: true })
       .then(windowClients => {
         // Check if there's already a window/tab open
         for (const client of windowClients) {
-          if (client.url.includes(urlToOpen) && 'focus' in client) {
+          const clientUrl = new URL(client.url).pathname
+          if (clientUrl === urlToOpen && 'focus' in client) {
             return client.focus()
           }
         }

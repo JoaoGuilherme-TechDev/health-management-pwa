@@ -1,6 +1,6 @@
 import { type NextRequest, NextResponse } from "next/server"
-import { createClient } from "@/lib/supabase/server"
 import webpush from "web-push"
+import { createClient } from "@supabase/supabase-js"
 
 // Configurar web-push
 if (process.env.VAPID_PRIVATE_KEY && process.env.NEXT_PUBLIC_VAPID_PUBLIC_KEY) {
@@ -11,75 +11,68 @@ if (process.env.VAPID_PRIVATE_KEY && process.env.NEXT_PUBLIC_VAPID_PUBLIC_KEY) {
   )
 }
 
+// Cliente Supabase com Service Role para ignorar RLS
+const supabaseAdmin = createClient(
+  process.env.NEXT_PUBLIC_SUPABASE_URL || "",
+  process.env.SUPABASE_SERVICE_ROLE_KEY || ""
+)
+
 export async function POST(request: NextRequest) {
   try {
-    const supabase = await createClient()
-    const { data: userData } = await supabase.auth.getUser()
-
-    if (!userData.user) {
-      return NextResponse.json({ error: "Não autorizado" }, { status: 401 })
-    }
-
+    // Verificar se é um webhook do Supabase (opcional: adicionar uma chave secreta)
     const payload = await request.json()
-    const { patientId, title, body, url, type } = payload
-
-    // Validar payload
-    if (!patientId || !title) {
-      return NextResponse.json({ error: "Dados incompletos (patientId, title são obrigatórios)" }, { status: 400 })
+    
+    // O Supabase envia o novo registro no campo 'record' ou 'new' dependendo da configuração
+    const notification = payload.record || payload.new
+    
+    if (!notification || !notification.user_id) {
+      return NextResponse.json({ error: "Payload inválido" }, { status: 400 })
     }
 
-    console.log(`[PUSH API] Preparing to send to patient: ${patientId}`)
+    console.log(`[PUSH WEBHOOK] Processando notificação para usuário: ${notification.user_id}`)
 
-    const { data: subscriptionsData, error: dbError } = await supabase
+    // Buscar as inscrições de push do usuário
+    const { data: subscriptions, error: subError } = await supabaseAdmin
       .from("push_subscriptions")
       .select("subscription")
-      .eq("user_id", patientId)
+      .eq("user_id", notification.user_id)
 
-    if (dbError || !subscriptionsData || subscriptionsData.length === 0) {
-      console.log(`[PUSH API] No subscription found for patient ${patientId}`)
-      return NextResponse.json(
-        { success: false, message: "Paciente não possui push notifications ativado" },
-        { status: 200 },
-      )
+    if (subError || !subscriptions || subscriptions.length === 0) {
+      console.log(`[PUSH WEBHOOK] Nenhuma inscrição encontrada para o usuário ${notification.user_id}`)
+      return NextResponse.json({ success: true, message: "Sem inscrições" })
     }
 
-    const notificationPayload = JSON.stringify({
-      title,
-      body,
-      url,
-      type,
+    const pushPayload = JSON.stringify({
+      title: notification.title,
+      body: notification.message,
+      url: notification.action_url || "/patient/notifications",
+      type: notification.notification_type,
       timestamp: Date.now(),
     })
 
     let successCount = 0
-    let failureCount = 0
-
-    for (const subscriptionRecord of subscriptionsData) {
-      const pushSubscription = subscriptionRecord.subscription
-
+    for (const subRecord of subscriptions) {
       try {
-        await webpush.sendNotification(pushSubscription, notificationPayload)
-        console.log(`[PUSH API] Notification sent successfully to device: ${pushSubscription.endpoint}`)
+        await webpush.sendNotification(subRecord.subscription, pushPayload)
         successCount++
-      } catch (pushError: any) {
-        console.error("[PUSH API] Error sending via web-push:", pushError)
-
-        // If error 410 (Gone), remove the invalid subscription
-        if (pushError.statusCode === 410) {
-          await supabase.from("push_subscriptions").delete().eq("subscription", pushSubscription)
-          console.log(`[PUSH API] Removed invalid subscription: ${pushSubscription.endpoint}`)
+      } catch (error: any) {
+        console.error("[PUSH WEBHOOK] Erro ao enviar push:", error)
+        if (error.statusCode === 410) {
+          // Remover inscrição inválida
+          await supabaseAdmin
+            .from("push_subscriptions")
+            .delete()
+            .eq("subscription", subRecord.subscription)
         }
-        failureCount++
       }
     }
 
-    console.log(`[PUSH API] Send results - Success: ${successCount}, Failures: ${failureCount}`)
     return NextResponse.json({
-      success: successCount > 0,
-      message: `Notificação enviada para ${successCount} dispositivo(s)`,
+      success: true,
+      sent_to: successCount,
     })
   } catch (error) {
-    console.error("[PUSH API] Internal server error:", error)
-    return NextResponse.json({ error: "Erro interno do servidor" }, { status: 500 })
+    console.error("[PUSH WEBHOOK] Erro interno:", error)
+    return NextResponse.json({ error: "Erro interno" }, { status: 500 })
   }
 }
