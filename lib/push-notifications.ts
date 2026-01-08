@@ -28,10 +28,11 @@ export class PushNotificationService {
       console.log("🚀 [PUSH] Starting push notification for patient:", payload.patientId)
 
       // FIRST: Store in database for notification center
-      await this.storeInDatabase(payload)
-      console.log("💾 [PUSH] Stored in database for patient:", payload.patientId)
+      const dbResult = await this.storeInDatabase(payload)
+      console.log("💾 [PUSH] Database storage result:", dbResult)
 
-      await this.sendViaPushAPI(payload)
+      const apiResult = await this.sendViaPushAPI(payload)
+      console.log("📤 [PUSH] API send result:", apiResult)
 
       return {
         storedInDB: true,
@@ -76,7 +77,7 @@ export class PushNotificationService {
   }
 
   // Send via push API for background notifications
-  private async sendViaPushAPI(payload: NotificationPayload): Promise<void> {
+  private async sendViaPushAPI(payload: NotificationPayload): Promise<boolean> {
     try {
       const response = await fetch("/api/push/send", {
         method: "POST",
@@ -85,13 +86,17 @@ export class PushNotificationService {
       })
 
       if (!response.ok) {
-        console.error(`[PUSH] API error: ${response.status}`)
+        console.error(`[PUSH] API error: ${response.status} - ${response.statusText}`)
+        const errorText = await response.text()
+        console.error(`[PUSH] API error response:`, errorText)
+        return false
       } else {
         console.log(`[PUSH] Successfully sent via API for patient: ${payload.patientId}`)
+        return true
       }
     } catch (error) {
       console.error("[PUSH] Error calling push API:", error)
-      // Don't throw - API failures shouldn't block database storage
+      return false
     }
   }
 
