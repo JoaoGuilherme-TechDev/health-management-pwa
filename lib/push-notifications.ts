@@ -6,6 +6,7 @@ interface NotificationPayload {
   url?: string
   type?:
     | "prescription_created"
+    | "appointment_reminder"
     | "appointment_scheduled"
     | "diet_created"
     | "medication_created"
@@ -217,7 +218,15 @@ export class PushNotificationService {
       type: "diet_created",
     })
   }
-
+  async sendAppointmentReminder(patientId: string, reminderTime: string) {
+    return this.sendToPatient({
+      patientId,
+      title: "⏰ Lembrete de Consulta",
+      body: `Consulta agendada para amanhã ${reminderTime}`,
+      url: "/patient/appointments",
+      type: "appointment_reminder",
+    })
+  }
   async sendNewSupplement(patientId: string, supplementName: string) {
     return this.sendToPatient({
       patientId,

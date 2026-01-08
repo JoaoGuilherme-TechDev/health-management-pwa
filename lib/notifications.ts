@@ -3,6 +3,7 @@
 
 import { createClient } from "@/lib/supabase/client"
 import { pushNotifications } from "@/lib/push-notifications"
+import { url } from "inspector"
 
 // Notification types
 export type NotificationType =
@@ -192,6 +193,28 @@ export async function notifyMedicationCreated(
         body: `Você recebeu um novo medicamento: ${medicationName}`,
         url: "/patient/medications",
         type: "medication_created",
+      })
+    } catch (error) {
+      console.error("Failed to send push notification:", error)
+    }
+  }
+
+  return null
+}
+
+export async function notifyAppointmentReminder(
+  userId: string,
+  reminderTime: string,
+  sendPush = true,
+): Promise<Notification | null> {
+  if (sendPush) {
+    try {
+      await pushNotifications.sendToPatient({
+        patientId: userId,
+        title: "⏰ Lembrete de Consulta",
+        body: `Consulta agendada para ${reminderTime}`,
+        url: "/patient/appointments",
+        type: "appointment_reminder",
       })
     } catch (error) {
       console.error("Failed to send push notification:", error)
