@@ -4,7 +4,7 @@ import { createClient } from "@/lib/supabase/client"
 import { useEffect, useState } from "react"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent } from "@/components/ui/card"
-import { Trash2, Edit2, Plus } from "lucide-react"
+import { Trash2, Edit2, Plus, Utensils } from "lucide-react"
 import RecipeForm from "@/components/recipe-form"
 
 export default function RecipesPage() {
@@ -112,7 +112,9 @@ export default function RecipesPage() {
       {recipes.length === 0 && !showForm && (
         <Card>
           <CardContent className="pt-12 text-center">
-            
+            <div className="flex justify-center items-center">
+              <Utensils className="h-12 w-12 text-primary mx-auto mb-4" />
+            </div>
             <p className="text-muted-foreground mb-4">Nenhuma receita ainda. Crie a sua primeira!</p>
             <Button onClick={() => setShowForm(true)}>
               <Plus className="h-4 w-4 mr-2" />
