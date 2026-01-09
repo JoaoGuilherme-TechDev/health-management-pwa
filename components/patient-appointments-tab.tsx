@@ -86,7 +86,7 @@ export function PatientAppointmentsTab({ patientId }: { patientId: string }) {
       const { data: profile } = await supabase
         .from("profiles")
         .select("doctor_crm, doctor_full_name, first_name, last_name")
-        .eq("id", user.id)
+        .eq("id", patientId)
         .single()
 
       if (profile) {

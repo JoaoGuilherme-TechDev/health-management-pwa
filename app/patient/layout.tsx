@@ -20,6 +20,7 @@ import {
   LogOut,
 } from "lucide-react"
 import Link from "next/link"
+import { NotificationCenter } from "@/components/notification-center"
 
 export default function PatientLayout({ children }: { children: React.ReactNode }) {
   const [isLoading, setIsLoading] = useState(true)
@@ -89,6 +90,7 @@ export default function PatientLayout({ children }: { children: React.ReactNode 
             <Heart className="h-5 w-5 sm:h-6 sm:w-6 text-primary" />
             <span className="text-base sm:text-xl font-bold text-foreground">HealthCare+</span>
           </Link>
+          <NotificationCenter />
           <Button onClick={handleLogout} variant="destructive" className="gap-2">
             <LogOut className="h-4 w-4" />
           </Button>
