@@ -19,7 +19,7 @@ interface Notification {
   read_at: string | null
 }
 
-export function NotificationCenter() {
+export function NotificationsCenter() {
   const supabase = createClient()
   const [notifications, setNotifications] = useState<Notification[]>([])
   const [loading, setLoading] = useState(true)
