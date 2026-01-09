@@ -8,38 +8,6 @@ export function MedicationScheduler() {
   const lastCheckedMinute = useRef<string | null>(null)
   const sentNotificationsRef = useRef<Set<string>>(new Set())
 
-  // Function to play alarm sound (Beep)
-  const playAlarm = () => {
-    try {
-      const AudioContext = window.AudioContext || (window as any).webkitAudioContext
-      if (!AudioContext) return
-
-      const ctx = new AudioContext()
-      const osc = ctx.createOscillator()
-      const gain = ctx.createGain()
-
-      osc.connect(gain)
-      gain.connect(ctx.destination)
-
-      osc.type = "square"
-      osc.frequency.value = 880 // A5
-
-      // Beep beep beep pattern
-      const now = ctx.currentTime
-      gain.gain.setValueAtTime(0.5, now)
-      gain.gain.setValueAtTime(0, now + 0.2)
-      gain.gain.setValueAtTime(0.5, now + 0.4)
-      gain.gain.setValueAtTime(0, now + 0.6)
-      gain.gain.setValueAtTime(0.5, now + 0.8)
-      gain.gain.setValueAtTime(0, now + 1.0)
-
-      osc.start(now)
-      osc.stop(now + 1.2)
-    } catch (e) {
-      console.error("Failed to play alarm sound", e)
-    }
-  }
-
   useEffect(() => {
     const checkSchedules = async () => {
       // Get current minute in Brasilia time
@@ -91,8 +59,6 @@ export function MedicationScheduler() {
             if (result.storedInDB) {
               sentNotificationsRef.current.add(key)
               console.log(`Marked as sent: ${key}`)
-              // Play alarm sound
-              playAlarm()
             }
           } catch (error) {
             console.error(`Error sending notification for ${med.name}:`, error)

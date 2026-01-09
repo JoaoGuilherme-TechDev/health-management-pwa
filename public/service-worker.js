@@ -16,19 +16,21 @@ self.addEventListener('activate', event => {
 
 // Push event handler - SIMPLE VERSION
 self.addEventListener('push', event => {
-  console.log('[Service Worker] Push event received')
+  console.log('[Service Worker] Push event received at', new Date().toISOString())
   
   if (!event.data) {
-    console.log('[Service Worker] No data in push event')
+    console.error('[Service Worker] No data in push event')
     return
   }
 
   let data
   try {
-    data = event.data.json()
-    console.log('[Service Worker] Push data:', data)
+    const rawData = event.data.text()
+    console.log('[Service Worker] Raw push data:', rawData)
+    data = JSON.parse(rawData)
+    console.log('[Service Worker] Parsed push data:', data)
   } catch (error) {
-    console.log('[Service Worker] Error parsing push data:', error)
+    console.error('[Service Worker] Error parsing push data:', error)
     // Fallback
     data = {
       title: 'HealthCare+',

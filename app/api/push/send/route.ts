@@ -41,7 +41,7 @@ export async function POST(request: NextRequest) {
     // Buscar as inscrições de push do usuário
     const { data: subscriptions, error: subError } = await supabaseAdmin
       .from("push_subscriptions")
-      .select("subscription")
+      .select("id, subscription")
       .eq("user_id", notification.user_id)
 
     if (subError || !subscriptions || subscriptions.length === 0) {
@@ -58,18 +58,23 @@ export async function POST(request: NextRequest) {
     })
 
     let successCount = 0
+    let failCount = 0
+    
     for (const subRecord of subscriptions) {
       try {
         await webpush.sendNotification(subRecord.subscription, pushPayload)
         successCount++
       } catch (error: any) {
-        console.error("[PUSH WEBHOOK] Erro ao enviar push:", error)
-        if (error.statusCode === 410) {
-          // Remover inscrição inválida
+        console.error(`[PUSH WEBHOOK] Erro ao enviar push para subscription ${subRecord.id}:`, error)
+        failCount++
+        
+        // Se a subscrição não existe mais ou expirou (410 Gone ou 404 Not Found)
+        if (error.statusCode === 410 || error.statusCode === 404) {
+          console.log(`[PUSH WEBHOOK] Removendo subscrição inválida/expirada: ${subRecord.id}`)
           await supabaseAdmin
             .from("push_subscriptions")
             .delete()
-            .eq("subscription", subRecord.subscription)
+            .eq("id", subRecord.id)
         }
       }
     }
@@ -77,6 +82,7 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({
       success: true,
       sent_to: successCount,
+      failed: failCount
     })
   } catch (error) {
     console.error("[PUSH WEBHOOK] Erro interno:", error)

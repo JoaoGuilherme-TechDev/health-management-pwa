@@ -80,7 +80,7 @@ export async function GET(request: Request) {
                 console.log(`[CRON] Sending medication reminder for ${med.name} to ${schedule.user_id}`)
                 await pushService.sendToPatient({
                     patientId: schedule.user_id,
-                    title: "Hora de Tomar seu Remédio",
+                    title: "⏰Hora de Tomar Seu Remédio",
                     body: `Está na hora de tomar ${med.name}`,
                     url: `/patient/medications?action=confirm&medicationId=${schedule.medication_id}&name=${encodeURIComponent(med.name)}`,
                     type: "medication_reminder"
@@ -95,43 +95,22 @@ export async function GET(request: Request) {
     // We want to notify 24h before and 1h before
     // We'll query appointments in a range
     
-    // 1 Hour Lookahead
-    const oneHourFromNow = new Date(brazilTime.getTime() + 60 * 60 * 1000)
-    const oneHourStart = new Date(oneHourFromNow)
-    oneHourStart.setSeconds(0, 0)
-    const oneHourEnd = new Date(oneHourFromNow)
-    oneHourEnd.setSeconds(59, 999)
-
-    // 24 Hour Lookahead
-    const oneDayFromNow = new Date(brazilTime.getTime() + 24 * 60 * 60 * 1000)
-    const oneDayStart = new Date(oneDayFromNow)
-    oneDayStart.setSeconds(0, 0)
-    const oneDayEnd = new Date(oneDayFromNow)
-    oneDayEnd.setSeconds(59, 999)
-
-    const { data: appointments, error: appError } = await supabase
-        .from("appointments")
-        .select("*")
-        .in("status", ["scheduled"])
-        .or(`scheduled_at.gte.${oneHourStart.toISOString()},scheduled_at.gte.${oneDayStart.toISOString()}`) 
-        // Note: The OR logic above with GTE is tricky, better to fetch potential candidates and filter in JS or use specific ranges
-        // Let's just fetch all scheduled appointments and filter in JS for simplicity unless dataset is huge
-    
-    // Better approach: Fetch appointments scheduled for today/tomorrow
+    // Fetch appointments scheduled for the future
     const { data: activeAppointments } = await supabase
         .from("appointments")
         .select("*")
         .eq("status", "scheduled")
-        .gte("scheduled_at", new Date().toISOString()) // Future only
+        .gte("scheduled_at", new Date().toISOString()) 
 
     if (activeAppointments) {
         for (const app of activeAppointments) {
             const appDate = new Date(app.scheduled_at)
-            const diffMs = appDate.getTime() - brazilTime.getTime()
+            // Use UTC comparison
+            const diffMs = appDate.getTime() - now.getTime()
             const diffHours = diffMs / (1000 * 60 * 60)
             
-            // Check for ~1 hour (allow 10 minute window to be safe)
-            if (diffHours >= 0.9 && diffHours <= 1.1) {
+            // Check for ~1 hour (allow 10 minute window: 0.83h to 1.17h)
+            if (diffHours >= 0.83 && diffHours <= 1.17) {
                  const actionUrl = `/patient/appointments?highlight=${app.id}&type=1h`
                  
                  // Check duplicates
@@ -147,15 +126,15 @@ export async function GET(request: Request) {
                      await pushService.sendToPatient({
                         patientId: app.patient_id,
                         title: "Lembrete de Consulta",
-                        body: `Sua consulta "${app.title}" é em 1 hora.`,
+                        body: `Sua consulta "${app.title}" é em aproximadamente 1 hora.`,
                         url: actionUrl,
                         type: "appointment_reminder"
                     })
                  }
             }
 
-            // Check for ~24 hours
-            if (diffHours >= 23.9 && diffHours <= 24.1) {
+            // Check for ~24 hours (allow 10 minute window: 23.83h to 24.17h)
+            if (diffHours >= 23.83 && diffHours <= 24.17) {
                  const actionUrl = `/patient/appointments?highlight=${app.id}&type=24h`
 
                  // Check duplicates
