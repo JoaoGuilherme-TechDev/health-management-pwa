@@ -5,9 +5,12 @@ import type { RealtimeChannel } from "@supabase/supabase-js"
 
 export interface Notification {
   id: string
+  patient_id: string
   user_id: string
   title: string
-  message: string
+  description?: string
+  notes?: string
+  meal_type?: string
   type: "info" | "success" | "warning" | "error" | "medication" | "appointment"
   read: boolean
   created_at: string
@@ -22,17 +25,17 @@ class NotificationService {
     process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
   )
 
-  async subscribeToNotifications(userId: string, callback: (notification: Notification) => void) {
+  async subscribeToNotifications(patientId: string, callback: (notification: Notification) => void) {
     // Subscribe to new notifications in real-time
     this.subscription = this.supabase
-      .channel(`notifications:${userId}`)
+      .channel(`notifications:${patientId}`)
       .on(
         "postgres_changes",
         {
           event: "INSERT",
           schema: "public",
           table: "notifications",
-          filter: `user_id=eq.${userId}`,
+          filter: `patient_id=eq.${patientId}`,    
         },
         (payload) => {
           callback(payload.new as Notification)
@@ -48,11 +51,11 @@ class NotificationService {
     }
   }
 
-  async getNotifications(userId: string) {
+  async getNotifications(patientId: string) {
     const { data, error } = await this.supabase
       .from("notifications")
       .select("*")
-      .eq("user_id", userId)
+      .eq("patient_id", patientId)
       .order("created_at", { ascending: false })
       .limit(50)
 
@@ -66,8 +69,20 @@ class NotificationService {
     if (error) throw error
   }
 
+  async markAllAsRead(patientId: string) {
+    const { error } = await this.supabase.from("notifications").update({ read: true }).eq("patient_id", patientId)
+
+    if (error) throw error
+  }
+
   async deleteNotification(notificationId: string) {
     const { error } = await this.supabase.from("notifications").delete().eq("id", notificationId)
+
+    if (error) throw error
+  }
+
+  async deleteAllNotifications(patientId: string) {
+    const { error } = await this.supabase.from("notifications").delete().eq("patient_id", patientId)
 
     if (error) throw error
   }

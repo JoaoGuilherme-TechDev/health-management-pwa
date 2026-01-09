@@ -90,10 +90,16 @@ export default function PatientLayout({ children }: { children: React.ReactNode 
             <Heart className="h-5 w-5 sm:h-6 sm:w-6 text-primary" />
             <span className="text-base sm:text-xl font-bold text-foreground">HealthCare+</span>
           </Link>
-          <NotificationCenter />
+          <div className="flex items-center gap-2" >
+            <Button variant="outline" className="gap-2">
+              <NotificationCenter/>
+            </Button>
+            
           <Button onClick={handleLogout} variant="destructive" className="gap-2">
             <LogOut className="h-4 w-4" />
           </Button>
+          </div>
+          
         </div>
       </nav>
 

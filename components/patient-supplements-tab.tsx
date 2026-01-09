@@ -22,9 +22,10 @@ import { Plus, Trash2, Pill } from "lucide-react"
 
 interface PatientSupplementsTabProps {
   patientId: string
+  userId?: string
 }
 
-export function PatientSupplementsTab({ patientId }: PatientSupplementsTabProps) {
+export function PatientSupplementsTab({ patientId, userId }: PatientSupplementsTabProps) {
   const [supplements, setSupplements] = useState<any[]>([])
   const [loading, setLoading] = useState(true)
   const [open, setOpen] = useState(false)
@@ -89,6 +90,7 @@ export function PatientSupplementsTab({ patientId }: PatientSupplementsTabProps)
 
     const { error } = await supabase.from("patient_supplements").insert({
       patient_id: patientId,
+      user_id: userId || user?.id,
       doctor_id: user?.id,
       supplement_name: formData.supplement_name,
       dosage: formData.dosage,

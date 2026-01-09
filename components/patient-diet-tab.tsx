@@ -91,7 +91,7 @@ export function PatientDietTab({ patientId }: PatientDietTabProps) {
 
     const { error } = await supabase.from("patient_diet_recipes").insert({
       patient_id: patientId,
-      doctor_id: user?.id,
+      user_id: user?.id,
       title: formData.title,
       description: formData.description,
       meal_type: formData.meal_type,

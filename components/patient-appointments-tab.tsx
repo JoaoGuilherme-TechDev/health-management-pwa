@@ -86,7 +86,7 @@ export function PatientAppointmentsTab({ patientId }: { patientId: string }) {
       const { data: profile } = await supabase
         .from("profiles")
         .select("doctor_crm, doctor_full_name, first_name, last_name")
-        .eq("id", patientId)
+        .eq("id", user.id)
         .single()
 
       if (profile) {
@@ -104,11 +104,12 @@ export function PatientAppointmentsTab({ patientId }: { patientId: string }) {
   const handleAdd = async () => {
     const supabase = createClient()
     const {
-      data: { user },
+      data: { user }, 
     } = await supabase.auth.getUser()
 
     const dataToInsert = {
       patient_id: patientId,
+      user_id: user?.id,
       status: "scheduled",
       doctor_name: doctorInfo.name,
       doctor_crm: doctorInfo.crm,

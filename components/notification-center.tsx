@@ -81,6 +81,24 @@ export function NotificationCenter() {
     }
   }
 
+  const handleMarkAllAsRead = async () => {
+    try {
+      await notificationService.markAllAsRead(user.id)
+      setNotifications((prev) => prev.map((n) => ({ ...n, read: true })))
+    } catch (error) {
+      console.error("[v0] Failed to mark all notifications as read:", error)
+    }
+  }
+  
+  const handleDeleteAllNotifications = async (userId: string) => {
+    try {
+      await notificationService.deleteAllNotifications(userId)
+      setNotifications([])
+    } catch (error) {
+      console.error("[v0] Failed to delete all notifications:", error)
+    }
+  }
+  
   const unreadCount = notifications.filter((n) => !n.read).length
 
   if (!user) return null
@@ -96,12 +114,20 @@ export function NotificationCenter() {
 
       {isOpen && (
         <div className="absolute right-0 top-full mt-2 w-80 max-h-96 bg-background border border-border rounded-lg shadow-lg overflow-hidden z-50">
-          <div className="border-b border-border p-4 flex items-center justify-between bg-muted/50">
-            <h3 className="font-semibold text-foreground">Notificações</h3>
-            <Button variant="ghost" size="icon" onClick={() => setIsOpen(false)}>
-              <X className="h-4 w-4" />
-            </Button>
-          </div>
+          <div className="border-b border-border p-4 block bg-muted/50">
+            <div className="flex items-center gap-2 justify-between">
+              <h3 className="font-semibold text-foreground">Notificações</h3>
+              <Button variant="ghost" size="icon" onClick={() => setIsOpen(false)}>
+                <X className="h-4 w-4" />
+              </Button>
+            </div>
+            <div className="flex justify-end gap-2">
+              <Button className="w-auto" onClick={handleMarkAllAsRead} variant={"outline"}>Marcar como Lidas</Button>
+              <Button className="w-auto" onClick={() => handleDeleteAllNotifications(user.id)} variant={"destructive"}>Deletar Todas</Button>
+            </div>
+        </div>
+        
+          
 
           <div className="overflow-y-auto max-h-[calc(100%-3.5rem)]">
             {loading ? (
@@ -126,7 +152,7 @@ export function NotificationCenter() {
                       </p>
                     </div>
 
-                    <div className="flex gap-1 flex-shrink-0">
+                    <div className="flex gap-1 shrink-0">
                       {!notification.read && (
                         <Button
                           variant="ghost"
