@@ -13,25 +13,13 @@ if (process.env.VAPID_PRIVATE_KEY && process.env.NEXT_PUBLIC_VAPID_PUBLIC_KEY) {
 
 export async function POST(request: NextRequest) {
   try {
-    const supabase = await createClient()
-    const { data: userData } = await supabase.auth.getUser()
-
-    if (!userData.user) {
-      return NextResponse.json({ error: "Não autorizado" }, { status: 401 })
-    }
-
-    const { data: userProfile } = await supabase.from("profiles").select("role").eq("id", userData.user.id).single()
-
-    // Verificar se é admin/médico
-    if (userProfile?.role !== "admin" && userProfile?.role !== "doctor") {
-      return NextResponse.json({ error: "Apenas médicos podem enviar notificações" }, { status: 403 })
-    }
-
     const { patientId, title, body, url, type } = await request.json()
 
     if (!patientId || !title) {
       return NextResponse.json({ error: "patientId e title são obrigatórios" }, { status: 400 })
     }
+
+    const supabase = await createClient()
 
     // Buscar subscriptions do paciente
     const { data: subscriptions, error: subscriptionsError } = await supabase
@@ -45,6 +33,7 @@ export async function POST(request: NextRequest) {
     }
 
     if (!subscriptions || subscriptions.length === 0) {
+      console.log("[v0] Paciente não tem subscriptions ativas")
       return NextResponse.json({ message: "Paciente não tem subscriptions ativas" }, { status: 200 })
     }
 

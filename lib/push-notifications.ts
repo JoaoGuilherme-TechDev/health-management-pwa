@@ -14,37 +14,46 @@ export class PushNotificationService {
   // Enviar notificação para um paciente
   async sendToPatient(payload: NotificationPayload) {
     try {
-      // Verificar se é admin/médico
-      const { data: userData } = await this.supabase.auth.getUser()
-      const { data: profile } = await this.supabase.from("profiles").select("role").eq("id", userData.user?.id).single()
+      const { patientId, title, body, url, type } = payload
 
-      if (profile?.role !== "admin" && profile?.role !== "doctor") {
-        throw new Error("Apenas médicos podem enviar notificações")
+      // Step 1: Store notification in database
+      const { data: notification, error: insertError } = await this.supabase
+        .from("notifications")
+        .insert({
+          user_id: patientId,
+          title,
+          message: body || "",
+          notification_type: type || "general",
+          action_url: url || "/patient",
+          is_active: true,
+          reminder_type: "instant",
+        })
+        .select()
+        .single()
+
+      if (insertError) {
+        console.error("[v0] Erro ao armazenar notificação:", insertError)
+        throw insertError
       }
 
-      // Enviar via API route
-      const response = await fetch("/api/push/send", {
+      console.log("[v0] Notificação armazenada:", notification)
+
+      // Step 2: Send push notification via API (non-blocking)
+      fetch("/api/push/send", {
         method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-        },
+        headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
-          patientId: payload.patientId,
-          title: payload.title,
-          body: payload.body,
-          url: payload.url || "/patient",
-          type: payload.type || "general",
+          patientId,
+          title,
+          body: body || "Nova atualização",
+          url: url || "/patient",
+          type: type || "general",
         }),
-      })
+      }).catch((err) => console.error("[v0] Erro ao enviar push:", err))
 
-      if (!response.ok) {
-        const error = await response.json()
-        throw new Error(error.error || "Falha ao enviar notificação")
-      }
-
-      return await response.json()
+      return notification
     } catch (error) {
-      console.error("Erro ao enviar notificação push:", error)
+      console.error("[v0] Erro ao enviar notificação:", error)
       throw error
     }
   }
