@@ -21,7 +21,7 @@ import { Badge } from "@/components/ui/badge"
 import { ScrollArea } from "@/components/ui/scroll-area"
 import { Collapsible, CollapsibleContent } from "@/components/ui/collapsible"
 import { formatBrasiliaDate } from "@/lib/timezone"
-import type { Notification, NotificationType } from "@/lib/notifications"
+import type { Notification, NotificationType } from "@/lib/notifications.ts"
 import { createClient } from "@/lib/supabase/client"
 import { toast } from "sonner"
 
