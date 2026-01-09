@@ -1,16 +1,11 @@
 "use client"
 
 import { createClient } from "@/lib/supabase/client"
-import { useEffect, useState, Suspense } from "react"
+import { useEffect, useState } from "react"
 import { Card, CardContent } from "@/components/ui/card"
-import { Pill, Clock, AlertCircle, Check, X } from "lucide-react"
+import { Pill, Clock, AlertCircle } from "lucide-react"
 import { formatBrasiliaDate } from "@/lib/timezone"
 import { Alert, AlertDescription } from "@/components/ui/alert"
-import { useSearchParams, useRouter } from "next/navigation"
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from "@/components/ui/dialog"
-import { Button } from "@/components/ui/button"
-
-
 
 interface MedicationSchedule {
   id: string
@@ -32,64 +27,9 @@ interface Medication {
 }
 
 export default function MedicationsPage() {
-  return (
-    <Suspense fallback={<div>Carregando...</div>}>
-      <MedicationsContent />
-    </Suspense>
-  )
-}
-
-function MedicationsContent() {
-  const searchParams = useSearchParams()
-  const router = useRouter()
-  const [showConfirmDialog, setShowConfirmDialog] = useState(false)
-  const [confirmData, setConfirmData] = useState<{id: string, name: string} | null>(null)
-
   const [medications, setMedications] = useState<Medication[]>([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
-
-  useEffect(() => {
-    const action = searchParams.get("action")
-    const medId = searchParams.get("medicationId")
-    const medName = searchParams.get("name")
-
-    if (action === "confirm" && medId && medName) {
-      setConfirmData({ id: medId, name: medName })
-      setShowConfirmDialog(true)
-    }
-  }, [searchParams])
-
-  const handleConfirmTaken = async (taken: boolean) => {
-    if (!confirmData) return
-
-    if (taken) {
-      try {
-        const supabase = createClient()
-        const { data: { user } } = await supabase.auth.getUser()
-        
-        if (user) {
-          // Record in database
-          await supabase.from("medication_reminders").insert({
-            medication_id: confirmData.id,
-            user_id: user.id,
-            reminder_time: new Date().toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' }),
-            reminder_date: new Date().toISOString().split('T')[0],
-            is_taken: true,
-            taken_at: new Date().toISOString()
-          })
-          
-          alert(`Que bom! ${confirmData.name} registrado como tomado.`)
-        }
-      } catch (error) {
-        console.error("Error recording medication intake:", error)
-      }
-    }
-    
-    setShowConfirmDialog(false)
-    setConfirmData(null)
-    router.replace("/patient/medications")
-  }
 
   const loadMedications = async () => {
     try {
@@ -147,18 +87,7 @@ function MedicationsContent() {
         medication_schedules: schedulesData?.filter(s => s.medication_id === med.id) || []
       }))
 
-      // Filter out medications that have ended (end_date < today)
-      const today = new Date()
-      today.setHours(0, 0, 0, 0)
-      
-      const activeMedications = medicationsWithSchedules.filter(med => {
-        if (!med.end_date) return true // Keep if no end date
-        const endDate = new Date(med.end_date)
-        endDate.setHours(23, 59, 59, 999) // End of the day
-        return endDate >= today
-      })
-
-      setMedications(activeMedications)
+      setMedications(medicationsWithSchedules)
       
     } catch (error: any) {
       console.error("Unexpected error:", error)
@@ -339,34 +268,9 @@ function MedicationsContent() {
           ))}
         </div>
       )}
-
-      <Dialog open={showConfirmDialog} onOpenChange={setShowConfirmDialog}>
-        <DialogContent>
-          <DialogHeader>
-            <DialogTitle>Hora do Medicamento</DialogTitle>
-            <DialogDescription>
-              Você tomou o medicamento <strong>{confirmData?.name}</strong>?
-            </DialogDescription>
-          </DialogHeader>
-          <div className="flex justify-center gap-4 py-4">
-            <Button 
-              variant="outline" 
-              className="gap-2 border-red-200 hover:bg-red-50 hover:text-red-600 dark:border-red-900 dark:hover:bg-red-900/20"
-              onClick={() => handleConfirmTaken(false)}
-            >
-              <X className="h-4 w-4" />
-              Não
-            </Button>
-            <Button 
-              className="gap-2 bg-green-600 hover:bg-green-700 text-white"
-              onClick={() => handleConfirmTaken(true)}
-            >
-              <Check className="h-4 w-4" />
-              Sim
-            </Button>
-          </div>
-        </DialogContent>
-      </Dialog>
     </div>
   )
 }
+
+// Add the missing Button component import
+import { Button } from "@/components/ui/button"

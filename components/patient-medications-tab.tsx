@@ -10,9 +10,8 @@ import { createClient } from "@/lib/supabase/client"
 import { Plus, Pill, Trash2, Clock, X, AlertCircle } from "lucide-react"
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog"
 import { Badge } from "@/components/ui/badge"
-import { formatBrasiliaDate, getCurrentBrasiliaTime } from "@/lib/timezone"
+import { formatBrasiliaDate } from "@/lib/timezone"
 import { Alert, AlertDescription } from "@/components/ui/alert"
-import { pushNotifications } from "@/lib/push-notifications"
 
 export function PatientMedicationsTab({ patientId }: { patientId: string }) {
   const [medications, setMedications] = useState<any[]>([])
@@ -68,9 +67,9 @@ export function PatientMedicationsTab({ patientId }: { patientId: string }) {
     try {
       setLoading(true)
       setError(null)
-
+      
       const supabase = createClient()
-
+      
       // First, try without the join to see if basic medications load
       const { data: basicData, error: basicError } = await supabase
         .from("medications")
@@ -90,25 +89,23 @@ export function PatientMedicationsTab({ patientId }: { patientId: string }) {
         const { data: schedulesData, error: schedulesError } = await supabase
           .from("medication_schedules")
           .select("*")
-          .in(
-            "medication_id",
-            basicData.map((m) => m.id),
-          )
+          .in("medication_id", basicData.map(m => m.id))
 
         if (schedulesError) {
           console.error("Erro ao carregar horários:", schedulesError)
         }
 
         // Combine data
-        const combinedData = basicData.map((med) => ({
+        const combinedData = basicData.map(med => ({
           ...med,
-          medication_schedules: schedulesData?.filter((s) => s.medication_id === med.id) || [],
+          medication_schedules: schedulesData?.filter(s => s.medication_id === med.id) || []
         }))
 
         setMedications(combinedData)
       } else {
         setMedications(basicData || [])
       }
+      
     } catch (error: any) {
       console.error("Erro ao carregar medicamentos:", error)
       setError(`Erro ao carregar medicamentos: ${error.message}`)
@@ -121,10 +118,8 @@ export function PatientMedicationsTab({ patientId }: { patientId: string }) {
   const loadDoctorInfo = async () => {
     try {
       const supabase = createClient()
-      const {
-        data: { user },
-      } = await supabase.auth.getUser()
-
+      const { data: { user } } = await supabase.auth.getUser()
+      
       if (user) {
         const { data: profile, error: profileError } = await supabase
           .from("profiles")
@@ -167,24 +162,8 @@ export function PatientMedicationsTab({ patientId }: { patientId: string }) {
       return
     }
 
-    if (!formData.start_date) {
-      alert("Data de início é obrigatória!")
-      return
-    }
-
-    if (!formData.end_date) {
-      alert("Data de término é obrigatória!")
-      return
-    }
-
     try {
       const supabase = createClient()
-
-      const {
-        data: { user },
-      } = await supabase.auth.getUser()
-
-      const isPatient = user?.id === patientId
 
       const dataToInsert = {
         user_id: patientId,
@@ -194,7 +173,7 @@ export function PatientMedicationsTab({ patientId }: { patientId: string }) {
         name: formData.name,
         dosage: formData.dosage,
         start_date: formData.start_date,
-        end_date: formData.end_date,
+        end_date: formData.end_date || null,
         reason: formData.reason,
         side_effects: formData.side_effects,
       }
@@ -223,7 +202,9 @@ export function PatientMedicationsTab({ patientId }: { patientId: string }) {
           days_of_week: [0, 1, 2, 3, 4, 5, 6],
         }))
 
-        const { error: scheduleError } = await supabase.from("medication_schedules").insert(schedulesToInsert)
+        const { error: scheduleError } = await supabase
+          .from("medication_schedules")
+          .insert(schedulesToInsert)
 
         if (scheduleError) {
           console.error("Erro ao adicionar horários:", scheduleError)
@@ -231,15 +212,7 @@ export function PatientMedicationsTab({ patientId }: { patientId: string }) {
         }
       }
 
-      await pushNotifications.sendNewMedication(patientId, formData.name)
-    
-
- 
-     
-      
-      
       alert("Medicamento e horários adicionados com sucesso!")
-
       setShowDialog(false)
       setFormData({
         name: "",
@@ -251,6 +224,7 @@ export function PatientMedicationsTab({ patientId }: { patientId: string }) {
       })
       setSchedules(["08:00"])
       loadMedications()
+      
     } catch (error: any) {
       console.error("Erro inesperado:", error)
       alert(`Erro: ${error.message}`)
@@ -388,8 +362,8 @@ export function PatientMedicationsTab({ patientId }: { patientId: string }) {
             <div className="grid md:grid-cols-2 gap-4">
               <div>
                 <Label>Nome do Medicamento *</Label>
-                <Input
-                  value={formData.name}
+                <Input 
+                  value={formData.name} 
                   onChange={(e) => setFormData({ ...formData, name: e.target.value })}
                   required
                 />
@@ -413,12 +387,11 @@ export function PatientMedicationsTab({ patientId }: { patientId: string }) {
                 />
               </div>
               <div>
-                <Label>Data de Término *</Label>
+                <Label>Data de Término</Label>
                 <Input
                   type="date"
                   value={formData.end_date}
                   onChange={(e) => setFormData({ ...formData, end_date: e.target.value })}
-                  required
                 />
               </div>
             </div>
@@ -471,7 +444,7 @@ export function PatientMedicationsTab({ patientId }: { patientId: string }) {
             </div>
 
             <div>
-              <Label>Motivo da Receita</Label>
+              <Label>Motivo da Prescrição</Label>
               <Textarea
                 value={formData.reason}
                 onChange={(e) => setFormData({ ...formData, reason: e.target.value })}
@@ -492,13 +465,7 @@ export function PatientMedicationsTab({ patientId }: { patientId: string }) {
               </Button>
               <Button
                 onClick={handleAdd}
-                disabled={
-                  !formData.name ||
-                  !formData.dosage ||
-                  !formData.start_date ||
-                  !formData.end_date ||
-                  schedules.length === 0
-                }
+                disabled={!formData.name || !formData.dosage || !formData.start_date || schedules.length === 0}
               >
                 Adicionar Medicamento
               </Button>

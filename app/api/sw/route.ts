@@ -30,7 +30,6 @@ if ("serviceWorker" in navigator) {
       }
 
       setupUpdateChecks(registration)
-      await setupPushNotifications(registration)
       setupMessageListener()
 
       setInterval(() => {
@@ -66,45 +65,6 @@ if ("serviceWorker" in navigator) {
     navigator.serviceWorker.addEventListener("controllerchange", () => {
       console.log("[SW] Controller changed")
     })
-  }
-
-  const setupPushNotifications = async (registration) => {
-    try {
-      if (!("PushManager" in window)) {
-        console.warn("[SW] Push notifications not supported")
-        return
-      }
-
-      let subscription = await registration.pushManager.getSubscription()
-
-      if (!subscription && Notification.permission === "granted") {
-        try {
-          const response = await fetch("/api/push/public-key")
-          const { publicKey } = await response.json()
-
-          subscription = await registration.pushManager.subscribe({
-            userVisibleOnly: true,
-            applicationServerKey: urlBase64ToUint8Array(publicKey),
-          })
-
-          console.log("[SW] Push subscription created")
-
-          await fetch("/api/push/subscribe", {
-            method: "POST",
-            headers: { "Content-Type": "application/json" },
-            body: JSON.stringify(subscription),
-          })
-        } catch (subError) {
-          console.error("[SW] Error creating subscription:", subError)
-        }
-      } else if (subscription) {
-        console.log("[SW] Existing subscription found")
-      }
-
-      return subscription
-    } catch (error) {
-      console.error("[SW] Error setting up push:", error)
-    }
   }
 
   const setupMessageListener = () => {

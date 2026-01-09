@@ -3,6 +3,8 @@
 
 @custom-variant dark (&:is(.dark *));
 
+/* Paleta de cores de saúde com azul e verde pastel */
+/* Cores mais vibrantes e detalhadas para saúde */
 :root {
   --background: #f5faf9;
   --foreground: #0f2e2b;
@@ -75,7 +77,8 @@
 }
 
 @theme inline {
-  /* optional: --font-sans, --font-serif, --font-mono if they are applied in the layout.tsx */
+  --font-sans: "Geist", "Geist Fallback";
+  --font-mono: "Geist Mono", "Geist Mono Fallback";
   --color-background: var(--background);
   --color-foreground: var(--foreground);
   --color-card: var(--card);
@@ -122,6 +125,7 @@
     @apply bg-background text-foreground;
   }
 
+  /* Enhanced mobile-first scrollable carousel utilities */
   .no-scrollbar::-webkit-scrollbar {
     display: none;
   }
@@ -130,12 +134,14 @@
     scrollbar-width: none;
   }
 
+  /* Mobile-optimized touch scrolling */
   .mobile-scroll {
     -webkit-overflow-scrolling: touch;
     scroll-behavior: smooth;
     scroll-snap-type: x proximity;
   }
 
+  /* Prevent horizontal scroll on body */
   html,
   body {
     overflow-x: hidden;
@@ -143,6 +149,7 @@
     position: relative;
   }
 
+  /* Mobile touch targets - minimum 44px for accessibility */
   @media (max-width: 640px) {
     button,
     a,
@@ -152,23 +159,28 @@
       min-height: 44px;
     }
 
+    /* Better spacing for mobile forms */
     input,
     select,
     textarea {
-      font-size: 16px;
+      font-size: 16px; /* Prevents zoom on iOS */
     }
 
+    /* Improved tap highlighting */
     button,
     a {
       -webkit-tap-highlight-color: rgba(45, 156, 150, 0.2);
     }
   }
 
+  /* Smooth scrolling for all scrollable containers */
   * {
     scroll-behavior: smooth;
   }
 
+  /* Better mobile viewport handling */
   @supports (-webkit-touch-callout: none) {
+    /* iOS specific fixes */
     body {
       min-height: -webkit-fill-available;
     }
