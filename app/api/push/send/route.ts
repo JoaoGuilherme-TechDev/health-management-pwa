@@ -23,14 +23,7 @@ export async function POST(request: NextRequest) {
     const payload = await request.json()
     
     // O Supabase envia o novo registro no campo 'record' ou 'new' dependendo da configuração
-    // Também aceitamos chamadas diretas com patientId
-    const notification = payload.record || payload.new || {
-      user_id: payload.patientId,
-      title: payload.title,
-      message: payload.body,
-      action_url: payload.url,
-      notification_type: payload.type
-    }
+    const notification = payload.record || payload.new
     
     if (!notification || !notification.user_id) {
       return NextResponse.json({ error: "Payload inválido" }, { status: 400 })
@@ -41,7 +34,7 @@ export async function POST(request: NextRequest) {
     // Buscar as inscrições de push do usuário
     const { data: subscriptions, error: subError } = await supabaseAdmin
       .from("push_subscriptions")
-      .select("id, subscription")
+      .select("subscription")
       .eq("user_id", notification.user_id)
 
     if (subError || !subscriptions || subscriptions.length === 0) {
@@ -58,23 +51,18 @@ export async function POST(request: NextRequest) {
     })
 
     let successCount = 0
-    let failCount = 0
-    
     for (const subRecord of subscriptions) {
       try {
         await webpush.sendNotification(subRecord.subscription, pushPayload)
         successCount++
       } catch (error: any) {
-        console.error(`[PUSH WEBHOOK] Erro ao enviar push para subscription ${subRecord.id}:`, error)
-        failCount++
-        
-        // Se a subscrição não existe mais ou expirou (410 Gone ou 404 Not Found)
-        if (error.statusCode === 410 || error.statusCode === 404) {
-          console.log(`[PUSH WEBHOOK] Removendo subscrição inválida/expirada: ${subRecord.id}`)
+        console.error("[PUSH WEBHOOK] Erro ao enviar push:", error)
+        if (error.statusCode === 410) {
+          // Remover inscrição inválida
           await supabaseAdmin
             .from("push_subscriptions")
             .delete()
-            .eq("id", subRecord.id)
+            .eq("subscription", subRecord.subscription)
         }
       }
     }
@@ -82,7 +70,6 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({
       success: true,
       sent_to: successCount,
-      failed: failCount
     })
   } catch (error) {
     console.error("[PUSH WEBHOOK] Erro interno:", error)

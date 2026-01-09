@@ -29,11 +29,6 @@ export function PatientNotificationListener() {
             
             // Show notification
             await showNotification(payload.new)
-            
-            // Play alarm if medication reminder
-            if (payload.new.notification_type === 'medication_reminder') {
-              playAlarm()
-            }
           }
         )
         .subscribe()
@@ -49,38 +44,6 @@ export function PatientNotificationListener() {
   return null
 }
 
-// Function to play alarm sound (Beep)
-const playAlarm = () => {
-  try {
-    const AudioContext = window.AudioContext || (window as any).webkitAudioContext
-    if (!AudioContext) return
-
-    const ctx = new AudioContext()
-    const osc = ctx.createOscillator()
-    const gain = ctx.createGain()
-
-    osc.connect(gain)
-    gain.connect(ctx.destination)
-
-    osc.type = "square"
-    osc.frequency.value = 880 // A5
-
-    // Beep beep beep pattern
-    const now = ctx.currentTime
-    gain.gain.setValueAtTime(0.5, now)
-    gain.gain.setValueAtTime(0, now + 0.2)
-    gain.gain.setValueAtTime(0.5, now + 0.4)
-    gain.gain.setValueAtTime(0, now + 0.6)
-    gain.gain.setValueAtTime(0.5, now + 0.8)
-    gain.gain.setValueAtTime(0, now + 1.0)
-
-    osc.start(now)
-    osc.stop(now + 1.2)
-  } catch (e) {
-    console.error("Failed to play alarm sound", e)
-  }
-}
-
 async function showNotification(notification: any) {
   try {
     if (Notification.permission !== "granted") return
@@ -94,13 +57,12 @@ async function showNotification(notification: any) {
       badge: "/badge-72x72.png",
       tag: `patient-realtime-${Date.now()}`,
       requireInteraction: true,
-      vibrate: notification.notification_type === 'medication_reminder' ? [500, 200, 500, 200, 500] : [200, 100, 200],
       data: {
         type: notification.notification_type || notification.type,
         url: notification.data?.url || "patient/notifications",
         notificationId: notification.id
       }
-    } as any)
+    })
   } catch (error) {
     console.error("Error showing patient notification:", error)
   }

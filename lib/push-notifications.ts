@@ -1,5 +1,4 @@
 import { createClient } from "@/lib/supabase/client"
-import { type SupabaseClient } from "@supabase/supabase-js"
 
 interface NotificationPayload {
   title: string
@@ -18,86 +17,40 @@ interface NotificationPayload {
 }
 
 export class PushNotificationService {
-  private supabase: SupabaseClient
-
-  constructor(supabaseClient?: SupabaseClient) {
-    this.supabase = supabaseClient || createClient()
-  }
+  private supabase = createClient()
 
   // Enviar notificação para um paciente
   async sendToPatient(payload: NotificationPayload) {
     try {
       console.log("🚀 [PUSH] Starting push notification for patient:", payload.patientId)
 
-      // DEDUPLICATION: Check for recent duplicate (1 minute cooldown)
-      // This prevents double sending from Client + Server or multiple clicks
-      const oneMinuteAgo = new Date(Date.now() - 60 * 1000).toISOString()
-      const { data: recent } = await this.supabase
-        .from("notifications")
-        .select("id")
-        .eq("user_id", payload.patientId)
-        .eq("title", payload.title)
-        .eq("message", payload.body || payload.title) // Strict check
-        .gte("created_at", oneMinuteAgo)
-        .limit(1)
-
-      if (recent && recent.length > 0) {
-        console.warn("⚠️ [PUSH] Duplicate notification suppressed:", payload.title)
-        return { 
-          storedInDB: false, 
-          apiSuccess: false, 
-          message: "Notificação duplicada suprimida (Cooldown 1 min)" 
-        }
-      }
-
       // FIRST: Store in database for notification center
       await this.storeInDatabase(payload)
       console.log("💾 [PUSH] Stored in database for patient:", payload.patientId)
 
-      // SECOND: Send real push notification via API with Retry Logic
+      // SECOND: Send real push notification via API
       let apiSuccess = false
-      let attempts = 0
-      const maxAttempts = 3
+      try {
+        const baseUrl = typeof window !== 'undefined' ? window.location.origin : process.env.NEXT_PUBLIC_APP_URL || ''
+        const response = await fetch(`${baseUrl}/api/push/send`, {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify({
+            patientId: payload.patientId,
+            title: payload.title,
+            body: payload.body,
+            url: payload.url,
+            type: payload.type,
+          }),
+        })
 
-      while (attempts < maxAttempts && !apiSuccess) {
-        attempts++
-        try {
-          const baseUrl = typeof window !== 'undefined' ? window.location.origin : process.env.NEXT_PUBLIC_APP_URL || ''
-          
-          // Timeout controller
-          const controller = new AbortController()
-          const timeoutId = setTimeout(() => controller.abort(), 8000) // 8 second timeout
-
-          const response = await fetch(`${baseUrl}/api/push/send`, {
-            method: "POST",
-            headers: {
-              "Content-Type": "application/json",
-            },
-            body: JSON.stringify({
-              patientId: payload.patientId,
-              title: payload.title,
-              body: payload.body,
-              url: payload.url,
-              type: payload.type,
-            }),
-            signal: controller.signal
-          })
-          
-          clearTimeout(timeoutId)
-
-          if (response.ok) {
-            const result = await response.json()
-            apiSuccess = result.success
-            console.log("📡 [PUSH] API Response:", result)
-          } else {
-            console.warn(`⚠️ [PUSH] API attempt ${attempts} failed with status: ${response.status}`)
-            // Wait before retry (exponential backoff: 1s, 2s, 4s)
-            if (attempts < maxAttempts) await new Promise(r => setTimeout(r, 1000 * Math.pow(2, attempts - 1)))
-          }
-        } catch (apiError) {
-          console.error(`❌ [PUSH] API attempt ${attempts} exception:`, apiError)
-          if (attempts < maxAttempts) await new Promise(r => setTimeout(r, 1000 * Math.pow(2, attempts - 1)))
-        }
+        const result = await response.json()
+        apiSuccess = result.success
+        console.log("📡 [PUSH] API Response:", result)
+      } catch (apiError) {
+        console.error("❌ [PUSH] API call failed:", apiError)
       }
 
       return {

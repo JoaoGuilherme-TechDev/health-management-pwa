@@ -16,21 +16,19 @@ self.addEventListener('activate', event => {
 
 // Push event handler - SIMPLE VERSION
 self.addEventListener('push', event => {
-  console.log('[Service Worker] Push event received at', new Date().toISOString())
+  console.log('[Service Worker] Push event received')
   
   if (!event.data) {
-    console.error('[Service Worker] No data in push event')
+    console.log('[Service Worker] No data in push event')
     return
   }
 
   let data
   try {
-    const rawData = event.data.text()
-    console.log('[Service Worker] Raw push data:', rawData)
-    data = JSON.parse(rawData)
-    console.log('[Service Worker] Parsed push data:', data)
+    data = event.data.json()
+    console.log('[Service Worker] Push data:', data)
   } catch (error) {
-    console.error('[Service Worker] Error parsing push data:', error)
+    console.log('[Service Worker] Error parsing push data:', error)
     // Fallback
     data = {
       title: 'HealthCare+',
@@ -39,31 +37,14 @@ self.addEventListener('push', event => {
     }
   }
 
-  // Custom vibration for medication reminders (ALARM like)
-  let vibrationPattern = [100, 50, 100];
-  const isMedication = data.type === 'medication_reminder' || (data.data && data.data.type === 'medication_reminder');
-  
-  if (isMedication) {
-    // Long, persistent-feeling vibration pattern
-    vibrationPattern = [500, 200, 500, 200, 500, 200, 500, 200, 500]; 
-  }
-
   const options = {
     body: data.body || 'Nova notificação',
     icon: data.icon || '/icon-light-32x32.png',
     badge: data.badge || '/icon-light-32x32.png',
-    tag: data.tag || 'healthcare-notification',
-    data: {
-      ...data.data,
-      url: data.url || '/patient/notifications'
-    },
-    requireInteraction: true, // Keep notification on screen
-    vibrate: vibrationPattern,
-    timestamp: Date.now(),
-    actions: [
-      { action: 'open', title: 'Ver Detalhes' },
-      { action: 'close', title: 'Fechar' }
-    ]
+    tag: data.tag || `notification-${Date.now()}`,
+    data: data.data || {},
+    requireInteraction: data.requireInteraction || false,
+    timestamp: Date.now()
   }
 
   console.log('[Service Worker] Showing notification:', data.title || 'HealthCare+')
@@ -82,19 +63,14 @@ self.addEventListener('notificationclick', event => {
   
   event.notification.close()
 
-  if (event.action === 'close') {
-    return
-  }
-
-  const urlToOpen = event.notification.data?.url || '/patient/notifications'
+  const urlToOpen = event.notification.data?.url || '/notifications'
 
   event.waitUntil(
     clients.matchAll({ type: 'window', includeUncontrolled: true })
       .then(windowClients => {
         // Check if there's already a window/tab open
         for (const client of windowClients) {
-          const clientUrl = new URL(client.url).pathname
-          if (clientUrl === urlToOpen && 'focus' in client) {
+          if (client.url.includes(urlToOpen) && 'focus' in client) {
             return client.focus()
           }
         }
