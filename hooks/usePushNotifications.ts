@@ -3,6 +3,15 @@
 import { useState, useEffect, useCallback } from "react"
 import { createClient } from "@/lib/supabase/client"
 
+interface PushSubscriptionData {
+  endpoint: string
+  expirationTime: number | null
+  keys: {
+    p256dh: string
+    auth: string
+  }
+}
+
 export const usePushNotifications = () => {
   const [isSupported, setIsSupported] = useState(false)
   const [isSubscribed, setIsSubscribed] = useState(false)
@@ -116,35 +125,31 @@ export const usePushNotifications = () => {
       throw new Error("Usuário não autenticado")
     }
 
-    const response = await fetch("/api/push/subscribe", {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
+    const subscriptionData: PushSubscriptionData = {
+      endpoint: subscription.endpoint,
+      expirationTime: subscription.expirationTime,
+      keys: {
+        p256dh: arrayBufferToBase64(subscription.getKey("p256dh")!),
+        auth: arrayBufferToBase64(subscription.getKey("auth")!),
       },
-      body: JSON.stringify({
-        userId: userData.user.id,
-        subscription: subscription,
-      }),
+    }
+
+    const { error } = await supabase.from("push_subscriptions").upsert({
+      user_id: userData.user.id,
+      endpoint: subscriptionData.endpoint,
+      p256dh_key: subscriptionData.keys.p256dh,
+      auth_key: subscriptionData.keys.auth,
+      expiration_time: subscriptionData.expirationTime,
+      created_at: new Date().toISOString(),
+      updated_at: new Date().toISOString(),
     })
 
-    if (!response.ok) {
-      const errorData = await response.json()
-      throw new Error(errorData.error || "Erro ao salvar subscription")
-    }
+    if (error) throw error
   }
 
   const deleteSubscription = async (subscription: PushSubscription) => {
-    const { data: userData } = await supabase.auth.getUser()
-    if (!userData.user) return
-
-    const response = await fetch(`/api/push/subscribe?userId=${userData.user.id}`, {
-      method: "DELETE",
-    })
-
-    if (!response.ok) {
-      const errorData = await response.json()
-      throw new Error(errorData.error || "Erro ao deletar subscription")
-    }
+    const { error } = await supabase.from("push_subscriptions").delete().eq("endpoint", subscription.endpoint)
+    if (error) throw error
   }
 
   // Helper functions
@@ -157,6 +162,15 @@ export const usePushNotifications = () => {
       outputArray[i] = rawData.charCodeAt(i)
     }
     return outputArray
+  }
+
+  const arrayBufferToBase64 = (buffer: ArrayBuffer): string => {
+    const bytes = new Uint8Array(buffer)
+    let binary = ""
+    for (let i = 0; i < bytes.byteLength; i++) {
+      binary += String.fromCharCode(bytes[i])
+    }
+    return btoa(binary)
   }
 
   return {

@@ -97,7 +97,7 @@ export function CreatePatientDialog({ open, onOpenChange, onPatientCreated }: Cr
     onOpenChange(false)
     onPatientCreated()
     
-    alert(`Paciente "${formData.firstName} ${formData.lastName}" criado!\n\nO paciente pode fazer login com:\nEmail: ${formData.email}\nSenha: ${formData.password}`)
+    alert(`Paciente "${formData.firstName} ${formData.lastName}" criado!\n\nO paciente receberá um email para confirmar a conta.\n\nApós confirmar, pode fazer login com:\nEmail: ${formData.email}\nSenha: ${formData.password}`)
 
   } catch (err) {
     console.error("[v0] Erro:", err)
@@ -155,7 +155,7 @@ export function CreatePatientDialog({ open, onOpenChange, onPatientCreated }: Cr
           </div>
 
           <div className="space-y-2">
-            <Label htmlFor="password">Senha*</Label>
+            <Label htmlFor="password">Senha Temporária *</Label>
             <Input
               id="password"
               type="password"
@@ -166,6 +166,9 @@ export function CreatePatientDialog({ open, onOpenChange, onPatientCreated }: Cr
               minLength={6}
               placeholder="Mínimo 6 caracteres"
             />
+            <p className="text-xs text-muted-foreground">
+              O paciente poderá alterar esta senha no primeiro acesso.
+            </p>
           </div>
 
           {error && (

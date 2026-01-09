@@ -3,18 +3,14 @@
 import { createClient } from "@/lib/supabase/client"
 import { useState, useEffect } from "react"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
-import { Users, Activity, Clock, AlertCircle, TrendingUp, Pill } from "lucide-react"
+import { Users, Activity, RefreshCcw } from "lucide-react"
 import { Button } from "@/components/ui/button"
-import { Badge } from "@/components/ui/badge"
 
 export default function AdminDashboard() {
   const [stats, setStats] = useState({
     totalPatients: 0,
     totalMedications: 0,
-    totalAppointments: 0,
-    totalPrescriptions: 0,
   })
-  const [recentActivity, setRecentActivity] = useState<any[]>([])
 
   useEffect(() => {
     const loadStats = async () => {
@@ -28,186 +24,117 @@ export default function AdminDashboard() {
 
         const { count: medCount } = await supabase.from("medications").select("*", { count: "exact", head: true })
 
-        const { count: appointmentCount } = await supabase
-          .from("appointments")
-          .select("*", { count: "exact", head: true })
-
-        const { count: prescriptionCount } = await supabase
-          .from("medical_prescriptions")
-          .select("*", { count: "exact", head: true })
-
-        const { data: recentMeds } = await supabase
-          .from("medications")
-          .select("id, name, created_at, user_id")
-          .order("created_at", { ascending: false })
-          .limit(5)
-
         setStats({
           totalPatients: patientCount || 0,
           totalMedications: medCount || 0,
-          totalAppointments: appointmentCount || 0,
-          totalPrescriptions: prescriptionCount || 0,
         })
-
-        setRecentActivity(recentMeds || [])
       } catch (error) {
         console.error("[v0] Erro ao carregar estatísticas:", error)
       }
     }
 
-    loadStats()
-    const interval = setInterval(loadStats, 30000) // Update every 30 seconds
+    loadStats() // Carrega imediatamente
+    const interval = setInterval(loadStats, 5000) // Atualiza a cada 5 segundos
 
     return () => clearInterval(interval)
   }, [])
 
   return (
     <div className="space-y-8">
-      <div>
-        <h1 className="text-3xl font-bold text-foreground">Painel Administrativo</h1>
-        <p className="text-muted-foreground mt-2">Monitore a atividade do sistema e gerencie operações de saúde</p>
+      <div className="flex items-center justify-between">
+        <div>
+          <h1 className="text-3xl font-bold text-foreground">Painel Administrativo</h1>
+          <p className="text-muted-foreground mt-2">Monitore a atividade do sistema e gerencie operações de saúde</p>
+        </div>
       </div>
 
-      <div className="grid md:grid-cols-2 lg:grid-cols-4 gap-6">
-        <StatCard
-          title="Total de Pacientes"
-          value={stats.totalPatients}
-          icon={Users}
-          actionLink="/admin/patients"
-          actionLabel="Gerenciar"
-          color="blue"
-        />
-        <StatCard title="Medicamentos" value={stats.totalMedications} icon={Pill} color="green" />
-        <StatCard title="Consultas" value={stats.totalAppointments} icon={Clock} color="purple" />
-        <StatCard title="Prescrições" value={stats.totalPrescriptions} icon={AlertCircle} color="orange" />
+      <div className="grid md:grid-cols-2 gap-6">
+        <StatCard title="Total de Pacientes" value={stats.totalPatients} icon={Users} />
+        <StatCard title="Total de Medicamentos" value={stats.totalMedications} icon={Activity} />
       </div>
 
-      <div className="grid md:grid-cols-3 gap-8">
-        {/* Quick Access Card */}
-        <Card className="md:col-span-1">
-          <CardHeader>
-            <CardTitle className="text-lg">Acesso Rápido</CardTitle>
-            <CardDescription>Ferramentas administrativas</CardDescription>
-          </CardHeader>
-          <CardContent className="space-y-2">
-            <Button asChild className="w-full justify-start h-10 bg-transparent" variant="outline">
-              <a href="/admin/patients">
-                <Users className="mr-2 h-4 w-4" />
-                Gerenciar Pacientes
-              </a>
-            </Button>
-            <Button asChild className="w-full justify-start h-10 bg-transparent" variant="outline">
-              <a href="/admin/settings">
-                <Activity className="mr-2 h-4 w-4" />
-                Configurações
-              </a>
-            </Button>
-          </CardContent>
-        </Card>
+      <Card>
+        <CardHeader>
+          <CardTitle>Ações de Gerenciamento</CardTitle>
+          <CardDescription>Acesso rápido às funções administrativas comuns</CardDescription>
+        </CardHeader>
+        <CardContent>
+          <div className="grid sm:grid-cols-2 gap-4">
+            <a
+              href="/admin/patients"
+              className="p-4 rounded-lg border border-border hover:border-primary transition-colors cursor-pointer"
+            >
+              <Users className="h-6 w-6 text-primary mb-2" />
+              <h3 className="font-semibold text-foreground mb-1">Gerenciar Pacientes</h3>
+              <p className="text-sm text-muted-foreground">Visualizar e gerenciar todas as contas de pacientes</p>
+            </a>
+            <a
+              href="/admin/settings"
+              className="p-4 rounded-lg border border-border hover:border-primary transition-colors cursor-pointer"
+            >
+              <Activity className="h-6 w-6 text-primary mb-2" />
+              <h3 className="font-semibold text-foreground mb-1">Configurações</h3>
+              <p className="text-sm text-muted-foreground">Configurar preferências administrativas</p>
+            </a>
+          </div>
+        </CardContent>
+      </Card>
 
-        {/* System Metrics */}
-        <Card className="md:col-span-2">
-          <CardHeader>
-            <CardTitle className="text-lg">Métricas do Sistema</CardTitle>
-            <CardDescription>Indicadores de desempenho</CardDescription>
-          </CardHeader>
-          <CardContent className="space-y-4">
-            <div className="flex items-center justify-between pb-4 border-b">
-              <div>
-                <p className="text-sm font-medium">Média de Medicamentos</p>
-                <p className="text-xs text-muted-foreground">Por paciente ativo</p>
-              </div>
-              <p className="text-2xl font-bold text-primary">
-                {stats.totalPatients > 0 ? (stats.totalMedications / stats.totalPatients).toFixed(1) : 0}
-              </p>
-            </div>
-            <div className="flex items-center justify-between pb-4 border-b">
-              <div>
-                <p className="text-sm font-medium">Taxa de Atividade</p>
-                <p className="text-xs text-muted-foreground">Operações por paciente</p>
-              </div>
-              <div className="flex items-center gap-2">
-                <Badge variant="outline" className="bg-green-50">
-                  Alta
-                </Badge>
-              </div>
-            </div>
-            <div className="flex items-center justify-between">
-              <div>
-                <p className="text-sm font-medium">Status do Servidor</p>
-                <p className="text-xs text-muted-foreground">Conectividade BD</p>
-              </div>
-              <div className="flex items-center text-green-600 font-medium">
-                <div className="h-2 w-2 rounded-full bg-green-600 mr-2" />
-                Online
-              </div>
-            </div>
-          </CardContent>
-        </Card>
-      </div>
-
-      {/* Recent Activity */}
-      {recentActivity.length > 0 && (
-        <Card>
-          <CardHeader>
-            <CardTitle className="text-lg flex items-center gap-2">
-              <TrendingUp className="h-5 w-5" />
-              Atividade Recente
-            </CardTitle>
-            <CardDescription>Últimos medicamentos adicionados</CardDescription>
-          </CardHeader>
-          <CardContent>
-            <div className="space-y-2">
-              {recentActivity.map((activity) => (
-                <div
-                  key={activity.id}
-                  className="flex items-center justify-between py-2 px-3 rounded-lg hover:bg-muted transition-colors"
-                >
-                  <div className="flex items-center gap-3">
-                    <Pill className="h-4 w-4 text-blue-600" />
-                    <div>
-                      <p className="text-sm font-medium">{activity.name}</p>
-                      <p className="text-xs text-muted-foreground">
-                        {new Date(activity.created_at).toLocaleDateString("pt-BR")}
-                      </p>
-                    </div>
-                  </div>
-                  <Badge variant="secondary">Medicamento</Badge>
+      <Card>
+        <CardHeader>
+          <CardTitle>Visão Geral do Sistema</CardTitle>
+          <CardDescription>Métricas principais e status do sistema</CardDescription>
+        </CardHeader>
+        <CardContent>
+          <div className="grid md:grid-cols-2 gap-6">
+            <div className="space-y-3">
+              <h3 className="font-semibold text-foreground">Atividade Recente</h3>
+              <div className="space-y-2">
+                <div className="flex justify-between items-center p-3 rounded-lg bg-muted/50">
+                  <span className="text-sm text-muted-foreground">Últimas 24 horas</span>
+                  <span className="font-semibold text-foreground">Ativo</span>
                 </div>
-              ))}
+                <div className="flex justify-between items-center p-3 rounded-lg bg-muted/50">
+                  <span className="text-sm text-muted-foreground">Status de sincronização</span>
+                  <span className="font-semibold text-green-600 dark:text-green-400">Sincronizado</span>
+                </div>
+              </div>
             </div>
-          </CardContent>
-        </Card>
-      )}
+            <div className="space-y-3">
+              <h3 className="font-semibold text-foreground">Estatísticas Rápidas</h3>
+              <div className="space-y-2">
+                <div className="flex justify-between items-center p-3 rounded-lg bg-muted/50">
+                  <span className="text-sm text-muted-foreground">Total de Pacientes</span>
+                  <span className="font-semibold text-foreground">{stats.totalPatients}</span>
+                </div>
+                <div className="flex justify-between items-center p-3 rounded-lg bg-muted/50">
+                  <span className="text-sm text-muted-foreground">Medicamentos por paciente</span>
+                  <span className="font-semibold text-foreground">
+                    {stats.totalPatients > 0 ? (stats.totalMedications / stats.totalPatients).toFixed(1) : 0}
+                  </span>
+                </div>
+              </div>
+            </div>
+          </div>
+        </CardContent>
+      </Card>
     </div>
   )
 }
 
-function StatCard({ title, value, icon: Icon, actionLink, actionLabel, color = "blue" }: any) {
-  const colorMap = {
-    blue: "bg-blue-50 text-blue-600",
-    green: "bg-green-50 text-green-600",
-    purple: "bg-purple-50 text-purple-600",
-    orange: "bg-orange-50 text-orange-600",
-  }
-
+function StatCard({ title, value, icon: Icon }: any) {
   return (
     <Card>
       <CardContent className="pt-6">
-        <div className="flex items-start justify-between mb-4">
+        <div className="flex items-start justify-between">
           <div>
-            <p className="text-sm text-muted-foreground font-medium">{title}</p>
-            <p className="text-4xl font-bold text-foreground mt-3">{value}</p>
+            <p className="text-sm text-muted-foreground">{title}</p>
+            <p className="text-3xl font-bold text-foreground mt-2">{value}</p>
           </div>
-          <div className={`p-3 rounded-lg ${colorMap[color as keyof typeof colorMap]}`}>
-            <Icon className="h-6 w-6" />
+          <div className="p-3 rounded-lg bg-primary/10">
+            <Icon className="h-6 w-6 text-primary" />
           </div>
         </div>
-        {actionLink && (
-          <Button asChild variant="secondary" className="w-full text-xs h-8">
-            <a href={actionLink}>{actionLabel || "Ver Detalhes"}</a>
-          </Button>
-        )}
       </CardContent>
     </Card>
   )

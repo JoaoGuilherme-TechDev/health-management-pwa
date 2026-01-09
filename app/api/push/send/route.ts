@@ -1,6 +1,6 @@
 import { type NextRequest, NextResponse } from "next/server"
+import { createClient } from "@/lib/supabase/server"
 import webpush from "web-push"
-import { createClient } from "@supabase/supabase-js"
 
 // Configurar web-push
 if (process.env.VAPID_PRIVATE_KEY && process.env.NEXT_PUBLIC_VAPID_PUBLIC_KEY) {
@@ -11,68 +11,83 @@ if (process.env.VAPID_PRIVATE_KEY && process.env.NEXT_PUBLIC_VAPID_PUBLIC_KEY) {
   )
 }
 
-// Cliente Supabase com Service Role para ignorar RLS
-const supabaseAdmin = createClient(
-  process.env.NEXT_PUBLIC_SUPABASE_URL || "",
-  process.env.SUPABASE_SERVICE_ROLE_KEY || ""
-)
-
 export async function POST(request: NextRequest) {
   try {
-    // Verificar se é um webhook do Supabase (opcional: adicionar uma chave secreta)
-    const payload = await request.json()
-    
-    // O Supabase envia o novo registro no campo 'record' ou 'new' dependendo da configuração
-    const notification = payload.record || payload.new
-    
-    if (!notification || !notification.user_id) {
-      return NextResponse.json({ error: "Payload inválido" }, { status: 400 })
+    const supabase = await createClient()
+    const { data: userData } = await supabase.auth.getUser()
+
+    if (!userData.user) {
+      return NextResponse.json({ error: "Não autorizado" }, { status: 401 })
     }
 
-    console.log(`[PUSH WEBHOOK] Processando notificação para usuário: ${notification.user_id}`)
+    const { data: userProfile } = await supabase.from("profiles").select("role").eq("id", userData.user.id).single()
 
-    // Buscar as inscrições de push do usuário
-    const { data: subscriptions, error: subError } = await supabaseAdmin
+    // Verificar se é admin/médico
+    if (userProfile?.role !== "admin" && userProfile?.role !== "doctor") {
+      return NextResponse.json({ error: "Apenas médicos podem enviar notificações" }, { status: 403 })
+    }
+
+    const { patientId, title, body, url, type } = await request.json()
+
+    if (!patientId || !title) {
+      return NextResponse.json({ error: "patientId e title são obrigatórios" }, { status: 400 })
+    }
+
+    // Buscar subscriptions do paciente
+    const { data: subscriptions, error: subscriptionsError } = await supabase
       .from("push_subscriptions")
-      .select("subscription")
-      .eq("user_id", notification.user_id)
+      .select("*")
+      .eq("user_id", patientId)
 
-    if (subError || !subscriptions || subscriptions.length === 0) {
-      console.log(`[PUSH WEBHOOK] Nenhuma inscrição encontrada para o usuário ${notification.user_id}`)
-      return NextResponse.json({ success: true, message: "Sem inscrições" })
+    if (subscriptionsError) {
+      console.error("[v0] Erro ao buscar subscriptions:", subscriptionsError)
+      return NextResponse.json({ error: "Erro ao buscar subscriptions" }, { status: 500 })
     }
 
-    const pushPayload = JSON.stringify({
-      title: notification.title,
-      body: notification.message,
-      url: notification.action_url || "/patient/notifications",
-      type: notification.notification_type,
-      timestamp: Date.now(),
-    })
+    if (!subscriptions || subscriptions.length === 0) {
+      return NextResponse.json({ message: "Paciente não tem subscriptions ativas" }, { status: 200 })
+    }
 
-    let successCount = 0
-    for (const subRecord of subscriptions) {
+    // Enviar notificação para cada subscription
+    const sendPromises = subscriptions.map(async (sub) => {
       try {
-        await webpush.sendNotification(subRecord.subscription, pushPayload)
-        successCount++
+        const pushSubscription = {
+          endpoint: sub.endpoint,
+          keys: {
+            p256dh: sub.p256dh_key,
+            auth: sub.auth_key,
+          },
+        }
+
+        const payload = JSON.stringify({
+          title,
+          body: body || "Nova atualização do seu médico",
+          url: url || "/patient",
+          icon: "/icon-light-32x32.png",
+          tag: `healthcare-${type || "notification"}-${Date.now()}`,
+          timestamp: Date.now(),
+          type: type || "general",
+        })
+
+        await webpush.sendNotification(pushSubscription, payload)
+        console.log(`[v0] Push enviado para ${sub.endpoint}`)
       } catch (error: any) {
-        console.error("[PUSH WEBHOOK] Erro ao enviar push:", error)
+        console.error(`[v0] Erro ao enviar push:`, error.message)
+
         if (error.statusCode === 410) {
-          // Remover inscrição inválida
-          await supabaseAdmin
-            .from("push_subscriptions")
-            .delete()
-            .eq("subscription", subRecord.subscription)
+          await supabase.from("push_subscriptions").delete().eq("id", sub.id)
         }
       }
-    }
+    })
+
+    await Promise.all(sendPromises)
 
     return NextResponse.json({
       success: true,
-      sent_to: successCount,
+      message: `Notificações push enviadas para ${subscriptions.length} dispositivo(s)`,
     })
   } catch (error) {
-    console.error("[PUSH WEBHOOK] Erro interno:", error)
-    return NextResponse.json({ error: "Erro interno" }, { status: 500 })
+    console.error("[v0] Erro na API de send:", error)
+    return NextResponse.json({ error: "Erro interno do servidor" }, { status: 500 })
   }
 }

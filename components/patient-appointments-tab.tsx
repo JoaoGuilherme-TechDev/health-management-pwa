@@ -8,9 +8,13 @@ import { Label } from "@/components/ui/label"
 import { Textarea } from "@/components/ui/textarea"
 import { createClient } from "@/lib/supabase/client"
 import { Plus, Calendar, Trash2 } from "lucide-react"
-import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog"
-import { formatBrasiliaDateAppointment } from "@/lib/timezone"
-import { pushNotifications } from "@/lib/push-notifications"
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog"
+import {formatBrasiliaDateAppointment } from "@/lib/timezone"
 
 export function PatientAppointmentsTab({ patientId }: { patientId: string }) {
   const [appointments, setAppointments] = useState<any[]>([])
@@ -44,7 +48,7 @@ export function PatientAppointmentsTab({ patientId }: { patientId: string }) {
         (payload) => {
           // Force fresh load on any change
           loadAppointments()
-        },
+        }
       )
       .subscribe((status) => {
         if (status === "SUBSCRIBED") {
@@ -86,7 +90,9 @@ export function PatientAppointmentsTab({ patientId }: { patientId: string }) {
         .single()
 
       if (profile) {
-        const doctorName = profile.doctor_full_name || `${profile.first_name} ${profile.last_name}`
+        const doctorName =
+          profile.doctor_full_name ||
+          `${profile.first_name} ${profile.last_name}`
         setDoctorInfo({
           name: doctorName,
           crm: profile.doctor_crm || "",
@@ -109,7 +115,10 @@ export function PatientAppointmentsTab({ patientId }: { patientId: string }) {
       ...formData,
     }
 
-    const { data, error } = await supabase.from("appointments").insert(dataToInsert).select()
+    const { data, error } = await supabase
+      .from("appointments")
+      .insert(dataToInsert)
+      .select()
 
     if (error) {
       alert(`Erro ao agendar consulta: ${error.message}`)
@@ -121,10 +130,7 @@ export function PatientAppointmentsTab({ patientId }: { patientId: string }) {
       return
     }
 
-    await pushNotifications.sendNewAppointment(patientId, formData.title, formData.scheduled_at)
-
     alert("Consulta agendada com sucesso!")
-
     setShowDialog(false)
     setFormData({
       title: "",
@@ -139,7 +145,11 @@ export function PatientAppointmentsTab({ patientId }: { patientId: string }) {
   }
 
   const handleDelete = async (id: string) => {
-    if (!confirm("Tem certeza que deseja remover esta consulta? Esta ação não pode ser desfeita.")) {
+    if (
+      !confirm(
+        "Tem certeza que deseja remover esta consulta? Esta ação não pode ser desfeita."
+      )
+    ) {
       return
     }
 
@@ -179,7 +189,10 @@ export function PatientAppointmentsTab({ patientId }: { patientId: string }) {
           ) : (
             <div className="space-y-4">
               {appointments.map((apt) => (
-                <div key={apt.id} className="p-4 rounded-lg border border-border bg-card">
+                <div
+                  key={apt.id}
+                  className="p-4 rounded-lg border border-border bg-card"
+                >
                   <div className="flex items-start justify-between">
                     <div className="flex-1">
                       <div className="flex items-center gap-2 mb-2">
@@ -188,26 +201,38 @@ export function PatientAppointmentsTab({ patientId }: { patientId: string }) {
                             apt.status === "scheduled"
                               ? "bg-blue-100 text-blue-700 dark:bg-blue-900 dark:text-blue-300"
                               : apt.status === "completed"
-                                ? "bg-green-100 text-green-700 dark:bg-green-900 dark:text-green-300"
-                                : "bg-red-100 text-red-700 dark:bg-red-900 dark:text-red-300"
+                              ? "bg-green-100 text-green-700 dark:bg-green-900 dark:text-green-300"
+                              : "bg-red-100 text-red-700 dark:bg-red-900 dark:text-red-300"
                           }`}
                         >
                           {apt.status === "scheduled"
                             ? "Agendada"
                             : apt.status === "completed"
-                              ? "Concluída"
-                              : "Cancelada"}
+                            ? "Concluída"
+                            : "Cancelada"}
                         </span>
                       </div>
-                      <h4 className="font-semibold text-foreground text-lg">{apt.title}</h4>
-                      <p className="text-sm text-muted-foreground mt-1">{apt.appointment_type}</p>
-                      {apt.description && <p className="text-sm text-muted-foreground mt-2">{apt.description}</p>}
+                      <h4 className="font-semibold text-foreground text-lg">
+                        {apt.title}
+                      </h4>
+                      <p className="text-sm text-muted-foreground mt-1">
+                        {apt.appointment_type}
+                      </p>
+                      {apt.description && (
+                        <p className="text-sm text-muted-foreground mt-2">
+                          {apt.description}
+                        </p>
+                      )}
                       <p className="text-sm text-muted-foreground mt-2">
                         <Calendar className="h-3 w-3 inline mr-1" />
                         {formatBrasiliaDateAppointment(apt.scheduled_at, "date")} às{" "}
                         {formatBrasiliaDateAppointment(apt.scheduled_at, "time")}
                       </p>
-                      {apt.location && <p className="text-sm text-muted-foreground">Local: {apt.location}</p>}
+                      {apt.location && (
+                        <p className="text-sm text-muted-foreground">
+                          Local: {apt.location}
+                        </p>
+                      )}
                     </div>
                     <Button
                       variant="ghost"
@@ -234,7 +259,8 @@ export function PatientAppointmentsTab({ patientId }: { patientId: string }) {
             {doctorInfo.crm && (
               <div className="p-3 rounded-lg bg-muted">
                 <p className="text-sm">
-                  <span className="font-medium">Médico Responsável:</span> {doctorInfo.name}
+                  <span className="font-medium">Médico Responsável:</span>{" "}
+                  {doctorInfo.name}
                   <br />
                   <span className="font-medium">CRM:</span> {doctorInfo.crm}
                 </p>
@@ -245,7 +271,9 @@ export function PatientAppointmentsTab({ patientId }: { patientId: string }) {
                 <Label>Título *</Label>
                 <Input
                   value={formData.title}
-                  onChange={(e) => setFormData({ ...formData, title: e.target.value })}
+                  onChange={(e) =>
+                    setFormData({ ...formData, title: e.target.value })
+                  }
                   placeholder="Ex: Consulta de rotina"
                 />
               </div>
@@ -253,7 +281,9 @@ export function PatientAppointmentsTab({ patientId }: { patientId: string }) {
                 <Label>Tipo de Consulta *</Label>
                 <Input
                   value={formData.appointment_type}
-                  onChange={(e) => setFormData({ ...formData, appointment_type: e.target.value })}
+                  onChange={(e) =>
+                    setFormData({ ...formData, appointment_type: e.target.value })
+                  }
                   placeholder="Ex: Avaliação física"
                 />
               </div>
@@ -262,14 +292,18 @@ export function PatientAppointmentsTab({ patientId }: { patientId: string }) {
                 <Input
                   type="datetime-local"
                   value={formData.scheduled_at}
-                  onChange={(e) => setFormData({ ...formData, scheduled_at: e.target.value })}
+                  onChange={(e) =>
+                    setFormData({ ...formData, scheduled_at: e.target.value })
+                  }
                 />
               </div>
               <div className="md:col-span-2">
                 <Label>Local</Label>
                 <Input
                   value={formData.location}
-                  onChange={(e) => setFormData({ ...formData, location: e.target.value })}
+                  onChange={(e) =>
+                    setFormData({ ...formData, location: e.target.value })
+                  }
                   placeholder="Endereço da consulta"
                 />
               </div>
@@ -278,7 +312,9 @@ export function PatientAppointmentsTab({ patientId }: { patientId: string }) {
               <Label>Descrição</Label>
               <Textarea
                 value={formData.description}
-                onChange={(e) => setFormData({ ...formData, description: e.target.value })}
+                onChange={(e) =>
+                  setFormData({ ...formData, description: e.target.value })
+                }
                 rows={3}
               />
             </div>
@@ -286,7 +322,9 @@ export function PatientAppointmentsTab({ patientId }: { patientId: string }) {
               <Label>Observações</Label>
               <Textarea
                 value={formData.notes}
-                onChange={(e) => setFormData({ ...formData, notes: e.target.value })}
+                onChange={(e) =>
+                  setFormData({ ...formData, notes: e.target.value })
+                }
                 rows={2}
               />
             </div>
@@ -296,7 +334,11 @@ export function PatientAppointmentsTab({ patientId }: { patientId: string }) {
               </Button>
               <Button
                 onClick={handleAdd}
-                disabled={!formData.title || !formData.appointment_type || !formData.scheduled_at}
+                disabled={
+                  !formData.title ||
+                  !formData.appointment_type ||
+                  !formData.scheduled_at
+                }
               >
                 Agendar
               </Button>

@@ -1,11 +1,12 @@
 "use client"
 
 import type React from "react"
+
 import { createClient } from "@/lib/supabase/client"
 import { useEffect, useState } from "react"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
-import { Pill, Calendar, Heart, Activity, Utensils, AlertCircle, FileText } from "lucide-react"
+import { Pill, Calendar, Heart, Activity, Utensils, AlertCircle } from "lucide-react"
 import Link from "next/link"
 
 interface Profile {
@@ -22,7 +23,6 @@ interface HealthStats {
   activeDiets: number
   supplements: number
   recentNotifications: number
-  activePrescriptions: number
 }
 
 interface DietRecipe {
@@ -48,10 +48,7 @@ export default function PatientDashboard() {
     activeDiets: 0,
     supplements: 0,
     recentNotifications: 0,
-    activePrescriptions: 0,
   })
-  const [latestRecipes, setLatestRecipes] = useState<DietRecipe[]>([])  // ✅ ADDED
-  const [latestSupplements, setLatestSupplements] = useState<Supplement[]>([])  // ✅ ADDED
 
   useEffect(() => {
     const supabase = createClient()
@@ -76,8 +73,8 @@ export default function PatientDashboard() {
           setProfile(profileData)
         }
 
-        // Load stats and data
-        const [medRes, appoRes, dietRes, suppRes, notifRes, recipesRes, suppDataRes, prescRes] = await Promise.all([
+        // Load stats
+        const [medRes, appoRes, dietRes, suppRes, notifRes, recipesRes] = await Promise.all([
           supabase.from("medications").select("*", { count: "exact" }).eq("user_id", user.id).eq("is_active", true),
 
           supabase
@@ -93,11 +90,7 @@ export default function PatientDashboard() {
 
           supabase.from("notifications").select("*", { count: "exact" }).eq("user_id", user.id).eq("is_read", false),
 
-          supabase.from("patient_diet_recipes").select("*").eq("patient_id", user.id).order('created_at', { ascending: false }).limit(4),
-
-          supabase.from("supplements").select("*").eq("user_id", user.id).eq("is_active", true).order('created_at', { ascending: false }).limit(4),
-
-          supabase.from("medical_prescriptions").select("*", { count: "exact" }).eq("patient_id", user.id),
+          supabase.from("patient_diet_recipes").select("*").eq("patient_id", user.id),
         ])
 
         if (isMounted) {
@@ -107,10 +100,7 @@ export default function PatientDashboard() {
             activeDiets: dietRes.count || 0,
             supplements: suppRes.count || 0,
             recentNotifications: notifRes.count || 0,
-            activePrescriptions: prescRes.count || 0,
           })
-          setLatestRecipes(recipesRes.data as unknown as DietRecipe[] || [])  // ✅ FIXED
-          setLatestSupplements(suppDataRes.data as unknown as Supplement[] || [])  // ✅ FIXED
         }
       } catch (error) {
         console.error("[v0] Error loading dashboard:", error)
@@ -283,8 +273,8 @@ export default function PatientDashboard() {
         <p className="text-muted-foreground mt-2">Visão geral do seu gerenciamento de saúde</p>
       </div>
 
-      {/* Health Stats Grid - Simplified */}
-      <div className="grid grid-cols-2 lg:grid-cols-5 gap-4">
+      {/* Health Stats Grid */}
+      <div className="grid grid-cols-2 md:grid-cols-5 gap-3 md:gap-4">
         <StatCard
           title="Medicamentos"
           value={stats.activeMedications}
@@ -298,13 +288,6 @@ export default function PatientDashboard() {
           icon={Calendar}
           href="/patient/appointments"
           color="green"
-        />
-        <StatCard
-          title="Prescrições"
-          value={stats.activePrescriptions}
-          icon={FileText}
-          href="/patient/prescriptions"
-          color="yellow"
         />
         <StatCard title="Dietas" value={stats.activeDiets} icon={Utensils} href="/patient/diet" color="orange" />
         <StatCard
@@ -323,9 +306,67 @@ export default function PatientDashboard() {
         />
       </div>
 
-      <div className="grid lg:grid-cols-3 gap-8">
+      {/* Health Overview Cards */}
+      <div className="grid md:grid-cols-2 gap-6">
+        <Card>
+          <CardHeader>
+            <CardTitle className="flex items-center gap-2">
+              <Heart className="h-5 w-5 text-red-500" />
+              Saúde Geral
+            </CardTitle>
+            <CardDescription>Seu perfil de saúde</CardDescription>
+          </CardHeader>
+          <CardContent className="space-y-4">
+            <div className="p-4 rounded-lg border border-border bg-muted/30">
+              <p className="text-sm text-muted-foreground mb-1">Nome Completo</p>
+              <p className="font-medium text-foreground">
+                {profile?.first_name} {profile?.last_name}
+              </p>
+            </div>
+            {profile?.allergies && (
+              <div className="p-4 rounded-lg border border-red-200 bg-red-50 dark:border-red-800 dark:bg-red-950">
+                <p className="text-sm text-red-700 dark:text-red-200 font-medium mb-1">Alergias Conhecidas</p>
+                <p className="text-sm text-red-600 dark:text-red-300">{profile.allergies}</p>
+              </div>
+            )}
+            {profile?.phone && (
+              <div className="p-4 rounded-lg border border-border bg-muted/30">
+                <p className="text-sm text-muted-foreground mb-1">Telefone</p>
+                <p className="font-medium text-foreground">{profile.phone}</p>
+              </div>
+            )}
+          </CardContent>
+        </Card>
 
-        {/* Sidebar */}
+        <Card>
+          <CardHeader>
+            <CardTitle>Próximas Ações</CardTitle>
+            <CardDescription>Coisas para fazer agora</CardDescription>
+          </CardHeader>
+          <CardContent className="space-y-3">
+            <Button asChild variant="outline" className="w-full justify-start bg-transparent">
+              <Link href="/patient/medications">
+                <Pill className="h-4 w-4 mr-2" />
+                Ver Medicamentos ({stats.activeMedications})
+              </Link>
+            </Button>
+            <Button asChild variant="outline" className="w-full justify-start bg-transparent">
+              <Link href="/patient/appointments">
+                <Calendar className="h-4 w-4 mr-2" />
+                Ver Consultas ({stats.upcomingAppointments})
+              </Link>
+            </Button>
+            <Button asChild variant="outline" className="w-full justify-start bg-transparent">
+              <Link href="/patient/diet">
+                <Utensils className="h-4 w-4 mr-2" />
+                Ver Dietas ({stats.activeDiets})
+              </Link>
+            </Button>
+            <Button asChild variant="outline" className="w-full justify-start bg-transparent">
+              <Link href="/patient/settings">Editar Perfil</Link>
+            </Button>
+          </CardContent>
+        </Card>
       </div>
     </div>
   )
@@ -336,7 +377,7 @@ interface StatCardProps {
   value: number
   icon: React.ComponentType<{ className?: string }>
   href: string
-  color: "blue" | "green" | "orange" | "purple" | "red" | "yellow"
+  color: "blue" | "green" | "orange" | "purple" | "red"
 }
 
 function StatCard({ title, value, icon: Icon, href, color }: StatCardProps) {
@@ -346,7 +387,6 @@ function StatCard({ title, value, icon: Icon, href, color }: StatCardProps) {
     orange: "bg-orange-100 dark:bg-orange-900 text-orange-600 dark:text-orange-400",
     purple: "bg-purple-100 dark:bg-purple-900 text-purple-600 dark:text-purple-400",
     red: "bg-red-100 dark:bg-red-900 text-red-600 dark:text-red-400",
-    yellow: "bg-yellow-100 dark:bg-yellow-900 text-yellow-600 dark:text-yellow-400",
   }
 
   return (

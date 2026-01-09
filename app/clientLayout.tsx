@@ -4,10 +4,7 @@ import type React from "react"
 
 import { useEffect, useState } from "react"
 import { Analytics } from "@vercel/analytics/next"
-import { NotificationPermissionManager } from "@/components/NotificationPermissionManager"
-import { createClient } from "@/lib/supabase/client"
-import { useRouter } from "next/navigation"
-import { MedicationScheduler } from "@/components/medication-scheduler"
+import Script from "next/script"
 
 export default function ClientLayout({
   children,
@@ -15,57 +12,29 @@ export default function ClientLayout({
   children: React.ReactNode
 }>) {
   const [isClient, setIsClient] = useState(false)
-  const [isLoading, setIsLoading] = useState(true)
-  const router = useRouter()
 
   useEffect(() => {
-    const checkSession = async () => {
-      try {
-        const supabase = createClient()
-        const {
-          data: { session },
-        } = await supabase.auth.getSession()
-
-        if (session) {
-          console.log("[v0] Sessão persistente encontrada para usuário:", session.user.id)
-          // User is logged in, no need to redirect to login
-        }
-      } catch (error) {
-        console.error("[v0] Erro ao verificar sessão:", error)
-      } finally {
-        setIsLoading(false)
-        setIsClient(true)
-      }
-    }
-
-    checkSession()
-  }, [])
-
-  useEffect(() => {
-    if (!isClient || isLoading) return
+    setIsClient(true)
 
     if ("serviceWorker" in navigator) {
       navigator.serviceWorker
-        .register("/sw.js", { scope: "/" })
+        .register("/service-worker.js", {
+          scope: "/",
+        })
         .then((registration) => {
-          console.log("[v0] Service Worker registered successfully:", registration)
+          console.log("[v0] Service Worker registered with scope:", registration.scope)
         })
         .catch((error) => {
-          console.error("[v0] Service Worker registration failed:", error)
+          console.error("[v0] Failed to register Service Worker:", error)
         })
     }
-  }, [isClient, isLoading])
-
-  if (isLoading) {
-    return null // Don't render anything while checking session
-  }
+  }, [])
 
   return (
     <body className="font-sans antialiased">
       {children}
       <Analytics />
-      <MedicationScheduler/>
-      <NotificationPermissionManager />
+      {isClient && <Script src="/register-sw.js" strategy="afterInteractive" />}
     </body>
   )
 }

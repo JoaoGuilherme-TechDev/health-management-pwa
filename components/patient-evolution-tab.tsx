@@ -10,9 +10,9 @@ import { createClient } from "@/lib/supabase/client"
 import { Plus, TrendingUp, Trash2 } from "lucide-react"
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog"
 import { formatBrasiliaDate } from "@/lib/timezone"
-import { notifyEvolutionCreated } from "@/lib/notifications"
 
 export function PatientEvolutionTab({ patientId }: { patientId: string }) {
+
   const [evolution, setEvolution] = useState<any[]>([])
   const [loading, setLoading] = useState(true)
   const [showDialog, setShowDialog] = useState(false)
@@ -26,25 +26,8 @@ export function PatientEvolutionTab({ patientId }: { patientId: string }) {
     bmr: "",
     body_water_percentage: "",
     bone_mass: "",
-    bmi: "",
     notes: "",
   })
-
-  // Auto-calculate BMI
-  useEffect(() => {
-    if (formData.weight && formData.height) {
-      const weight = Number.parseFloat(formData.weight)
-      const height = Number.parseFloat(formData.height) / 100 // convert to meters
-
-      if (weight > 0 && height > 0) {
-        const bmi = (weight / (height * height)).toFixed(2)
-        // Only update if different to avoid loops (though useEffect dependency handles this)
-        if (formData.bmi !== bmi) {
-          setFormData((prev) => ({ ...prev, bmi }))
-        }
-      }
-    }
-  }, [formData.weight, formData.height])
 
   useEffect(() => {
     loadEvolution()
@@ -85,100 +68,35 @@ export function PatientEvolutionTab({ patientId }: { patientId: string }) {
   }
 
   const handleAdd = async () => {
-    try {
-      const validateNumber = (value: string, min: number, max: number, fieldName: string) => {
-        if (!value) return true
-        const num = Number.parseFloat(value)
-        if (isNaN(num) || num < min || num > max) {
-          alert(`${fieldName} deve estar entre ${min} e ${max}`)
-          return false
-        }
-        return true
-      }
+    const supabase = createClient()
+    await supabase.from("physical_evolution").insert({
+      user_id: patientId,
+      weight: formData.weight ? Number.parseFloat(formData.weight) : null,
+      height: formData.height ? Number.parseFloat(formData.height) : null,
+      muscle_mass: formData.muscle_mass ? Number.parseFloat(formData.muscle_mass) : null,
+      body_fat_percentage: formData.body_fat_percentage ? Number.parseFloat(formData.body_fat_percentage) : null,
+      visceral_fat: formData.visceral_fat ? Number.parseFloat(formData.visceral_fat) : null,
+      metabolic_age: formData.metabolic_age ? Number.parseInt(formData.metabolic_age) : null,
+      bmr: formData.bmr ? Number.parseFloat(formData.bmr) : null,
+      body_water_percentage: formData.body_water_percentage ? Number.parseFloat(formData.body_water_percentage) : null,
+      bone_mass: formData.bone_mass ? Number.parseFloat(formData.bone_mass) : null,
+      notes: formData.notes,
+    })
 
-      // Validate numeric ranges
-      if (!validateNumber(formData.weight, 20, 500, "Peso")) return
-      if (!validateNumber(formData.height, 100, 250, "Altura")) return
-      if (!validateNumber(formData.muscle_mass, 0, 200, "Massa Muscular")) return
-      if (!validateNumber(formData.body_fat_percentage, 0, 100, "Gordura Corporal")) return
-      if (!validateNumber(formData.visceral_fat, 0, 100, "Gordura Visceral")) return
-      if (!validateNumber(formData.metabolic_age, 0, 150, "Idade Metabólica")) return
-      if (!validateNumber(formData.bmr, 0, 10000, "TMB")) return
-      if (!validateNumber(formData.body_water_percentage, 0, 100, "Água Corporal")) return
-      if (!validateNumber(formData.bone_mass, 0, 50, "Massa Óssea")) return
-
-      const supabase = createClient()
-
-      // Create evolution record
-      const { data: evolutionData, error } = await supabase
-        .from("physical_evolution")
-        .insert({
-          user_id: patientId,
-          weight: formData.weight ? Number.parseFloat(formData.weight) : null,
-          height: formData.height ? Number.parseFloat(formData.height) : null,
-          muscle_mass: formData.muscle_mass ? Number.parseFloat(formData.muscle_mass) : null,
-          body_fat_percentage: formData.body_fat_percentage ? Number.parseFloat(formData.body_fat_percentage) : null,
-          visceral_fat: formData.visceral_fat ? Number.parseFloat(formData.visceral_fat) : null,
-          metabolic_age: formData.metabolic_age ? Number.parseInt(formData.metabolic_age) : null,
-          bmr: formData.bmr ? Number.parseFloat(formData.bmr) : null,
-          body_water_percentage: formData.body_water_percentage
-            ? Number.parseFloat(formData.body_water_percentage)
-            : null,
-          bone_mass: formData.bone_mass ? Number.parseFloat(formData.bone_mass) : null,
-          bmi: formData.bmi ? Number.parseFloat(formData.bmi) : null,
-          notes: formData.notes,
-        })
-        .select()
-        .single()
-
-      if (error) {
-        console.error("Erro ao adicionar evolução:", error)
-        alert(`Erro ao adicionar medição: ${error.message}`)
-        return
-      }
-
-      console.log("Evolução adicionada com sucesso:", evolutionData)
-
-      // Create notification for evolution
-      try {
-        // Create a meaningful message for the evolution notification
-        let measurementDetails = "Nova medição de evolução física registrada"
-
-        const details = []
-        if (formData.weight) details.push(`${formData.weight}kg`)
-        if (formData.body_fat_percentage) details.push(`${formData.body_fat_percentage}% gordura`)
-
-        if (details.length > 0) {
-          measurementDetails = `Nova medição: ${details.join(" • ")}`
-        }
-
-        await notifyEvolutionCreated(patientId, measurementDetails, true)
-      } catch (notifError) {
-        console.error("Erro ao enviar notificação:", notifError)
-        // Don't fail the whole operation if notification fails
-      }
-
-      alert("Medição registrada com sucesso!")
-
-      setShowDialog(false)
-      setFormData({
-        weight: "",
-        height: "",
-        muscle_mass: "",
-        body_fat_percentage: "",
-        visceral_fat: "",
-        metabolic_age: "",
-        bmr: "",
-        body_water_percentage: "",
-        bone_mass: "",
-        bmi: "",
-        notes: "",
-      })
-      loadEvolution()
-    } catch (error: any) {
-      console.error("Erro inesperado ao adicionar evolução:", error)
-      alert(`Erro: ${error.message}`)
-    }
+    setShowDialog(false)
+    setFormData({
+      weight: "",
+      height: "",
+      muscle_mass: "",
+      body_fat_percentage: "",
+      visceral_fat: "",
+      metabolic_age: "",
+      bmr: "",
+      body_water_percentage: "",
+      bone_mass: "",
+      notes: "",
+    })
+    loadEvolution()
   }
 
   const handleDelete = async (id: string) => {
@@ -227,7 +145,9 @@ export function PatientEvolutionTab({ patientId }: { patientId: string }) {
                   className="p-6 rounded-lg border-2 border-primary/20 bg-linear-to-br from-primary/5 to-accent/5"
                 >
                   <div className="flex items-start justify-between mb-4">
-                    <div className="text-sm text-muted-foreground">{formatBrasiliaDate(evo.measured_at, "date")}</div>
+                    <div className="text-sm text-muted-foreground">
+                      {formatBrasiliaDate(evo.measured_at, "date")}
+                    </div>
                     <Button
                       variant="ghost"
                       size="icon"
@@ -249,12 +169,6 @@ export function PatientEvolutionTab({ patientId }: { patientId: string }) {
                       <div className="p-3 rounded-lg bg-card border border-border">
                         <p className="text-xs text-muted-foreground mb-1">Altura</p>
                         <p className="text-lg font-semibold text-foreground">{evo.height} cm</p>
-                      </div>
-                    )}
-                    {evo.bmi && (
-                      <div className="p-3 rounded-lg bg-card border border-border">
-                        <p className="text-xs text-muted-foreground mb-1">IMC</p>
-                        <p className="text-lg font-semibold text-foreground">{evo.bmi}</p>
                       </div>
                     )}
                     {evo.muscle_mass && (
