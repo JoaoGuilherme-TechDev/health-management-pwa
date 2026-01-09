@@ -15,43 +15,67 @@ export async function POST(request: NextRequest) {
   try {
     const supabase = await createClient()
 
-    const { subscriptions, payload } = await request.json()
+    const { notificationId } = await request.json()
 
-    if (!subscriptions || !Array.isArray(subscriptions) || subscriptions.length === 0) {
-      return NextResponse.json({ error: "subscriptions array é obrigatório" }, { status: 400 })
+    if (!notificationId) {
+      return NextResponse.json({ error: "notificationId é obrigatório" }, { status: 400 })
     }
 
-    if (!payload) {
-      return NextResponse.json({ error: "payload é obrigatório" }, { status: 400 })
+    const { data: notification, error: notificationError } = await supabase
+      .from("notifications")
+      .select("*")
+      .eq("id", notificationId)
+      .single()
+
+    if (notificationError || !notification) {
+      return NextResponse.json({ error: "Notificação não encontrada" }, { status: 404 })
     }
 
-    // Enviar notificação para cada subscription
-    const sendPromises = subscriptions.map(async (subscription: any) => {
+    const { data: subscriptions, error: subscriptionsError } = await supabase
+      .from("push_subscriptions")
+      .select("*")
+      .eq("user_id", notification.user_id)
+
+    if (subscriptionsError) {
+      console.error("[v0] Erro ao buscar subscriptions:", subscriptionsError)
+      return NextResponse.json({ error: "Erro ao buscar subscriptions" }, { status: 500 })
+    }
+
+    if (!subscriptions || subscriptions.length === 0) {
+      return NextResponse.json({ message: "Usuário não tem subscriptions ativas" }, { status: 200 })
+    }
+
+    const payload = {
+      title: notification.title,
+      body: notification.message,
+      icon: "/icon-light-32x32.png",
+      badge: "/badge-72x72.png",
+      tag: `${notification.notification_type}-${notification.id}`,
+      data: {
+        url: notification.action_url || "/patient",
+        notificationId: notification.id,
+      },
+      timestamp: Date.now(),
+    }
+
+    const sendPromises = subscriptions.map(async (sub) => {
       try {
-        if (!subscription.endpoint || !subscription.keys) {
-          return { success: false, error: "Invalid subscription format" }
-        }
-
         const pushSubscription = {
-          endpoint: subscription.endpoint,
+          endpoint: sub.subscription.endpoint,
           keys: {
-            p256dh: subscription.keys.p256dh,
-            auth: subscription.keys.auth,
+            p256dh: sub.subscription.keys.p256dh,
+            auth: sub.subscription.keys.auth,
           },
         }
 
         await webpush.sendNotification(pushSubscription, JSON.stringify(payload))
+        console.log(`[v0] Push instantâneo enviado para ${sub.endpoint}`)
         return { success: true }
       } catch (error: any) {
-        console.error("[v0] Erro ao enviar push:", error.message)
+        console.error(`[v0] Erro ao enviar push instantâneo:`, error.message)
 
-        // Se foi 410 (Gone), remover a subscription
         if (error.statusCode === 410) {
-          try {
-            await supabase.from("push_subscriptions").delete().eq("endpoint", subscription.endpoint)
-          } catch (dbError) {
-            console.error("[v0] Erro ao remover subscription:", dbError)
-          }
+          await supabase.from("push_subscriptions").delete().eq("id", sub.id)
         }
 
         return { success: false, error: error.message }
@@ -65,10 +89,10 @@ export async function POST(request: NextRequest) {
       success: true,
       sent: successCount,
       total: subscriptions.length,
-      message: `${successCount}/${subscriptions.length} notificações enviadas`,
+      message: `Notificação instantânea enviada para ${successCount}/${subscriptions.length} dispositivo(s)`,
     })
   } catch (error) {
-    console.error("[v0] Erro na API batch:", error)
+    console.error("[v0] Erro na API de instant:", error)
     return NextResponse.json({ error: "Erro interno do servidor" }, { status: 500 })
   }
 }
