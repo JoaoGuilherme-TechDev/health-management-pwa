@@ -93,7 +93,6 @@ export default function PatientLayout({ children }: { children: React.ReactNode 
             <NavLink href="/patient/diet" icon={UtensilsCrossed} label="Dieta" />
             <NavLink href="/patient/supplements" icon={Dumbbell} label="Suplementos" />
             <NavLink href="/patient/evolution" icon={Activity} label="Evolução Física" />
-            <NavLink href="/patient/notifications" icon={Bell} label="Notificações" />
             <NavLink href="/patient/settings" icon={Settings} label="Configurações" />
           </nav>
         </aside>
@@ -107,7 +106,6 @@ export default function PatientLayout({ children }: { children: React.ReactNode 
             <MobileNavLink href="/patient/diet" icon={UtensilsCrossed} label="Dieta" />
             <MobileNavLink href="/patient/supplements" icon={Dumbbell} label="Suplementos" />
             <MobileNavLink href="/patient/evolution" icon={Activity} label="Evolução" />
-            <MobileNavLink href="/patient/notifications" icon={Bell} label="Notificações" />
             <MobileNavLink href="/patient/settings" icon={Settings} label="Config" />
             
           </nav>

@@ -11,8 +11,6 @@ import { createClient } from "@/lib/supabase/client"
 import { Plus, FileText, Trash2, ExternalLink } from "lucide-react"
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog"
 import { formatBrasiliaDate } from "@/lib/timezone"
-import { pushNotifications } from "@/lib/push-notifications"
-import { notifyPrescriptionCreated } from "@/lib/notifications"
 
 export function PatientPrescriptionsTab({ patientId }: { patientId: string }) {
   const [prescriptions, setPrescriptions] = useState<any[]>([])
@@ -140,7 +138,6 @@ export function PatientPrescriptionsTab({ patientId }: { patientId: string }) {
       return
     }
 
-    // Get doctor's name for notification
     const { data: profile } = await supabase
       .from("profiles")
       .select("first_name, last_name, doctor_full_name")
@@ -182,38 +179,6 @@ export function PatientPrescriptionsTab({ patientId }: { patientId: string }) {
 
       if (data && data.length > 0) {
         console.log("[v0] Receita adicionada com sucesso:", data[0])
-        
-        // Create notification for the patient
-        try {
-          const notification = await notifyPrescriptionCreated(
-            patientId,
-            formData.title,
-            doctorName
-          )
-          
-          if (notification) {
-            console.log("Notificação criada com sucesso:", notification)
-          } else {
-            console.warn("Não foi possível criar a notificação. Verifique se a tabela notifications existe.")
-          }
-        } catch (notificationError) {
-          console.error("Erro ao criar notificação:", notificationError)
-        }
-
-        // Send push notification
-        try {
-          const result = await pushNotifications.sendNewPrescription(patientId, formData.title)
-          
-          if (result.skipped) {
-            console.log("Notificação push não enviada:", result.reason)
-          } else {
-            console.log("Notificação push enviada com sucesso")
-          }
-        } catch (pushError) {
-          console.error("Erro ao enviar notificação push:", pushError)
-        }
-
-        alert("Receita adicionada com sucesso!")
         
         setShowDialog(false)
         setFormData({

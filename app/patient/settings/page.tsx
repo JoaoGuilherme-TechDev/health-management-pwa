@@ -29,7 +29,6 @@ export default function SettingsPage() {
   const [loading, setLoading] = useState(true)
   const [saving, setSaving] = useState(false)
   const [loggingOut, setLoggingOut] = useState(false)
-  const [testingNotification, setTestingNotification] = useState(false)
   const [selectedTab, setSelectedTab] = useState<"personal" | "health">("personal")
 
   const [preferences, setPreferences] = useState({
@@ -38,13 +37,6 @@ export default function SettingsPage() {
     emailDigest: "weekly" as "daily" | "weekly" | "monthly",
     dataSharing: false,
   })
-
- 
-
-  const [notificationPermission, setNotificationPermission] = useState<NotificationPermission>("default")
-  const [isSubscribed, setIsSubscribed] = useState(false)
-  const [pushError, setPushError] = useState<string>("")
-  const [isSecureContext, setIsSecureContext] = useState(false)
 
   useEffect(() => {
     const loadProfile = async () => {
@@ -74,7 +66,6 @@ export default function SettingsPage() {
       hostname.startsWith("172.16.")
     const isHttps = window.location.protocol === "https:"
 
-    setIsSecureContext(isHttps || isLocalhost)
 
     // Avisar se estiver em contexto inseguro
     const isPublicIp =
