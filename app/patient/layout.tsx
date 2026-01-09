@@ -6,7 +6,19 @@ import { createClient } from "@/lib/supabase/client"
 import { useRouter } from "next/navigation"
 import { useEffect, useState } from "react"
 import { Button } from "@/components/ui/button"
-import { Heart, Home, Pill, Calendar, Settings, UtensilsCrossed, Activity, Bell, Dumbbell,  FileText, LogOut } from "lucide-react"
+import {
+  Heart,
+  Home,
+  Pill,
+  Calendar,
+  Settings,
+  UtensilsCrossed,
+  Activity,
+  Bell,
+  Dumbbell,
+  FileText,
+  LogOut,
+} from "lucide-react"
 import Link from "next/link"
 
 export default function PatientLayout({ children }: { children: React.ReactNode }) {
@@ -93,6 +105,7 @@ export default function PatientLayout({ children }: { children: React.ReactNode 
             <NavLink href="/patient/diet" icon={UtensilsCrossed} label="Dieta" />
             <NavLink href="/patient/supplements" icon={Dumbbell} label="Suplementos" />
             <NavLink href="/patient/evolution" icon={Activity} label="Evolução Física" />
+            <NavLink href="/patient/notifications" icon={Bell} label="Notificações" />
             <NavLink href="/patient/settings" icon={Settings} label="Configurações" />
           </nav>
         </aside>
@@ -106,8 +119,8 @@ export default function PatientLayout({ children }: { children: React.ReactNode 
             <MobileNavLink href="/patient/diet" icon={UtensilsCrossed} label="Dieta" />
             <MobileNavLink href="/patient/supplements" icon={Dumbbell} label="Suplementos" />
             <MobileNavLink href="/patient/evolution" icon={Activity} label="Evolução" />
+            <MobileNavLink href="/patient/notifications" icon={Bell} label="Notificações" />
             <MobileNavLink href="/patient/settings" icon={Settings} label="Config" />
-            
           </nav>
         </div>
 
@@ -135,7 +148,6 @@ function MobileNavLink({ href, icon: Icon, label }: { href: string; icon: any; l
     <Link
       href={href}
       className="shrink-0 flex flex-col items-center justify-center gap-1 px-3 py-2 min-w-17.5 text-muted-foreground hover:text-foreground transition-colors active:bg-muted/50 rounded-lg"
-
     >
       <Icon className="h-5 w-5" />
       <span className="text-[10px] font-medium text-center leading-tight">{label}</span>
