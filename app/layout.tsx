@@ -3,6 +3,7 @@ import { Geist, Geist_Mono } from "next/font/google"
 import "./globals.css"
 import ClientLayout from "./clientLayout"
 
+
 const geist = Geist({ 
   subsets: ["latin"],
   display: 'swap',
@@ -43,6 +44,7 @@ export default function RootLayout({
 }: Readonly<{
   children: React.ReactNode
 }>) {
+  
   return (
     <html lang="pt-BR" className={`${geist.className}`}>
       <head>

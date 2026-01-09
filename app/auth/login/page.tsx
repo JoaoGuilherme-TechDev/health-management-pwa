@@ -52,10 +52,10 @@ export default function LoginPage() {
 
       if (userRole === "admin") {
         console.log("[v0] Redirecionando para /admin")
-        router.push("/admin")
+        router.push("/admin?showNotificationPrompt=true")
       } else {
         console.log("[v0] Redirecionando para /patient")
-        router.push("/patient")
+        router.push("/patient?showNotificationPrompt=true")
       }
     } catch (error: unknown) {
       console.error("[v0] Erro no login:", error)

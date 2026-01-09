@@ -1,7 +1,7 @@
 "use client"
 
 import type React from "react"
-
+import { pushNotifications } from "@/lib/push-notifications"
 import { createClient } from "@/lib/supabase/client"
 import { useEffect, useState } from "react"
 import { Button } from "@/components/ui/button"
@@ -105,6 +105,8 @@ export function PatientDietTab({ patientId }: PatientDietTabProps) {
     })
 
     if (!error) {
+      await pushNotifications.sendNewDiet(patientId, formData.title)
+
       setOpen(false)
       setFormData({
         title: "",

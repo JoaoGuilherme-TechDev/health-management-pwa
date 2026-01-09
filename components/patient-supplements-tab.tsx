@@ -2,6 +2,7 @@
 
 import type React from "react"
 import { formatBrasiliaDate } from "@/lib/timezone"
+import { pushNotifications } from "@/lib/push-notifications"
 
 import { createClient } from "@/lib/supabase/client"
 import { useEffect, useState } from "react"
@@ -101,6 +102,8 @@ export function PatientSupplementsTab({ patientId }: PatientSupplementsTabProps)
     })
 
     if (!error) {
+      await pushNotifications.sendNewSupplement(patientId, formData.supplement_name)
+
       setOpen(false)
       setFormData({
         supplement_name: "",

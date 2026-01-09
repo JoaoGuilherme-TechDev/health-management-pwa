@@ -1,6 +1,6 @@
 "use client"
 
-import { useState, useCallback, useEffect } from "react"
+import { useState, useCallback } from "react"
 import {
   Bell,
   Pill,
@@ -46,7 +46,13 @@ const notificationConfig: Record<
     bgColor: "bg-blue-100",
     label: "Medicamento",
   },
-  appointment_created: {
+  medication_reminder: {
+    icon: Clock,
+    color: "text-yellow-600",
+    bgColor: "bg-yellow-100",
+    label: "Lembrete de Medicamento",
+  },
+  appointment_scheduled: {
     icon: Calendar,
     color: "text-green-600",
     bgColor: "bg-green-100",
@@ -58,7 +64,7 @@ const notificationConfig: Record<
     bgColor: "bg-yellow-100",
     label: "Lembrete",
   },
-  diet_recipe_created: {
+  diet_created: {
     icon: ChefHat,
     color: "text-orange-600",
     bgColor: "bg-orange-100",
@@ -171,91 +177,8 @@ export function NotificationsCenter({
   const [filter, setFilter] = useState<NotificationType | "all">("all")
   const [filtersOpen, setFiltersOpen] = useState(false)
   const [isProcessing, setIsProcessing] = useState(false)
-  const [internalLoading, setInternalLoading] = useState(false)
 
   const supabase = createClient()
-
-  const fetchNotifications = useCallback(async () => {
-    if (!autoRefresh) return
-
-    try {
-      const {
-        data: { user },
-      } = await supabase.auth.getUser()
-      if (!user) return
-
-      setInternalLoading(true)
-
-      const { data, error } = await supabase
-        .from("notifications")
-        .select("*")
-        .eq("user_id", user.id)
-        .order("created_at", { ascending: false })
-
-      if (error) {
-        console.error("[v0] Error fetching notifications:", error)
-        return
-      }
-
-      if (data) {
-        onNotificationsChange?.(data)
-      }
-    } catch (error) {
-      console.error("[v0] Error in fetchNotifications:", error)
-    } finally {
-      setInternalLoading(false)
-    }
-  }, [supabase, onNotificationsChange, autoRefresh])
-
-  useEffect(() => {
-    if (!autoRefresh) return
-
-    let isMounted = true
-    const channels: any[] = []
-
-    const setupSubscription = async () => {
-      try {
-        const {
-          data: { user },
-        } = await supabase.auth.getUser()
-        if (!user || !isMounted) return
-
-        const subscription = supabase
-          .channel(`notifications-user-${user.id}`)
-          .on(
-            "postgres_changes",
-            {
-              event: "*",
-              schema: "public",
-              table: "notifications",
-              filter: `user_id=eq.${user.id}`,
-            },
-            (payload) => {
-              console.log("[v0] Notification change detected:", payload.eventType)
-              if (isMounted) {
-                fetchNotifications()
-              }
-            },
-          )
-          .subscribe((status) => {
-            console.log("[v0] Notifications subscription status:", status)
-          })
-
-        channels.push(subscription)
-      } catch (error) {
-        console.error("[v0] Error setting up subscription:", error)
-      }
-    }
-
-    setupSubscription()
-
-    return () => {
-      isMounted = false
-      channels.forEach((channel) => {
-        supabase.removeChannel(channel)
-      })
-    }
-  }, [supabase, autoRefresh, fetchNotifications])
 
   const filteredNotifications =
     filter === "all" ? notifications : notifications.filter((n) => n.notification_type === filter)
@@ -273,10 +196,25 @@ export function NotificationsCenter({
     setIsProcessing(true)
 
     try {
+      // If showing all and we have a handler for marking all as read (server-side), use it
+      if (filter === "all" && onMarkAllAsRead) {
+        await onMarkAllAsRead()
+        toast.success("Todas as notificações foram marcadas como lidas")
+        
+        // Optimistic update
+        if (onNotificationsChange) {
+           onNotificationsChange(notifications.map(n => ({ ...n, is_read: true })))
+        }
+        
+        setIsProcessing(false)
+        return
+      }
+
       const unreadFilteredIds = filteredNotifications.filter((n) => !n.is_read).map((n) => n.id)
 
       if (unreadFilteredIds.length === 0) {
         toast.info("Todas as notificações visíveis já foram lidas")
+        setIsProcessing(false)
         return
       }
 
@@ -287,28 +225,37 @@ export function NotificationsCenter({
         throw error
       }
 
-      const updatedNotifications = notifications.map((n) =>
-        unreadFilteredIds.includes(n.id) ? { ...n, is_read: true } : n,
-      )
-
-      onNotificationsChange?.(updatedNotifications)
-      onMarkAllAsRead?.()
+      // Optimistic update if onNotificationsChange is provided
+      if (onNotificationsChange) {
+        const updatedNotifications = notifications.map((n) =>
+          unreadFilteredIds.includes(n.id) ? { ...n, is_read: true } : n,
+        )
+        onNotificationsChange(updatedNotifications)
+      }
+      
       toast.success(`${unreadFilteredIds.length} notificação(ões) marcada(s) como lida(s)`)
     } catch (error) {
       console.error("[v0] Error marking all as read:", error)
     } finally {
       setIsProcessing(false)
     }
-  }, [filteredNotifications, notifications, supabase, isProcessing, onNotificationsChange, onMarkAllAsRead])
+  }, [filteredNotifications, notifications, supabase, isProcessing, onNotificationsChange, onMarkAllAsRead, filter])
 
   const handleDeleteAll = useCallback(async () => {
     if (filteredNotifications.length === 0 || isProcessing) return
 
     const filterText = filter === "all" ? "" : notificationConfig[filter]?.label || ""
-    const message =
-      filter === "all"
-        ? `Tem certeza que deseja excluir todas as ${filteredNotifications.length} notificações?`
+    
+    // If we are in "all" mode and have the onDeleteAll handler, we might be deleting more than visible
+    // So we should adjust the message
+    let message = ""
+    if (filter === "all" && onDeleteAll) {
+       message = "Tem certeza que deseja excluir TODAS as suas notificações? Esta ação não pode ser desfeita."
+    } else {
+       message = filter === "all"
+        ? `Tem certeza que deseja excluir todas as ${filteredNotifications.length} notificações visíveis?`
         : `Tem certeza que deseja excluir todas as ${filteredNotifications.length} notificações do tipo "${filterText}"?`
+    }
 
     const confirmDelete = window.confirm(message)
 
@@ -317,6 +264,20 @@ export function NotificationsCenter({
     setIsProcessing(true)
 
     try {
+      // Use parent handler if available and we are deleting everything
+      if (filter === "all" && onDeleteAll) {
+        await onDeleteAll()
+        toast.success("Todas as notificações foram excluídas")
+        
+        // Optimistic update - clear all
+        if (onNotificationsChange) {
+          onNotificationsChange([])
+        }
+        
+        setIsProcessing(false)
+        return
+      }
+
       const filteredIds = filteredNotifications.map((n) => n.id)
 
       const { error } = await supabase.from("notifications").delete().in("id", filteredIds)
@@ -326,17 +287,21 @@ export function NotificationsCenter({
         throw error
       }
 
-      await fetchNotifications()
-      onDeleteAll?.()
+      // Optimistic update
+      if (onNotificationsChange) {
+         const updatedNotifications = notifications.filter(n => !filteredIds.includes(n.id))
+         onNotificationsChange(updatedNotifications)
+      }
+
       toast.success(`${filteredIds.length} notificação(ões) excluída(s)`)
     } catch (error) {
       console.error("[v0] Error deleting all notifications:", error)
     } finally {
       setIsProcessing(false)
     }
-  }, [filteredNotifications, filter, supabase, isProcessing, fetchNotifications, onDeleteAll])
+  }, [filteredNotifications, filter, supabase, isProcessing, onDeleteAll, onNotificationsChange, notifications])
 
-  const isAnyLoading = loading || internalLoading
+  const isAnyLoading = loading
 
   if (isAnyLoading) {
     return (
@@ -502,5 +467,3 @@ export function NotificationsCenter({
     </div>
   )
 }
-
-export default NotificationsCenter

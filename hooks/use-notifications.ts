@@ -158,6 +158,21 @@ export function useNotifications(userId?: string) {
     deleteNotification,
     markAllAsRead,
     unreadCount,
+    deleteAll: async () => {
+      if (!userId) return false
+
+      const supabase = createClient()
+      const { error } = await supabase.from("notifications").delete().eq("user_id", userId)
+
+      if (error) {
+        console.error("Error deleting all notifications:", error)
+        return false
+      }
+
+      // Update local state
+      setNotifications([])
+      return true
+    },
     refresh: async () => {
       if (!userId) return
 

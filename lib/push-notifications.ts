@@ -4,7 +4,15 @@ interface NotificationPayload {
   title: string
   body?: string
   url?: string
-  type?: "prescription" | "appointment" | "diet" | "general"
+  type?:
+    | "prescription_created"
+    | "appointment_reminder"
+    | "appointment_scheduled"
+    | "diet_created"
+    | "medication_created"
+    | "medication_reminder"
+    | "supplement_created"
+    | "evolution_created"
   patientId: string
 }
 
@@ -14,64 +22,174 @@ export class PushNotificationService {
   // Enviar notificação para um paciente
   async sendToPatient(payload: NotificationPayload) {
     try {
-      const { patientId, title, body, url, type } = payload
+      console.log("🚀 [PUSH] Starting push notification for patient:", payload.patientId)
 
-      // Step 1: Store notification in database
-      const { data: notification, error: insertError } = await this.supabase
-        .from("notifications")
-        .insert({
-          user_id: patientId,
-          title,
-          message: body || "",
-          notification_type: type || "general",
-          action_url: url || "/patient",
-          is_active: true,
-          reminder_type: "instant",
+      // FIRST: Store in database for notification center
+      await this.storeInDatabase(payload)
+      console.log("💾 [PUSH] Stored in database for patient:", payload.patientId)
+
+      // SECOND: Send real push notification via API
+      let apiSuccess = false
+      try {
+        const baseUrl = typeof window !== 'undefined' ? window.location.origin : process.env.NEXT_PUBLIC_APP_URL || ''
+        const response = await fetch(`${baseUrl}/api/push/send`, {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify({
+            patientId: payload.patientId,
+            title: payload.title,
+            body: payload.body,
+            url: payload.url,
+            type: payload.type,
+          }),
         })
-        .select()
-        .single()
 
-      if (insertError) {
-        console.error("[v0] Erro ao armazenar notificação:", insertError)
-        throw insertError
+        const result = await response.json()
+        apiSuccess = result.success
+        console.log("📡 [PUSH] API Response:", result)
+      } catch (apiError) {
+        console.error("❌ [PUSH] API call failed:", apiError)
       }
 
-      console.log("[v0] Notificação armazenada:", notification)
-
-      // Step 2: Send push notification via API (non-blocking)
-      fetch("/api/push/send", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          patientId,
-          title,
-          body: body || "Nova atualização",
-          url: url || "/patient",
-          type: type || "general",
-        }),
-      }).catch((err) => console.error("[v0] Erro ao enviar push:", err))
-
-      return notification
+      return {
+        storedInDB: true,
+        apiSuccess,
+        message: apiSuccess ? "Notificação enviada com sucesso" : "Notificação salva, mas falha ao enviar push",
+      }
     } catch (error) {
-      console.error("[v0] Erro ao enviar notificação:", error)
+      console.error("❌ [PUSH] Error sending notification:", error)
       throw error
     }
   }
 
-  // Enviar notificação de nova prescrição
+
+  // Store in database
+  private async storeInDatabase(payload: NotificationPayload): Promise<void> {
+    try {
+      // Get doctor info (current user)
+      const {
+        data: { user: doctor },
+      } = await this.supabase.auth.getUser()
+      const doctorId = doctor?.id || "system"
+
+      const { error } = await this.supabase.from("notifications").insert({
+        title: payload.title,
+        message: payload.body || payload.title,
+        notification_type: payload.type || "general",
+        user_id: payload.patientId,
+        action_url: payload.url || "patient/notifications",
+        is_read: false,
+        is_active: true,
+        created_at: new Date().toISOString(),
+      })
+
+      if (error) {
+        console.error("❌ [PUSH] Database storage failed (insert error):", error)
+        throw error
+      }
+
+      console.log("💾 [PUSH] Stored in database for patient:", payload.patientId)
+    } catch (error) {
+      console.error("❌ [PUSH] Database storage failed:", error)
+      throw error
+    }
+  }
+
+  // Helper methods
   async sendNewPrescription(patientId: string, prescriptionTitle: string) {
     return this.sendToPatient({
       patientId,
-      title: "📋 Nova Prescrição Médica",
-      body: `Você recebeu uma nova prescrição: ${prescriptionTitle}`,
+      title: "📋 Nova Receita Médica",
+      body: `Você recebeu uma nova Receita: ${prescriptionTitle}`,
       url: `/patient/prescriptions`,
-      type: "prescription",
+      type: "prescription_created",
     })
   }
 
-  // Enviar notificação de nova consulta
-  async sendNewAppointment(patientId: string, appointmentDate: Date) {
-    const formattedDate = appointmentDate.toLocaleDateString("pt-BR", {
+  async sendNewMedicationSchedule(patientId: string, medicationName: string, medicationId: string) {
+    try {
+      // 1. Get current date and time in Brasilia timezone
+      const now = new Date()
+      const brazilTime = new Date(now.toLocaleString("en-US", { timeZone: "America/Sao_Paulo" }))
+      const currentHour = brazilTime.getHours().toString().padStart(2, "0")
+      const currentMinute = brazilTime.getMinutes().toString().padStart(2, "0")
+      const currentTime = `${currentHour}:${currentMinute}`
+
+      // 2. Fetch medication details to check date range
+      const { data: medication, error: medError } = await this.supabase
+        .from("medications")
+        .select("start_date, end_date")
+        .eq("id", medicationId)
+        .single()
+
+      if (medError || !medication) {
+        console.error("Error fetching medication details:", medError)
+        return { storedInDB: false, apiSuccess: false, localSuccess: false, message: "Medication not found" }
+      }
+
+      // 3. Check date range
+      const startDate = new Date(medication.start_date)
+      const endDate = medication.end_date ? new Date(medication.end_date) : null
+
+      // Normalize dates for comparison (remove time component)
+      const today = new Date(brazilTime.getFullYear(), brazilTime.getMonth(), brazilTime.getDate())
+      const start = new Date(startDate.getFullYear(), startDate.getMonth(), startDate.getDate())
+
+      if (today < start) {
+        console.log(`Medication ${medicationName} hasn't started yet. Start date: ${medication.start_date}`)
+        return { storedInDB: false, apiSuccess: false, localSuccess: false, message: "Medication not started" }
+      }
+
+      if (endDate) {
+        const end = new Date(endDate.getFullYear(), endDate.getMonth(), endDate.getDate())
+        if (today > end) {
+          console.log(`Medication ${medicationName} has ended. End date: ${medication.end_date}`)
+          return { storedInDB: false, apiSuccess: false, localSuccess: false, message: "Medication ended" }
+        }
+      }
+
+      // 4. Fetch schedules
+      const { data: schedules, error: schedError } = await this.supabase
+        .from("medication_schedules")
+        .select("scheduled_time")
+        .eq("medication_id", medicationId)
+
+      if (schedError || !schedules || schedules.length === 0) {
+        console.log(`No schedules found for medication ${medicationName}`)
+        return { storedInDB: false, apiSuccess: false, localSuccess: false, message: "No schedules" }
+      }
+
+      // 5. Check if current time matches any schedule
+      const isTimeToTake = schedules.some((schedule) => schedule.scheduled_time.startsWith(currentTime))
+
+      if (!isTimeToTake) {
+        console.log(
+          `Not time to take ${medicationName}. Current: ${currentTime}, Schedules: ${schedules.map((s) => s.scheduled_time).join(", ")}`,
+        )
+        return { storedInDB: false, apiSuccess: false, localSuccess: false, message: "Not scheduled time" }
+      }
+
+      console.log(`It's time to take ${medicationName}! Sending notification...`)
+
+ 
+
+      return this.sendToPatient({
+        patientId,
+        title: "⏰Hora de Tomar Seu Remédio",
+        body: `Está na hora de tomar ${medicationName}`,
+        url: `/patient/medications?action=confirm&medicationId=${medicationId}&name=${encodeURIComponent(medicationName)}`,
+        type: "medication_reminder",
+      })
+    } catch (error) {
+      console.error("Error in sendNewMedicationSchedule:", error)
+      throw error
+    }
+  }
+
+  async sendNewAppointment(patientId: string, appointmentTitle: string, appointmentDate: string) {
+    const formattedDate = new Date(appointmentDate).toLocaleDateString("pt-BR", {
       weekday: "long",
       day: "numeric",
       month: "long",
@@ -82,98 +200,40 @@ export class PushNotificationService {
     return this.sendToPatient({
       patientId,
       title: "📅 Nova Consulta Agendada",
-      body: `Você tem uma consulta marcada para ${formattedDate}`,
+      body: `${appointmentTitle} • ${formattedDate}`,
       url: `/patient/appointments`,
-      type: "appointment",
+      type: "appointment_scheduled",
     })
   }
 
-  // Enviar notificação de nova dieta
+  async sendNewMedication(patientId: string, medicationName: string) {
+    return this.sendToPatient({
+      patientId,
+      title: "💊 Novo Medicamento Prescrito",
+      body: `Você recebeu um novo medicamento: ${medicationName}`,
+      url: `/patient/medications`,
+      type: "medication_created",
+    })
+  }
+
   async sendNewDiet(patientId: string, dietTitle: string) {
     return this.sendToPatient({
       patientId,
-      title: "🥗 Nova Recomendação de Dieta",
-      body: `Você recebeu uma nova dieta: ${dietTitle}`,
+      title: "🥗 Nova Receita de Dieta",
+      body: `Você recebeu uma nova receita: ${dietTitle}`,
       url: `/patient/diet`,
-      type: "diet",
+      type: "diet_created",
     })
   }
 
-  // Gerar lembretes de medicação quando a medicação é criada
-  async generateMedicationReminders(medicationId: string, startDate: Date, endDate: Date) {
-    try {
-      const { error } = await this.supabase.rpc("generate_medication_reminders", {
-        p_medication_id: medicationId,
-        p_start_date: startDate.toISOString().split("T")[0],
-        p_end_date: endDate.toISOString().split("T")[0],
-      })
-
-      if (error) throw error
-      return true
-    } catch (error) {
-      console.error("Erro ao gerar lembretes de medicação:", error)
-      throw error
-    }
-  }
-
-  // Gerar lembrete de consulta quando a consulta é criada
-  async generateAppointmentReminder(appointmentId: string) {
-    try {
-      const { error } = await this.supabase.rpc("generate_appointment_reminder", {
-        p_appointment_id: appointmentId,
-      })
-
-      if (error) throw error
-      return true
-    } catch (error) {
-      console.error("Erro ao gerar lembrete de consulta:", error)
-      throw error
-    }
-  }
-
-  // Enviar notificação instantânea para novos itens
-  async sendInstantNotification(
-    patientId: string,
-    title: string,
-    message: string,
-    type:
-      | "medication_created"
-      | "appointment_created"
-      | "prescription_created"
-      | "diet_created"
-      | "supplement_created"
-      | "evolution_created",
-    actionUrl: string,
-  ) {
-    try {
-      const { data: notification, error } = await this.supabase
-        .from("notifications")
-        .insert({
-          user_id: patientId,
-          title,
-          message,
-          notification_type: type,
-          reminder_type: "instant",
-          action_url: actionUrl,
-          is_active: true,
-        })
-        .select()
-        .single()
-
-      if (error) throw error
-
-      // Acionar notificação push instantânea
-      await fetch("/api/push/send-instant", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ notificationId: notification.id }),
-      })
-
-      return notification
-    } catch (error) {
-      console.error("Erro ao enviar notificação instantânea:", error)
-      throw error
-    }
+  async sendNewSupplement(patientId: string, supplementName: string) {
+    return this.sendToPatient({
+      patientId,
+      title: "💪 Novo Suplemento Recomendado",
+      body: `Você recebeu uma recomendação: ${supplementName}`,
+      url: `/patient/supplements`,
+      type: "supplement_created",
+    })
   }
 }
 

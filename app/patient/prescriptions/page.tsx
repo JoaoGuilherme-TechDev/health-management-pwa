@@ -135,90 +135,104 @@ export default function PrescriptionsPage() {
           <p className="text-muted-foreground mt-1">Visualize suas receitas médicas</p>
         </div>
 
-        {prescriptions.length === 0 ? (
+        {prescriptions.filter((pres) => isPrescriptionValid(pres.valid_until)).length === 0 ? (
           <Card>
             <CardContent className="pt-12 pb-12 text-center">
               <FileText className="h-12 w-12 mx-auto text-muted-foreground mb-4 opacity-50" />
-              <h3 className="text-lg font-semibold text-foreground mb-2">Nenhuma Receita Médica ainda</h3>
-              <p className="text-muted-foreground">As receitas médicas serão adicionadas aqui pelo seu médico</p>
+              <h3 className="text-lg font-semibold text-foreground mb-2">Nenhuma Receita Médica Válida</h3>
+              <p className="text-muted-foreground">Nenhuma receita médica ativa no momento</p>
             </CardContent>
           </Card>
         ) : (
           <div className="grid gap-4">
-            {prescriptions.map((pres) => {
-              const isValid = isPrescriptionValid(pres.valid_until)
+            {prescriptions
+              .filter((pres) => isPrescriptionValid(pres.valid_until))
+              .map((pres) => {
+                const isValid = isPrescriptionValid(pres.valid_until)
 
-              return (
-                <Card key={pres.id} className="hover:border-primary transition-colors">
-                  <CardContent className="pt-6">
-                    <div className="space-y-4">
-                      <div className="flex items-start justify-between">
-                        <div>
-                          <h3 className="text-lg font-semibold text-foreground">{pres.title}</h3>
-                          <div className="flex items-center gap-2 mt-1">
-                            <Badge variant={isValid ? "default" : "destructive"}>
-                              {isValid ? "Válida" : "Expirada"}
-                            </Badge>
-                            {!isValid && (
-                              <span className="text-xs text-destructive">• Esta receita não é mais válida</span>
-                            )}
+                return (
+                  <Card key={pres.id} className="hover:border-primary transition-colors">
+                    <CardContent className="pt-6">
+                      <div className="space-y-4">
+                        <div className="flex items-start justify-between">
+                          <div>
+                            <h3 className="text-lg font-semibold text-foreground">{pres.title}</h3>
+                            <div className="flex items-center gap-2 mt-1">
+                              <Badge variant={isValid ? "default" : "destructive"}>
+                                {isValid ? "Válida" : "Expirada"}
+                              </Badge>
+                              {!isValid && (
+                                <span className="text-xs text-destructive">• Esta receita não é mais válida</span>
+                              )}
+                            </div>
                           </div>
                         </div>
-                      </div>
 
-                      {pres.description && <p className="text-sm text-muted-foreground">{pres.description}</p>}
+                        {pres.description && <p className="text-sm text-muted-foreground">{pres.description}</p>}
 
-                      <div className="grid grid-cols-1 md:grid-cols-1 gap-4">
-                        {/* Link do Documento */}
-                        {pres.prescription_file_url && (
-                          <a
-                            href={pres.prescription_file_url}
-                            target="_blank"
-                            rel="noopener noreferrer"
-                            className="flex items-center gap-3 p-3 bg-green-50 dark:bg-green-950 rounded-lg hover:bg-green-100 dark:hover:bg-green-900 transition-colors"
-                          >
-                            <ExternalLink className="h-5 w-5 text-green-600 dark:text-green-400 shrink-0" />
+                        <div className="grid grid-cols-1 md:grid-cols-1 gap-4">
+                          {pres.prescription_file_url &&
+                            (isValid ? (
+                              <a
+                                href={pres.prescription_file_url}
+                                target="_blank"
+                                rel="noopener noreferrer"
+                                className="flex items-center gap-3 p-3 bg-green-50 dark:bg-green-950 rounded-lg hover:bg-green-100 dark:hover:bg-green-900 transition-colors"
+                              >
+                                <ExternalLink className="h-5 w-5 text-green-600 dark:text-green-400 shrink-0" />
+                                <div>
+                                  <p className="text-sm font-medium text-green-900 dark:text-green-100">
+                                    Ver Documento da Receita
+                                  </p>
+                                  <p className="text-xs text-green-700 dark:text-green-300">
+                                    Clique para abrir ou baixar o arquivo da receita
+                                  </p>
+                                </div>
+                              </a>
+                            ) : (
+                              <div className="flex items-center gap-3 p-3 bg-red-50 dark:bg-red-950 rounded-lg opacity-60 cursor-not-allowed">
+                                <ExternalLink className="h-5 w-5 text-red-600 dark:text-red-400 shrink-0" />
+                                <div>
+                                  <p className="text-sm font-medium text-red-900 dark:text-red-100">
+                                    Documento Indisponível
+                                  </p>
+                                  <p className="text-xs text-red-700 dark:text-red-300">
+                                    Esta receita expirou e não pode mais ser acessada
+                                  </p>
+                                </div>
+                              </div>
+                            ))}
+                        </div>
+
+                        {pres.valid_until && (
+                          <div className="flex items-center gap-3 p-3 bg-amber-50 dark:bg-amber-950 rounded-lg">
+                            <Calendar className="h-5 w-5 text-amber-600 dark:text-amber-400 shrink-0" />
                             <div>
-                              <p className="text-sm font-medium text-green-900 dark:text-green-100">
-                                Ver Documento da Receita
+                              <p className="text-sm font-medium text-amber-900 dark:text-amber-100">
+                                {isValid ? "Válida até" : "Expirou em"}
                               </p>
-                              <p className="text-xs text-green-700 dark:text-green-300">
-                                Clique para abrir ou baixar o arquivo da receita
+                              <p className="text-xs text-amber-700 dark:text-amber-300">
+                                {formatBrasiliaDate(pres.valid_until, "date")}
                               </p>
                             </div>
-                          </a>
-                        )}
-                      </div>
-
-                      {pres.valid_until && (
-                        <div className="flex items-center gap-3 p-3 bg-amber-50 dark:bg-amber-950 rounded-lg">
-                          <Calendar className="h-5 w-5 text-amber-600 dark:text-amber-400 shrink-0" />
-                          <div>
-                            <p className="text-sm font-medium text-amber-900 dark:text-amber-100">
-                              {isValid ? "Válida até" : "Expirou em"}
-                            </p>
-                            <p className="text-xs text-amber-700 dark:text-amber-300">
-                              {formatBrasiliaDate(pres.valid_until, "date")}
-                            </p>
                           </div>
-                        </div>
-                      )}
+                        )}
 
-                      {pres.notes && (
-                        <div className="p-3 bg-slate-50 dark:bg-slate-900 rounded-lg">
-                          <p className="text-sm font-medium text-slate-700 dark:text-slate-300 mb-1">Observações:</p>
-                          <p className="text-sm text-slate-600 dark:text-slate-400">{pres.notes}</p>
-                        </div>
-                      )}
+                        {pres.notes && (
+                          <div className="p-3 bg-slate-50 dark:bg-slate-900 rounded-lg">
+                            <p className="text-sm font-medium text-slate-700 dark:text-slate-300 mb-1">Observações:</p>
+                            <p className="text-sm text-slate-600 dark:text-slate-400">{pres.notes}</p>
+                          </div>
+                        )}
 
-                      <div className="pt-3 border-t text-xs text-muted-foreground">
-                        <p>Prescrito em: {formatBrasiliaDate(pres.created_at, "date")}</p>
+                        <div className="pt-3 border-t text-xs text-muted-foreground">
+                          <p>Prescrito em: {formatBrasiliaDate(pres.created_at, "date")}</p>
+                        </div>
                       </div>
-                    </div>
-                  </CardContent>
-                </Card>
-              )
-            })}
+                    </CardContent>
+                  </Card>
+                )
+              })}
           </div>
         )}
       </div>

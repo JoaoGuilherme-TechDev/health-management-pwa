@@ -34,22 +34,22 @@ export default function PatientsPage() {
   const [patientToDelete, setPatientToDelete] = useState<Patient | null>(null)
   const [deleting, setDeleting] = useState(false)
 
-  useEffect(() => {
-    const loadPatients = async () => {
-      try {
-        const supabase = createClient()
-        const { data } = await supabase
-          .from("profiles")
-          .select("*")
-          .eq("role", "patient")
-          .order("created_at", { ascending: false })
+  const loadPatients = async () => {
+    try {
+      const supabase = createClient()
+      const { data } = await supabase
+        .from("profiles")
+        .select("*")
+        .eq("role", "patient")
+        .order("created_at", { ascending: false })
 
-        setPatients(data || [])
-      } catch (err) {
-        console.error("[v0] Erro ao carregar pacientes:", err)
-      }
+      setPatients(data || [])
+    } catch (err) {
+      console.error("[v0] Erro ao carregar pacientes:", err)
     }
+  }
 
+  useEffect(() => {
     loadPatients() // Carrega imediatamente
     const interval = setInterval(loadPatients, 5000) // Atualiza a cada 5 segundos
 
@@ -62,13 +62,14 @@ export default function PatientsPage() {
     setDeleting(true)
     const supabase = createClient()
 
-    const { error } = await supabase.rpc("delete_patient_cascade", { patient_id: patientToDelete.id })
+    const { error } = await supabase.rpc("delete_patient_cascade", { p_patient_id: patientToDelete.id })
 
     if (error) {
       alert(`Erro ao deletar paciente: ${error.message}`)
     } else {
       alert("Paciente deletado com sucesso!")
       setPatientToDelete(null)
+      loadPatients()
     }
 
     setDeleting(false)
@@ -94,9 +95,7 @@ export default function PatientsPage() {
         </Button>
       </div>
 
-      <CreatePatientDialog open={showCreateDialog} onOpenChange={setShowCreateDialog} onPatientCreated={function (): void {
-  
-      } } />
+      <CreatePatientDialog open={showCreateDialog} onOpenChange={setShowCreateDialog} onPatientCreated={loadPatients} />
 
       <div className="flex gap-4">
         <Input
