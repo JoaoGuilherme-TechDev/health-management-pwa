@@ -16,11 +16,7 @@ export class PushNotificationService {
     try {
       // Verificar se é admin/médico
       const { data: userData } = await this.supabase.auth.getUser()
-      const { data: profile } = await this.supabase
-        .from("profiles")
-        .select("role")
-        .eq("id", userData.user?.id)
-        .single()
+      const { data: profile } = await this.supabase.from("profiles").select("role").eq("id", userData.user?.id).single()
 
       if (profile?.role !== "admin" && profile?.role !== "doctor") {
         throw new Error("Apenas médicos podem enviar notificações")
@@ -92,6 +88,83 @@ export class PushNotificationService {
       url: `/patient/diet`,
       type: "diet",
     })
+  }
+
+  // Gerar lembretes de medicação quando a medicação é criada
+  async generateMedicationReminders(medicationId: string, startDate: Date, endDate: Date) {
+    try {
+      const { error } = await this.supabase.rpc("generate_medication_reminders", {
+        p_medication_id: medicationId,
+        p_start_date: startDate.toISOString().split("T")[0],
+        p_end_date: endDate.toISOString().split("T")[0],
+      })
+
+      if (error) throw error
+      return true
+    } catch (error) {
+      console.error("Erro ao gerar lembretes de medicação:", error)
+      throw error
+    }
+  }
+
+  // Gerar lembrete de consulta quando a consulta é criada
+  async generateAppointmentReminder(appointmentId: string) {
+    try {
+      const { error } = await this.supabase.rpc("generate_appointment_reminder", {
+        p_appointment_id: appointmentId,
+      })
+
+      if (error) throw error
+      return true
+    } catch (error) {
+      console.error("Erro ao gerar lembrete de consulta:", error)
+      throw error
+    }
+  }
+
+  // Enviar notificação instantânea para novos itens
+  async sendInstantNotification(
+    patientId: string,
+    title: string,
+    message: string,
+    type:
+      | "medication_created"
+      | "appointment_created"
+      | "prescription_created"
+      | "diet_created"
+      | "supplement_created"
+      | "evolution_created",
+    actionUrl: string,
+  ) {
+    try {
+      const { data: notification, error } = await this.supabase
+        .from("notifications")
+        .insert({
+          user_id: patientId,
+          title,
+          message,
+          notification_type: type,
+          reminder_type: "instant",
+          action_url: actionUrl,
+          is_active: true,
+        })
+        .select()
+        .single()
+
+      if (error) throw error
+
+      // Acionar notificação push instantânea
+      await fetch("/api/push/send-instant", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ notificationId: notification.id }),
+      })
+
+      return notification
+    } catch (error) {
+      console.error("Erro ao enviar notificação instantânea:", error)
+      throw error
+    }
   }
 }
 

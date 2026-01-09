@@ -1,6 +1,6 @@
 @import "tailwindcss";
-@import "tw-animate-css";
 
+/* Removed broken tw-animate-css import that was causing the slide-out-to-start error */
 @custom-variant dark (&:is(.dark *));
 
 /* Paleta de cores de saúde com azul e verde pastel */
