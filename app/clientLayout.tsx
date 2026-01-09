@@ -4,7 +4,6 @@ import type React from "react"
 
 import { useEffect, useState } from "react"
 import { Analytics } from "@vercel/analytics/next"
-import Script from "next/script"
 
 export default function ClientLayout({
   children,
@@ -18,15 +17,19 @@ export default function ClientLayout({
 
     if ("serviceWorker" in navigator) {
       navigator.serviceWorker
-        .register("/service-worker.js", {
+        .register("/sw.js", {
           scope: "/",
         })
         .then((registration) => {
-          console.log("[v0] Service Worker registered with scope:", registration.scope)
+          console.log("[v0] Service Worker registered successfully")
         })
         .catch((error) => {
           console.error("[v0] Failed to register Service Worker:", error)
         })
+    }
+
+    if ("Notification" in window && Notification.permission === "default") {
+      Notification.requestPermission()
     }
   }, [])
 
@@ -34,7 +37,6 @@ export default function ClientLayout({
     <body className="font-sans antialiased">
       {children}
       <Analytics />
-      {isClient && <Script src="/register-sw.js" strategy="afterInteractive" />}
     </body>
   )
 }
