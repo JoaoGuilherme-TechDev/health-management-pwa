@@ -113,7 +113,7 @@ export function NotificationCenter() {
       </Button>
 
       {isOpen && (
-        <div className="absolute right-0 top-full mt-2 w-80 max-h-96 bg-background border border-border rounded-lg shadow-lg overflow-hidden z-50">
+        <div className="absolute right-0 top-full mt-2 w-auto max-h-96 bg-background border border-border rounded-lg shadow-lg overflow-hidden z-50">
           <div className="border-b border-border p-4 block bg-muted/50">
             <div className="flex items-center gap-2 justify-between">
               <h3 className="font-semibold text-foreground">Notificações</h3>
