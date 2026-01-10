@@ -9,6 +9,7 @@ export interface Notification {
   user_id: string
   title: string
   description?: string
+  message?: string
   notes?: string
   meal_type?: string
   type: "info" | "success" | "warning" | "error" | "medication" | "appointment"
