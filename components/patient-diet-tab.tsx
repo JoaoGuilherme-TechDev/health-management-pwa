@@ -38,47 +38,173 @@ export function PatientDietTab({ patientId }: PatientDietTabProps) {
   })
 
   useEffect(() => {
-    // Fetch diet recipes for the patient
-    const fetchDietRecipes = async () => {
-      const supabase = createClient()
-      const { data, error } = await supabase.from("diet_recipes").select().eq("patient_id", patientId)
-      if (error) {
-        setError(error.message)
-      } else {
-        setDietRecipes(data || [])
-      }
-      setLoading(false)
+    loadDietRecipes()
+
+    const supabase = createClient()
+    const channel = supabase
+      .channel(`diet-recipes-${patientId}`)
+      .on(
+        "postgres_changes",
+        {
+          event: "*",
+          schema: "public",
+          table: "patient_diet_recipes",
+          filter: `patient_id=eq.${patientId}`,
+        },
+        () => {
+          console.log("[v0] Plano de dieta atualizado, recarregando...")
+          loadDietRecipes()
+        },
+      )
+      .subscribe()
+
+    return () => {
+      supabase.removeChannel(channel)
+    }
+  }, [patientId])
+
+  const loadDietRecipes = async () => {
+    const supabase = createClient()
+    const { data, error } = await supabase
+      .from("patient_diet_recipes")
+      .select("*")
+      .eq("patient_id", patientId)
+      .order("created_at", { ascending: false })
+
+    if (error) {
+      setError(error.message)
+    } else {
+      setDietRecipes(data || [])
+    }
+    setLoading(false)
+  }
+
+  const handlePdfUpload = async (file: File) => {
+    setUploading(true)
+    const supabase = createClient()
+
+    const {
+      data: { user },
+    } = await supabase.auth.getUser()
+
+    if (!user) {
+      alert("Usuário não autenticado")
+      setUploading(false)
+      return
     }
 
-    fetchDietRecipes()
-  }, [patientId])
+    const timestamp = Date.now()
+    const sanitizedFileName = file.name.replace(/[^a-zA-Z0-9.-]/g, "_").substring(0, 50)
+    const randomStr = Math.random().toString(36).substring(2, 8)
+    const filePath = `diets/${patientId}/${user.id}/${timestamp}-${randomStr}-${sanitizedFileName}`
+
+    console.log("[v0] Fazendo upload para:", filePath)
+
+    try {
+      const { data, error } = await supabase.storage.from("diets").upload(filePath, file, {
+        cacheControl: "3600",
+        upsert: false,
+      })
+
+      if (error) {
+        console.error("[v0] Erro detalhado no upload:", error)
+        alert(`Erro ao fazer upload: ${error.message}`)
+        return
+      }
+
+      console.log("[v0] Upload bem-sucedido:", data)
+
+      const { data: urlData } = supabase.storage.from("diets").getPublicUrl(filePath)
+
+      if (urlData?.publicUrl) {
+        console.log("[v0] URL pública gerada:", urlData.publicUrl)
+        setFormData({ ...formData, pdf_url: urlData.publicUrl })
+      } else {
+        alert("Erro ao gerar URL pública do arquivo")
+      }
+    } catch (err: any) {
+      console.error("[v0] Exceção no upload:", err)
+      alert("Erro inesperado ao fazer upload do arquivo")
+    } finally {
+      setUploading(false)
+    }
+  }
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
     const supabase = createClient()
-    const { data, error } = await supabase.from("diet_recipes").insert([formData])
-    if (error) {
-      alert("Erro ao adicionar plano de dieta: " + error.message)
-    } else {
-      setDietRecipes([...dietRecipes, data?.[0]])
-      setOpen(false)
-      setFormData({
-        title: "",
-        description: "",
-        meal_type: "lunch",
-        pdf_url: "",
-      })
+
+    if (!formData.pdf_url) {
+      alert("Por favor, faça o upload do PDF antes de adicionar.")
+      return
+    }
+
+    const {
+      data: { user },
+      error: authError,
+    } = await supabase.auth.getUser()
+
+    if (authError || !user) {
+      console.error("[v0] Erro de autenticação:", authError)
+      alert("Erro: Usuário não autenticado")
+      return
+    }
+
+    const dataToInsert = {
+      patient_id: patientId,
+      doctor_id: user.id,
+      title: formData.title,
+      description: formData.description || null,
+      meal_type: formData.meal_type,
+      pdf_url: formData.pdf_url,
+      created_at: new Date().toISOString(),
+      updated_at: new Date().toISOString(),
+    }
+
+    try {
+      const { data, error } = await supabase.from("patient_diet_recipes").insert(dataToInsert).select()
+
+      if (error) {
+        console.error("[v0] Erro detalhado:", error)
+        alert(`Erro ao adicionar plano de dieta: ${error.message}`)
+        return
+      }
+
+      if (data && data.length > 0) {
+        console.log("[v0] Plano de dieta adicionado com sucesso:", data[0])
+        setOpen(false)
+        setFormData({
+          title: "",
+          description: "",
+          meal_type: "lunch",
+          pdf_url: "",
+        })
+        loadDietRecipes()
+      } else {
+        alert("Erro: Nenhum dado retornado após inserção")
+      }
+    } catch (err) {
+      console.error("[v0] Exceção:", err)
+      alert("Erro inesperado ao adicionar plano de dieta")
     }
   }
 
   const handleDelete = async (id: string) => {
-    const supabase = createClient()
-    const { error } = await supabase.from("diet_recipes").delete().eq("id", id)
-    if (error) {
-      alert("Erro ao deletar plano de dieta: " + error.message)
-    } else {
-      setDietRecipes(dietRecipes.filter((recipe) => recipe.id !== id))
+    if (!confirm("Tem certeza que deseja remover este plano de dieta?")) {
+      return
     }
+
+    const supabase = createClient()
+    const { error } = await supabase.from("patient_diet_recipes").delete().eq("id", id)
+
+    if (error) {
+      console.error("[v0] Erro ao deletar plano de dieta:", error)
+      alert("Erro ao remover plano de dieta")
+      return
+    }
+
+    alert("Plano de dieta removido com sucesso!")
+    loadDietRecipes()
   }
 
   const getMealTypeLabel = (mealType: string) => {
@@ -93,29 +219,6 @@ export function PatientDietTab({ patientId }: PatientDietTabProps) {
         return "Lanche"
       default:
         return mealType
-    }
-  }
-
-  const handlePdfUpload = async (file: File) => {
-    const supabase = createClient()
-    try {
-      setUploading(true)
-      const timestamp = Date.now()
-      const sanitizedFileName = file.name.replace(/[^a-zA-Z0-9.-]/g, "_").substring(0, 50)
-      const randomStr = Math.random().toString(36).substring(2, 8)
-      const patientId_ = patientId
-      const path = `${patientId_}/${timestamp}-${randomStr}-${sanitizedFileName}`
-      const { data, error } = await supabase.storage.from("diets").upload(path, file)
-      if (!error && data) {
-        const { data: urlData } = supabase.storage.from("diets").getPublicUrl(path)
-        setFormData({ ...formData, pdf_url: urlData.publicUrl })
-      } else {
-        alert("Erro ao fazer upload do PDF: " + error?.message)
-      }
-    } catch (err: any) {
-      alert("Erro ao fazer upload: " + err.message)
-    } finally {
-      setUploading(false)
     }
   }
 

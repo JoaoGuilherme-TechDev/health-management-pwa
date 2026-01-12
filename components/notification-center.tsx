@@ -123,7 +123,7 @@ export function NotificationCenter() {
   const handleNotificationClick = (notification: Notification) => {
     if (notification.actionUrl) {
       handleMarkAsRead(notification.id)
-      router.push(notification.actionUrl)
+      router.push(notification.actionUrl) 
       setIsOpen(false)
     }
   }
@@ -135,7 +135,7 @@ export function NotificationCenter() {
   const panelWidth = Math.min(384, Math.max(280, Math.floor(viewport.w * 0.95)))
   const panelMaxHeight = Math.min(640, Math.floor(viewport.h * (isMobile ? 0.7 : 0.6)))
   const panelClasses = cn(
-    isMobile ? "fixed right-2 top-full" : "absolute right-0 top-full mt-2",
+    isMobile ? "fixed right-2 top-[env(safe-area-inset-top)]" : "absolute right-0 top-full mt-2",
     "bg-background border border-border rounded-lg shadow-lg overflow-hidden z-50",
   )
 
@@ -190,10 +190,6 @@ export function NotificationCenter() {
                       notification.actionUrl && "cursor-pointer",
                     )}
                   >
-                    <div className="text-3xl group-hover:scale-110 transition-transform">
-                      {notification.title.match(/[\p{Emoji}]/u)?.[0] || "📬"}
-                    </div>
-
                     <div className="flex-1 w-full">
                       <h4 className="font-semibold text-foreground text-sm line-clamp-1 text-left">
                         {notification.title.replace(/[\p{Emoji}]/gu, "").trim()}
