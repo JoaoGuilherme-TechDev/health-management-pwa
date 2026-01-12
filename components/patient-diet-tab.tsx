@@ -60,7 +60,7 @@ export function PatientDietTab({ patientId }: PatientDietTabProps) {
     if (error) {
       alert("Erro ao adicionar plano de dieta: " + error.message)
     } else {
-      setDietRecipes([...dietRecipes, data[0]])
+      setDietRecipes([...dietRecipes, data?.[0]])
       setOpen(false)
       setFormData({
         title: "",
