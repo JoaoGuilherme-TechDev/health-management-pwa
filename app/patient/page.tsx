@@ -282,7 +282,7 @@ export default function PatientDashboard() {
           href="/patient/appointments"
           color="green"
         />
-        <StatCard title="Receitas" value={stats.activePrescriptions} icon={FileText} href="/patient/prescriptions" color="red" />
+        <StatCard title="Receitas Médicas" value={stats.activePrescriptions} icon={FileText} href="/patient/prescriptions" color="red" />
         <StatCard title="Dietas" value={stats.activeDiets} icon={Utensils} href="/patient/diet" color="orange" />
         <StatCard
           title="Suplementos"
@@ -293,69 +293,6 @@ export default function PatientDashboard() {
         />
         <StatCard title="Evolução Médica" value={stats.evolution} icon={ChartLine} href="/patient/evolution" color="teal" />
         
-      </div>
-
-      {/* Health Overview Cards */}
-      <div className="grid md:grid-cols-2 gap-6">
-        <Card>
-          <CardHeader>
-            <CardTitle className="flex items-center gap-2">
-              <Heart className="h-5 w-5 text-red-500" />
-              Saúde Geral
-            </CardTitle>
-            <CardDescription>Seu perfil de saúde</CardDescription>
-          </CardHeader>
-          <CardContent className="space-y-4">
-            <div className="p-4 rounded-lg border border-border bg-muted/30">
-              <p className="text-sm text-muted-foreground mb-1">Nome Completo</p>
-              <p className="font-medium text-foreground">
-                {profile?.first_name} {profile?.last_name}
-              </p>
-            </div>
-            {profile?.allergies && (
-              <div className="p-4 rounded-lg border border-red-200 bg-red-50 dark:border-red-800 dark:bg-red-950">
-                <p className="text-sm text-red-700 dark:text-red-200 font-medium mb-1">Alergias Conhecidas</p>
-                <p className="text-sm text-red-600 dark:text-red-300">{profile.allergies}</p>
-              </div>
-            )}
-            {profile?.phone && (
-              <div className="p-4 rounded-lg border border-border bg-muted/30">
-                <p className="text-sm text-muted-foreground mb-1">Telefone</p>
-                <p className="font-medium text-foreground">{profile.phone}</p>
-              </div>
-            )}
-          </CardContent>
-        </Card>
-
-        <Card>
-          <CardHeader>
-            <CardTitle>Próximas Ações</CardTitle>
-            <CardDescription>Coisas para fazer agora</CardDescription>
-          </CardHeader>
-          <CardContent className="space-y-3">
-            <Button asChild variant="outline" className="w-full justify-start bg-transparent">
-              <Link href="/patient/medications">
-                <Pill className="h-4 w-4 mr-2" />
-                Ver Medicamentos ({stats.activeMedications})
-              </Link>
-            </Button>
-            <Button asChild variant="outline" className="w-full justify-start bg-transparent">
-              <Link href="/patient/appointments">
-                <Calendar className="h-4 w-4 mr-2" />
-                Ver Consultas ({stats.upcomingAppointments})
-              </Link>
-            </Button>
-            <Button asChild variant="outline" className="w-full justify-start bg-transparent">
-              <Link href="/patient/diet">
-                <Utensils className="h-4 w-4 mr-2" />
-                Ver Dietas ({stats.activeDiets})
-              </Link>
-            </Button>
-            <Button asChild variant="outline" className="w-full justify-start bg-transparent">
-              <Link href="/patient/settings">Editar Perfil</Link>
-            </Button>
-          </CardContent>
-        </Card>
       </div>
     </div>
   )

@@ -31,7 +31,7 @@ BEGIN
   
   RETURN NEW;
 END;
-$$ LANGUAGE plpgsql;
+$$ LANGUAGE plpgsql SECURITY DEFINER;
 
 -- Create trigger for medication notifications
 DROP TRIGGER IF EXISTS medication_notification_trigger ON medications;
@@ -71,7 +71,7 @@ BEGIN
   
   RETURN NEW;
 END;
-$$ LANGUAGE plpgsql;
+$$ LANGUAGE plpgsql SECURITY DEFINER;
 
 -- Create trigger for appointment notifications
 DROP TRIGGER IF EXISTS appointment_notification_trigger ON appointments;
@@ -80,9 +80,9 @@ CREATE TRIGGER appointment_notification_trigger
   FOR EACH ROW
   EXECUTE FUNCTION create_appointment_notifications();
 
- CREATE OR REPLACE FUNCTION create_diet_notifications()
+CREATE OR REPLACE FUNCTION create_diet_notifications()
  RETURNS TRIGGER AS $$
- BEGIN
+BEGIN
    IF (TG_OP = 'INSERT') THEN
      INSERT INTO notifications (user_id, title, message, notification_type)
      VALUES (
@@ -94,7 +94,7 @@ CREATE TRIGGER appointment_notification_trigger
    END IF;
    RETURN NEW;
  END;
- $$ LANGUAGE plpgsql;
+ $$ LANGUAGE plpgsql SECURITY DEFINER;
  
  DROP TRIGGER IF EXISTS diet_notification_trigger ON patient_diet_recipes;
  CREATE TRIGGER diet_notification_trigger
@@ -102,9 +102,9 @@ CREATE TRIGGER appointment_notification_trigger
    FOR EACH ROW
    EXECUTE FUNCTION create_diet_notifications();
  
- CREATE OR REPLACE FUNCTION create_supplement_notifications()
+CREATE OR REPLACE FUNCTION create_supplement_notifications()
  RETURNS TRIGGER AS $$
- BEGIN
+BEGIN
    IF (TG_OP = 'INSERT') THEN
      INSERT INTO notifications (user_id, title, message, notification_type)
      VALUES (
@@ -116,7 +116,7 @@ CREATE TRIGGER appointment_notification_trigger
    END IF;
    RETURN NEW;
  END;
- $$ LANGUAGE plpgsql;
+ $$ LANGUAGE plpgsql SECURITY DEFINER;
  
  DROP TRIGGER IF EXISTS supplement_notification_trigger ON patient_supplements;
  CREATE TRIGGER supplement_notification_trigger

@@ -19,6 +19,7 @@ import {formatBrasiliaDateAppointment } from "@/lib/timezone"
 export function PatientAppointmentsTab({ patientId }: { patientId: string }) {
   const [appointments, setAppointments] = useState<any[]>([])
   const [loading, setLoading] = useState(true)
+  const [error, setError] = useState<string | null>(null)
   const [showDialog, setShowDialog] = useState(false)
   const [doctorInfo, setDoctorInfo] = useState({ name: "", crm: "" })
   const [formData, setFormData] = useState({
@@ -63,18 +64,25 @@ export function PatientAppointmentsTab({ patientId }: { patientId: string }) {
 
   const loadAppointments = async () => {
     const supabase = createClient()
-    const { data, error } = await supabase
-      .from("appointments")
-      .select("*")
-      .eq("patient_id", patientId)
-      .order("scheduled_at", { ascending: false })
-
-    if (error) {
-      console.error("Error loading appointments:", error)
+    try {
+      const { data, error } = await supabase
+        .from("appointments")
+        .select("*")
+        .eq("patient_id", patientId)
+        .order("scheduled_at", { ascending: false })
+      if (error) {
+        setError(error.message)
+        setAppointments([])
+      } else {
+        setAppointments(data || [])
+        setError(null)
+      }
+    } catch (err: any) {
+      setError(err.message || "Falha ao carregar consultas")
+      setAppointments([])
+    } finally {
+      setLoading(false)
     }
-
-    setAppointments(data || [])
-    setLoading(false)
   }
 
   const loadDoctorInfo = async () => {
@@ -182,6 +190,11 @@ export function PatientAppointmentsTab({ patientId }: { patientId: string }) {
           </div>
         </CardHeader>
         <CardContent>
+          {error && (
+            <div className="p-3 rounded-lg bg-red-50 dark:bg-red-950 border border-red-200 dark:border-red-800 mb-4">
+              <p className="text-sm text-red-700 dark:text-red-200">Erro ao carregar consultas: {error}</p>
+            </div>
+          )}
           {appointments.length === 0 ? (
             <div className="text-center py-8 text-muted-foreground">
               <Calendar className="h-12 w-12 mx-auto mb-4 opacity-50" />
