@@ -153,6 +153,7 @@ export function PatientDietTab({ patientId }: PatientDietTabProps) {
 
     const dataToInsert = {
       patient_id: patientId,
+      user_id: patientId,
       doctor_id: user.id,
       title: formData.title,
       description: formData.description || null,
