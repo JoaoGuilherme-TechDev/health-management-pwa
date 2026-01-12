@@ -99,7 +99,7 @@ export function PatientSupplementsTab({ patientId }: PatientSupplementsTabProps)
 
     const { error } = await supabase.from("patient_supplements").insert({
       patient_id: patientId,
-      user_id: userId || user?.id,
+      user_id: user?.id,
       doctor_id: user?.id,
       supplement_name: formData.supplement_name,
       dosage: formData.dosage,
