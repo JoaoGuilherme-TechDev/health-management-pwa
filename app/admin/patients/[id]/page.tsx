@@ -143,13 +143,6 @@ export default function PatientDetailsPage() {
                 <span className="text-xs font-medium">Dieta</span>
               </TabsTrigger>
               <TabsTrigger
-                value="supplements"
-                className="shrink-0 items-center justify-center gap-2 px-4 py-3 min-w-22.5 data-[state=active]:bg-primary data-[state=active]:text-primary-foreground"
-              >
-                <Dumbbell className="h-4 w-4 shrink-0" />
-                <span className="text-xs font-medium">Suplem.</span>
-              </TabsTrigger>
-              <TabsTrigger
                 value="evolution"
                 className="shrink-0 flex items-center justify-center gap-2 px-4 py-3 min-w-22.5 data-[state=active]:bg-primary data-[state=active]:text-primary-foreground"
               >

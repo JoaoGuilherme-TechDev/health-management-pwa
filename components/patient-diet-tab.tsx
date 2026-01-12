@@ -90,7 +90,9 @@ export function PatientDietTab({ patientId }: PatientDietTabProps) {
     try {
       setUploading(true)
       const timestamp = Date.now()
-      const path = `diet-pdfs/${timestamp}-${file.name}`
+      const sanitizedFileName = file.name.replace(/[^a-zA-Z0-9.-]/g, "_").substring(0, 50)
+      const randomStr = Math.random().toString(36).substring(2, 8)
+      const path = `diet-pdfs/${timestamp}-${randomStr}-${sanitizedFileName}`
       const { data, error } = await supabase.storage.from("diets").upload(path, file)
       if (!error && data) {
         const { data: urlData } = supabase.storage.from("diets").getPublicUrl(path)
