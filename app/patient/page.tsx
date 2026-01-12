@@ -6,7 +6,7 @@ import { createClient } from "@/lib/supabase/client"
 import { useEffect, useState } from "react"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
-import { Pill, Calendar, Heart, Activity, Utensils, AlertCircle, FileText } from "lucide-react"
+import { Pill, Calendar, Heart, Activity, Utensils, AlertCircle, FileText, ChartLine } from "lucide-react"
 import Link from "next/link"
 
 interface Profile {
@@ -23,6 +23,7 @@ interface HealthStats {
   upcomingAppointments: number
   activeDiets: number
   supplements: number
+  evolution: number
 }
 
 interface DietRecipe {
@@ -48,6 +49,7 @@ export default function PatientDashboard() {
     upcomingAppointments: 0,
     activeDiets: 0,
     supplements: 0,
+    evolution: 0,
   })
 
   useEffect(() => {
@@ -74,23 +76,18 @@ export default function PatientDashboard() {
         }
 
         // Load stats
-        const [medRes, appoRes, dietRes, suppRes, notifRes, presRes] = await Promise.all([
+        const [medRes, appoRes, dietRes, suppRes, presRes, evolRes] = await Promise.all([
           supabase.from("medications").select("*", { count: "exact" }).eq("user_id", user.id).eq("is_active", true),
-
           supabase
             .from("appointments")
             .select("*", { count: "exact" })
             .eq("patient_id", user.id)
             .eq("status", "scheduled")
             .gte("scheduled_at", new Date().toISOString()),
-
-          supabase.from("diets").select("*", { count: "exact" }).eq("user_id", user.id).eq("status", "active"),
-
-          supabase.from("supplements").select("*", { count: "exact" }).eq("user_id", user.id).eq("is_active", true),
-
-          supabase.from("patient_diet_recipes").select("*").eq("patient_id", user.id),
-
-          supabase.from("prescriptions").select("*", { count: "exact" }).eq("patient_id", user.id).eq("is_active", true),
+          supabase.from("patient_diet_recipes").select("*", { count: "exact" }).eq("patient_id", user.id),
+          supabase.from("patient_supplements").select("*", { count: "exact" }).eq("patient_id", user.id).eq("is_active", true),
+          supabase.from("medical_prescriptions").select("*", { count: "exact" }).eq("patient_id", user.id).eq("is_active", true),
+          supabase.from("physical_evolution").select("*", { count: "exact" }).eq("user_id", user.id),
         ])
 
         if (isMounted) {
@@ -100,6 +97,7 @@ export default function PatientDashboard() {
             activeDiets: dietRes.count || 0,
             supplements: suppRes.count || 0,
             activePrescriptions: presRes.count || 0,
+            evolution: evolRes.count || 0,
           })
         }
       } catch (error) {
@@ -142,6 +140,21 @@ export default function PatientDashboard() {
         })
       subscriptions.push(medicationsChannel)
 
+      const evolutionChannel = supabase
+        .channel(`dashboard-evolution-${user.id}`)
+        .on(
+          "postgres_changes",
+          {
+            event: "*",
+            schema: "public",
+            table: "physical_evolution",
+            filter: `user_id=eq.${user.id}`,
+          },
+          () => {
+            console.log("[v0] Evolution updated")
+            if (isMounted) loadData()
+          },
+        )
       // Appointments channel
       const appointmentsChannel = supabase
         .channel(`dashboard-appointments-${user.id}`)
@@ -170,8 +183,8 @@ export default function PatientDashboard() {
           {
             event: "*",
             schema: "public",
-            table: "diets",
-            filter: `user_id=eq.${user.id}`,
+            table: "patient_diet_recipes",
+            filter: `patient_id=eq.${user.id}`,
           },
           () => {
             console.log("[v0] Diets updated")
@@ -190,8 +203,8 @@ export default function PatientDashboard() {
           {
             event: "*",
             schema: "public",
-            table: "supplements",
-            filter: `user_id=eq.${user.id}`,
+            table: "patient_supplements",
+            filter: `patient_id=eq.${user.id}`,
           },
           () => {
             console.log("[v0] Supplements updated")
@@ -278,6 +291,7 @@ export default function PatientDashboard() {
           href="/patient/supplements"
           color="purple"
         />
+        <StatCard title="Evolução Médica" value={stats.evolution} icon={ChartLine} href="/patient/evolution" color="teal" />
         
       </div>
 
@@ -352,7 +366,7 @@ interface StatCardProps {
   value: number
   icon: React.ComponentType<{ className?: string }>
   href: string
-  color: "blue" | "green" | "orange" | "purple" | "red"
+  color: "blue" | "green" | "orange" | "purple" | "red" | "teal"
 }
 
 function StatCard({ title, value, icon: Icon, href, color }: StatCardProps) {
@@ -362,6 +376,7 @@ function StatCard({ title, value, icon: Icon, href, color }: StatCardProps) {
     orange: "bg-orange-100 dark:bg-orange-900 text-orange-600 dark:text-orange-400",
     purple: "bg-purple-100 dark:bg-purple-900 text-purple-600 dark:text-purple-400",
     red: "bg-red-100 dark:bg-red-900 text-red-600 dark:text-red-400",
+    teal: "bg-teal-100 dark:bg-teal-900 text-teal-600 dark:text-teal-400",
   }
 
   return (

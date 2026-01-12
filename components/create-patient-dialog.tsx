@@ -97,7 +97,7 @@ export function CreatePatientDialog({ open, onOpenChange, onPatientCreated }: Cr
     onOpenChange(false)
     onPatientCreated()
     
-    alert(`Paciente "${formData.firstName} ${formData.lastName}" criado!\n\nO paciente receberá um email para confirmar a conta.\n\nApós confirmar, pode fazer login com:\nEmail: ${formData.email}\nSenha: ${formData.password}`)
+    alert(`Paciente "${formData.firstName} ${formData.lastName}" criado!\nO Paciente pode fazer login com:\nEmail: ${formData.email}\nSenha: ${formData.password}`)
 
   } catch (err) {
     console.error("[v0] Erro:", err)
