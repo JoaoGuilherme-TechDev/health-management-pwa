@@ -122,7 +122,6 @@ export function PatientAppointmentsTab({ patientId }: { patientId: string }) {
 
     const dataToInsert = {
       patient_id: patientId,
-      user_id: user?.id, // Removed doctor_id reference and added user_id
       status: "scheduled",
       doctor_name: doctorInfo.name,
       doctor_crm: doctorInfo.crm,

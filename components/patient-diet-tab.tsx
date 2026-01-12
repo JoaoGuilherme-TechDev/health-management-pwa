@@ -153,7 +153,7 @@ export function PatientDietTab({ patientId }: PatientDietTabProps) {
 
     const dataToInsert = {
       patient_id: patientId,
-      user_id: patientId,
+      user_id: user.id,
       doctor_id: user.id,
       title: formData.title,
       description: formData.description || null,
@@ -340,44 +340,50 @@ export function PatientDietTab({ patientId }: PatientDietTabProps) {
           ) : (
             <div className="space-y-4">
               {dietRecipes.map((diet) => (
-                <div key={diet.id} className="p-4 rounded-lg border border-border bg-card">
-                  <div className="flex items-start justify-between mb-3">
-                    <div className="flex-1">
+                <div
+                  key={diet.id}
+                  className="p-6 rounded-xl border border-border bg-card hover:shadow-sm transition-shadow"
+                >
+                  <div className="flex items-start justify-between gap-4">
+                    <div className="flex-1 min-w-0">
                       <h4 className="font-semibold text-foreground text-lg">{diet.title}</h4>
-                      <div className="inline-flex items-center gap-2 mt-2">
-                        <span className="inline-block px-3 py-1 rounded-full bg-teal-100 text-teal-700 text-xs font-medium">
+                      <div className="flex items-center gap-2 mt-2">
+                        <span className="inline-block px-3 py-1 rounded-full bg-teal-100 text-teal-700 dark:bg-teal-900 dark:text-teal-300 text-xs font-medium">
                           {getMealTypeLabel(diet.meal_type)}
                         </span>
                       </div>
+                      {diet.description && (
+                        <p className="text-sm text-muted-foreground mt-3 line-clamp-2">{diet.description}</p>
+                      )}
                     </div>
                     <Button
                       variant="ghost"
                       size="icon"
                       onClick={() => handleDelete(diet.id)}
-                      className="text-destructive"
+                      className="text-destructive shrink-0"
                     >
                       <Trash2 className="h-4 w-4" />
                     </Button>
                   </div>
 
-                  {diet.description && <p className="text-sm text-muted-foreground mt-3 mb-3">{diet.description}</p>}
-
                   {diet.image_url && (
-                    <div className="mt-3 p-3 rounded-lg bg-emerald-50">
+                    <div className="mt-4 p-4 rounded-lg bg-emerald-50 dark:bg-emerald-950">
                       <a
                         href={diet.image_url}
                         target="_blank"
                         rel="noopener noreferrer"
-                        className="flex items-center gap-2 text-emerald-600 hover:text-emerald-700 font-medium text-sm"
+                        className="flex items-center gap-2 text-emerald-700 dark:text-emerald-300 hover:text-emerald-800 dark:hover:text-emerald-200 font-medium text-sm transition-colors"
                       >
-                        <ExternalLink className="h-4 w-4" />
-                        Ver Plano de Dieta
+                        <ExternalLink className="h-4 w-4 shrink-0" />
+                        <span>Ver Plano de Dieta</span>
                       </a>
-                      <p className="text-xs text-emerald-600 mt-1">Clique para abrir ou baixar o arquivo do plano</p>
+                      <p className="text-xs text-emerald-600 dark:text-emerald-400 mt-1">
+                        Clique para abrir ou baixar o arquivo da dieta
+                      </p>
                     </div>
                   )}
 
-                  <div className="border-t border-border mt-3 pt-3">
+                  <div className="border-t border-border mt-4 pt-3">
                     <p className="text-xs text-muted-foreground">
                       Adicionado em: {formatBrasiliaDate(diet.created_at, "date")}
                     </p>
