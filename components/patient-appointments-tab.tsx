@@ -115,10 +115,14 @@ export function PatientAppointmentsTab({ patientId }: { patientId: string }) {
       data: { user },
     } = await supabase.auth.getUser()
 
+    if (!formData.title || !formData.appointment_type || !formData.scheduled_at) {
+      alert("Por favor, preencha todos os campos obrigatórios")
+      return
+    }
+
     const dataToInsert = {
       patient_id: patientId,
       user_id: patientId,
-      doctor_id: user?.id,
       status: "scheduled",
       doctor_name: doctorInfo.name,
       doctor_crm: doctorInfo.crm,
@@ -129,6 +133,7 @@ export function PatientAppointmentsTab({ patientId }: { patientId: string }) {
 
     if (error) {
       alert(`Erro ao agendar consulta: ${error.message}`)
+      console.error("[v0] Erro completo:", error)
       return
     }
 
@@ -147,7 +152,6 @@ export function PatientAppointmentsTab({ patientId }: { patientId: string }) {
       location: "",
       notes: "",
     })
-    // Trigger reload after insert
     loadAppointments()
   }
 

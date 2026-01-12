@@ -35,7 +35,7 @@ export function PatientDietTab({ patientId }: PatientDietTabProps) {
     title: "",
     description: "",
     meal_type: "lunch",
-    pdf_url: "",
+    image_url: "",
   })
 
   useEffect(() => {
@@ -119,7 +119,7 @@ export function PatientDietTab({ patientId }: PatientDietTabProps) {
 
       if (urlData?.publicUrl) {
         console.log("[v0] URL pública gerada:", urlData.publicUrl)
-        setFormData({ ...formData, pdf_url: urlData.publicUrl })
+        setFormData({ ...formData, image_url: urlData.publicUrl })
       } else {
         alert("Erro ao gerar URL pública do arquivo")
       }
@@ -135,7 +135,7 @@ export function PatientDietTab({ patientId }: PatientDietTabProps) {
     e.preventDefault()
     const supabase = createClient()
 
-    if (!formData.pdf_url) {
+    if (!formData.image_url) {
       alert("Por favor, faça o upload do PDF antes de adicionar.")
       return
     }
@@ -157,7 +157,7 @@ export function PatientDietTab({ patientId }: PatientDietTabProps) {
       title: formData.title,
       description: formData.description || null,
       meal_type: formData.meal_type,
-      pdf_url: formData.pdf_url,
+      image_url: formData.image_url,
       created_at: new Date().toISOString(),
       updated_at: new Date().toISOString(),
     }
@@ -178,7 +178,7 @@ export function PatientDietTab({ patientId }: PatientDietTabProps) {
           title: "",
           description: "",
           meal_type: "lunch",
-          pdf_url: "",
+          image_url: "",
         })
         loadDietRecipes()
       } else {
@@ -290,7 +290,7 @@ export function PatientDietTab({ patientId }: PatientDietTabProps) {
                   <div className="space-y-2">
                     <Label htmlFor="pdf">Arquivo PDF do Plano de Dieta *</Label>
                     <div className="border-2 border-dashed border-border rounded-lg p-4">
-                      {formData.pdf_url && (
+                      {formData.image_url && (
                         <div className="mb-4 flex items-center gap-2 p-2 bg-muted rounded">
                           <FileText className="h-5 w-5 text-primary" />
                           <span className="text-sm text-foreground">PDF enviado com sucesso!</span>
@@ -312,7 +312,7 @@ export function PatientDietTab({ patientId }: PatientDietTabProps) {
                         }}
                         disabled={uploading}
                         className="block w-full text-sm border border-border rounded-lg cursor-pointer bg-background disabled:opacity-50"
-                        required={!formData.pdf_url}
+                        required={!formData.image_url}
                       />
                     </div>
                   </div>
@@ -321,7 +321,7 @@ export function PatientDietTab({ patientId }: PatientDietTabProps) {
                     <Button type="button" variant="outline" onClick={() => setOpen(false)}>
                       Cancelar
                     </Button>
-                    <Button type="submit" disabled={uploading || !formData.pdf_url}>
+                    <Button type="submit" disabled={uploading || !formData.image_url}>
                       {uploading ? "Enviando..." : "Adicionar Plano"}
                     </Button>
                   </div>
@@ -361,10 +361,10 @@ export function PatientDietTab({ patientId }: PatientDietTabProps) {
 
                   {diet.description && <p className="text-sm text-muted-foreground mt-3 mb-3">{diet.description}</p>}
 
-                  {diet.pdf_url && (
+                  {diet.image_url && (
                     <div className="mt-3 p-3 rounded-lg bg-emerald-50">
                       <a
-                        href={diet.pdf_url}
+                        href={diet.image_url}
                         target="_blank"
                         rel="noopener noreferrer"
                         className="flex items-center gap-2 text-emerald-600 hover:text-emerald-700 font-medium text-sm"
