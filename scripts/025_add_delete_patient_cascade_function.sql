@@ -42,28 +42,28 @@ BEGIN
 
   -- Deletar todos os dados relacionados ao paciente
  
-    DELETE FROM medications WHERE user_id = $1;
+    DELETE FROM medications m WHERE m.user_id = $1;
     GET DIAGNOSTICS v_medications = ROW_COUNT;
-    DELETE FROM appointments WHERE patient_id = $1;
+    DELETE FROM appointments a WHERE a.patient_id = $1;
     GET DIAGNOSTICS v_appointments = ROW_COUNT;
-    DELETE FROM medical_prescriptions WHERE patient_id = $1;
+    DELETE FROM medical_prescriptions mp WHERE mp.patient_id = $1;
     GET DIAGNOSTICS v_prescriptions = ROW_COUNT;
-    DELETE FROM patient_diet_recipes WHERE patient_id = $1;
+    DELETE FROM patient_diet_recipes dr WHERE dr.patient_id = $1;
     GET DIAGNOSTICS v_diet_recipes = ROW_COUNT;
-    DELETE FROM patient_supplements WHERE patient_id = $1;
+    DELETE FROM patient_supplements ps WHERE ps.patient_id = $1;
     GET DIAGNOSTICS v_supplements = ROW_COUNT;
-    DELETE FROM physical_evolution WHERE user_id = $1;
+    DELETE FROM physical_evolution pe WHERE pe.user_id = $1;
     GET DIAGNOSTICS v_physical = ROW_COUNT;
-    DELETE FROM notifications WHERE user_id = $1;
+    DELETE FROM notifications n WHERE n.user_id = $1;
     GET DIAGNOSTICS v_notifications = ROW_COUNT;
-    DELETE FROM push_subscriptions WHERE user_id = $1;
+    DELETE FROM push_subscriptions psub WHERE psub.user_id = $1;
     GET DIAGNOSTICS v_push_subs = ROW_COUNT;
   
   -- Deletar o perfil do paciente
-  DELETE FROM profiles WHERE id = $1;
+  DELETE FROM profiles p WHERE p.id = $1;
   
   -- Deletar o usuário do Auth
-  DELETE FROM auth.users WHERE id = $1;
+  DELETE FROM auth.users u WHERE u.id = $1;
 
   v_counts := jsonb_build_object(
     'medications', v_medications,
