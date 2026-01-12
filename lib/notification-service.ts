@@ -11,11 +11,22 @@ export interface Notification {
   message?: string
   notes?: string
   meal_type?: string
-  type: "info" | "success" | "warning" | "error" | "medication" | "appointment"
+  type:
+    | "info"
+    | "success"
+    | "warning"
+    | "error"
+    | "medication"
+    | "appointment"
+    | "prescription"
+    | "diet"
+    | "supplement"
+    | "evolution"
   read: boolean
   created_at: string
   scheduled_at?: string
   delivered_at?: string
+  notification_type?: string
 }
 
 class NotificationService {
@@ -26,7 +37,6 @@ class NotificationService {
   )
 
   async subscribeToNotifications(patientId: string, callback: (notification: Notification) => void) {
-    // Subscribe to new notifications in real-time
     this.subscription = this.supabase
       .channel(`notifications:${patientId}`)
       .on(
@@ -37,20 +47,38 @@ class NotificationService {
           table: "notifications",
           filter: `user_id=eq.${patientId}`,
         },
-        (payload) => {
+        async (payload) => {
           const raw: any = payload.new
-          const mapped: Notification = {
-            ...raw,
-            type: raw.notification_type?.includes("appointment")
-              ? "appointment"
-              : raw.notification_type?.includes("medication")
-                ? "medication"
-                : (raw.notification_type ?? "info"),
+
+          // Check notification settings to see if this type is enabled
+          const { data: settings } = await this.supabase
+            .from("notification_settings")
+            .select("*")
+            .eq("user_id", patientId)
+            .eq("notification_type", raw.notification_type)
+            .single()
+
+          // Only callback if notifications are enabled for this type
+          if (!settings || settings.enabled !== false) {
+            const mapped: Notification = {
+              ...raw,
+              type: this.mapNotificationType(raw.notification_type),
+            }
+            callback(mapped)
           }
-          callback(mapped)
         },
       )
       .subscribe()
+  }
+
+  private mapNotificationType(notificationType: string): Notification["type"] {
+    if (notificationType?.includes("appointment")) return "appointment"
+    if (notificationType?.includes("medication")) return "medication"
+    if (notificationType?.includes("prescription")) return "prescription"
+    if (notificationType?.includes("diet")) return "diet"
+    if (notificationType?.includes("supplement")) return "supplement"
+    if (notificationType?.includes("evolution")) return "evolution"
+    return "info"
   }
 
   unsubscribe() {
@@ -69,48 +97,57 @@ class NotificationService {
       .limit(50)
 
     if (error) throw error
-    return (data || []).map((raw: any) => {
-      const mapped: Notification = {
-        ...raw,
-        type: raw.notification_type?.includes("appointment")
-          ? "appointment"
-          : raw.notification_type?.includes("medication")
-            ? "medication"
-            : (raw.notification_type ?? "info"),
-      }
-      return mapped
-    })
+    return (data || []).map((raw: any) => ({
+      ...raw,
+      type: this.mapNotificationType(raw.notification_type),
+    }))
   }
 
   async markAsRead(notificationId: string) {
     const { error } = await this.supabase.from("notifications").update({ read: true }).eq("id", notificationId)
-
     if (error) throw error
   }
 
   async markAllAsRead(patientId: string) {
     const { error } = await this.supabase.from("notifications").update({ read: true }).eq("user_id", patientId)
-
     if (error) throw error
   }
 
   async deleteNotification(notificationId: string) {
     const { error } = await this.supabase.from("notifications").delete().eq("id", notificationId)
-
     if (error) throw error
   }
 
   async deleteAllNotifications(patientId: string) {
     const { error } = await this.supabase.from("notifications").delete().eq("user_id", patientId)
-
     if (error) throw error
   }
 
-  async createNotification(notification: Omit<Notification, "id" | "created_at">) {
-    const { data, error } = await this.supabase.from("notifications").insert([notification]).select().single()
+  async getNotificationSettings(patientId: string) {
+    const { data, error } = await this.supabase.from("notification_settings").select("*").eq("user_id", patientId)
 
     if (error) throw error
-    return data
+    return data || []
+  }
+
+  async updateNotificationSetting(
+    patientId: string,
+    notificationType: string,
+    enabled: boolean,
+    soundEnabled?: boolean,
+    vibrationEnabled?: boolean,
+    ledEnabled?: boolean,
+  ) {
+    const { error } = await this.supabase.from("notification_settings").upsert({
+      user_id: patientId,
+      notification_type: notificationType,
+      enabled,
+      sound_enabled: soundEnabled ?? true,
+      vibration_enabled: vibrationEnabled ?? true,
+      led_enabled: ledEnabled ?? true,
+    })
+
+    if (error) throw error
   }
 
   async snoozeMedication(userId: string, medicationId: string, minutes = 15) {
@@ -121,14 +158,6 @@ class NotificationService {
       .eq("user_id", userId)
       .eq("medication_id", medicationId)
     if (error) throw error
-
-    await this.createNotification({
-      user_id: userId,
-      title: "Lembrete Adiado",
-      description: `Medicamento adiad por ${minutes} minutos`,
-      type: "medication",
-      read: false,
-    })
   }
 
   async confirmMedicationTaken(userId: string, medicationId: string) {
@@ -141,14 +170,6 @@ class NotificationService {
       },
     ])
     if (error) throw error
-
-    await this.createNotification({
-      user_id: userId,
-      title: "Medicamento Confirmado",
-      description: "Sua medicação foi registrada com sucesso",
-      type: "success",
-      read: false,
-    })
   }
 }
 

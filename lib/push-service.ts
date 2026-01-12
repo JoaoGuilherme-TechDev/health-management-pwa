@@ -13,8 +13,6 @@ class PushService {
 
       if (!subscription) {
         console.log("[v0] No push subscription found, creating new one")
-        // Note: In a real app, you'd subscribe to actual push service
-        // This is just the infrastructure for receiving push events
       }
 
       return subscription
@@ -31,6 +29,21 @@ class PushService {
         icon: "/icon.svg",
         ...options,
       })
+    }
+  }
+
+  async playNotificationSound() {
+    try {
+      const audio = new Audio("/notification-sound.mp3")
+      await audio.play()
+    } catch (error) {
+      console.log("[v0] Could not play notification sound:", error)
+    }
+  }
+
+  async vibrateDevice(pattern: number | number[] = [200, 100, 200]) {
+    if ("vibrate" in navigator) {
+      navigator.vibrate(pattern)
     }
   }
 }
