@@ -49,23 +49,11 @@ class NotificationService {
         },
         async (payload) => {
           const raw: any = payload.new
-
-          // Check notification settings to see if this type is enabled
-          const { data: settings } = await this.supabase
-            .from("notification_settings")
-            .select("*")
-            .eq("user_id", patientId)
-            .eq("notification_type", raw.notification_type)
-            .single()
-
-          // Only callback if notifications are enabled for this type
-          if (!settings || settings.enabled !== false) {
-            const mapped: Notification = {
-              ...raw,
-              type: this.mapNotificationType(raw.notification_type),
-            }
-            callback(mapped)
+          const mapped: Notification = {
+            ...raw,
+            type: this.mapNotificationType(raw.notification_type),
           }
+          callback(mapped)
         },
       )
       .subscribe()
