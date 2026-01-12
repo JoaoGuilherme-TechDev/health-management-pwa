@@ -1,6 +1,7 @@
 "use client"
 
 import { useEffect, useState, useCallback } from "react"
+import { useRouter } from "next/navigation"
 import { useAuth } from "@/hooks/use-auth"
 import { notificationService, type Notification } from "@/lib/notification-service"
 import { pushService } from "@/lib/push-service"
@@ -9,6 +10,7 @@ import { Button } from "@/components/ui/button"
 import { cn } from "@/lib/utils"
 
 export function NotificationCenter() {
+  const router = useRouter()
   const { user } = useAuth()
   const [notifications, setNotifications] = useState<Notification[]>([])
   const [isOpen, setIsOpen] = useState(false)
@@ -118,6 +120,14 @@ export function NotificationCenter() {
     }
   }
 
+  const handleNotificationClick = (notification: Notification) => {
+    if (notification.action_url) {
+      handleMarkAsRead(notification.id)
+      router.push(notification.action_url)
+      setIsOpen(false)
+    }
+  }
+
   const unreadCount = notifications.filter((n) => !n.read).length
 
   if (!user) return null
@@ -134,7 +144,7 @@ export function NotificationCenter() {
       <Button variant="ghost" size="icon" onClick={() => setIsOpen(!isOpen)} className="relative">
         <Bell className="h-5 w-5" />
         {unreadCount > 0 && (
-          <span className="absolute top-1 right-1 h-2 w-2 bg-destructive rounded-full animate-pulse" />
+          <span className="absolute top-1 right-1 h-3 w-3 bg-yellow-400 rounded-full animate-pulse shadow-md shadow-yellow-400" />
         )}
       </Button>
 
@@ -146,9 +156,9 @@ export function NotificationCenter() {
             maxHeight: panelMaxHeight,
           }}
         >
-          <div className="border-b border-border p-4 block bg-muted/50">
-            <div className="flex items-center gap-2 justify-between">
-              <h3 className="font-semibold text-foreground">Notificações</h3>
+          <div className="border-b border-border p-4 block bg-gradient-to-r from-blue-50 to-indigo-50 dark:from-blue-950 dark:to-indigo-950">
+            <div className="flex items-center gap-2 justify-between mb-3">
+              <h3 className="font-semibold text-foreground">✨ Notificações</h3>
               <Button variant="ghost" size="icon" onClick={() => setIsOpen(false)}>
                 <X className="h-4 w-4" />
               </Button>
@@ -173,17 +183,23 @@ export function NotificationCenter() {
                 {notifications.map((notification) => (
                   <div
                     key={notification.id}
+                    onClick={() => handleNotificationClick(notification)}
                     className={cn(
-                      "p-4 hover:bg-muted/50 transition-colors flex gap-3",
-                      !notification.read && "bg-primary/5",
+                      "p-4 hover:bg-gradient-to-r hover:from-blue-100 hover:to-indigo-100 dark:hover:from-blue-900/30 dark:hover:to-indigo-900/30 transition-all flex gap-3 cursor-pointer group",
+                      !notification.read && "bg-blue-50 dark:bg-blue-950/20",
+                      notification.action_url && "cursor-pointer",
                     )}
                   >
-                    <div className="text-2xl shrink-0 pt-0.5">{notification.title.split(" ")[0]}</div>
+                    <div className="text-3xl shrink-0 pt-0.5 group-hover:scale-110 transition-transform">
+                      {notification.title.match(/[\p{Emoji}]/u)?.[0] || "📬"}
+                    </div>
 
                     <div className="flex-1 min-w-0">
-                      <h4 className="font-medium text-foreground truncate">{notification.title}</h4>
-                      <p className="text-sm text-muted-foreground line-clamp-2">{notification.message}</p>
-                      <p className="text-xs text-muted-foreground mt-1">
+                      <h4 className="font-semibold text-foreground">
+                        {notification.title.replace(/[\p{Emoji}]/gu, "").trim()}
+                      </h4>
+                      <p className="text-sm text-muted-foreground line-clamp-2 mt-1">{notification.message}</p>
+                      <p className="text-xs text-muted-foreground mt-2">
                         {new Date(notification.created_at).toLocaleDateString("pt-BR")}
                       </p>
                     </div>
@@ -194,7 +210,10 @@ export function NotificationCenter() {
                           variant="ghost"
                           size="icon"
                           className="h-8 w-8"
-                          onClick={() => handleMarkAsRead(notification.id)}
+                          onClick={(e) => {
+                            e.stopPropagation()
+                            handleMarkAsRead(notification.id)
+                          }}
                         >
                           <Check className="h-4 w-4" />
                         </Button>
@@ -203,7 +222,10 @@ export function NotificationCenter() {
                         variant="ghost"
                         size="icon"
                         className="h-8 w-8 text-destructive hover:text-destructive"
-                        onClick={() => handleDelete(notification.id)}
+                        onClick={(e) => {
+                          e.stopPropagation()
+                          handleDelete(notification.id)
+                        }}
                       >
                         <Trash2 className="h-4 w-4" />
                       </Button>
