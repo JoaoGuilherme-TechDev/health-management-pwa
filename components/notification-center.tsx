@@ -20,7 +20,6 @@ export function NotificationCenter() {
   })
   const isMobile = viewport.w <= 480
 
-  // Fetch initial notifications
   useEffect(() => {
     if (!user?.id) return
 
@@ -38,13 +37,11 @@ export function NotificationCenter() {
     loadNotifications()
   }, [user?.id])
 
-  // Subscribe to real-time notifications
   useEffect(() => {
     if (!user?.id) return
 
     const handleNewNotification = (notification: Notification) => {
       setNotifications((prev) => [notification, ...prev])
-      // Show browser notification
       showBrowserNotification(notification)
     }
 
@@ -55,7 +52,6 @@ export function NotificationCenter() {
     }
   }, [user?.id])
 
-  // Setup push notifications
   useEffect(() => {
     pushService.subscribeToPushNotifications()
   }, [])
@@ -112,7 +108,7 @@ export function NotificationCenter() {
       console.error("[v0] Failed to mark all notifications as read:", error)
     }
   }
-  
+
   const handleDeleteAllNotifications = async (userId: string) => {
     try {
       await notificationService.deleteAllNotifications(userId)
@@ -121,7 +117,7 @@ export function NotificationCenter() {
       console.error("[v0] Failed to delete all notifications:", error)
     }
   }
-  
+
   const unreadCount = notifications.filter((n) => !n.read).length
 
   if (!user) return null
@@ -158,12 +154,14 @@ export function NotificationCenter() {
               </Button>
             </div>
             <div className="flex justify-end gap-2">
-              <Button className="w-auto" onClick={handleMarkAllAsRead} variant={"outline"}>Marcar como Lidas</Button>
-              <Button className="w-auto" onClick={() => handleDeleteAllNotifications(user.id)} variant={"destructive"}>Deletar Todas</Button>
+              <Button className="w-auto" onClick={handleMarkAllAsRead} variant={"outline"}>
+                Marcar como Lidas
+              </Button>
+              <Button className="w-auto" onClick={() => handleDeleteAllNotifications(user.id)} variant={"destructive"}>
+                Deletar Todas
+              </Button>
             </div>
-        </div>
-        
-          
+          </div>
 
           <div className="overflow-y-auto" style={{ maxHeight: panelMaxHeight - 56 }}>
             {loading ? (
@@ -180,6 +178,8 @@ export function NotificationCenter() {
                       !notification.read && "bg-primary/5",
                     )}
                   >
+                    <div className="text-2xl shrink-0 pt-0.5">{notification.title.split(" ")[0]}</div>
+
                     <div className="flex-1 min-w-0">
                       <h4 className="font-medium text-foreground truncate">{notification.title}</h4>
                       <p className="text-sm text-muted-foreground line-clamp-2">{notification.message}</p>

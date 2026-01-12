@@ -25,15 +25,23 @@ export default function RecipeForm({ recipe, onSuccess, onCancel }: RecipeFormPr
     image_url: recipe?.image_url || "",
   })
   const [loading, setLoading] = useState(false)
+  const [imagePreview, setImagePreview] = useState<string>(recipe?.image_url || "")
   const supabase = createClient()
 
   const handleImageUpload = async (file: File) => {
-    const timestamp = Date.now()
-    const path = `recipes/${timestamp}-${file.name}`
-    const { data, error } = await supabase.storage.from("recipes").upload(path, file)
-    if (!error && data) {
-      const { data: urlData } = supabase.storage.from("recipes").getPublicUrl(path)
-      setFormData({ ...formData, image_url: urlData.publicUrl })
+    try {
+      const timestamp = Date.now()
+      const path = `recipes/${timestamp}-${file.name}`
+      const { data, error } = await supabase.storage.from("recipes").upload(path, file)
+      if (!error && data) {
+        const { data: urlData } = supabase.storage.from("recipes").getPublicUrl(path)
+        setFormData({ ...formData, image_url: urlData.publicUrl })
+        setImagePreview(urlData.publicUrl)
+      } else {
+        alert("Erro ao fazer upload da imagem: " + error?.message)
+      }
+    } catch (err: any) {
+      alert("Erro ao fazer upload: " + err.message)
     }
   }
 
@@ -98,6 +106,25 @@ export default function RecipeForm({ recipe, onSuccess, onCancel }: RecipeFormPr
             />
           </div>
 
+          <div>
+            <label className="text-sm font-medium text-foreground">Imagem da Receita</label>
+            <div className="space-y-2">
+              {imagePreview && (
+                <div className="relative w-full h-32 bg-muted rounded-lg overflow-hidden">
+                  <img src={imagePreview || "/placeholder.svg"} alt="Preview" className="w-full h-full object-cover" />
+                </div>
+              )}
+              <input
+                type="file"
+                accept="image/*"
+                onChange={(e) => {
+                  const file = e.target.files?.[0]
+                  if (file) handleImageUpload(file)
+                }}
+                className="block w-full text-sm border border-border rounded-lg cursor-pointer bg-background"
+              />
+            </div>
+          </div>
 
           <div>
             <label className="text-sm font-medium text-foreground">Ingredientes (um por linha)</label>

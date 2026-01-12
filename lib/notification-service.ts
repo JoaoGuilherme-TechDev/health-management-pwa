@@ -36,6 +36,17 @@ class NotificationService {
     process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
   )
 
+  private getNotificationEmoji(notificationType: string): string {
+    if (notificationType?.includes("medication")) return "💊"
+    if (notificationType?.includes("appointment")) return "📅"
+    if (notificationType?.includes("prescription")) return "📋"
+    if (notificationType?.includes("diet")) return "🥗"
+    if (notificationType?.includes("supplement")) return "💪"
+    if (notificationType?.includes("evolution")) return "📊"
+    if (notificationType?.includes("health")) return "❤️"
+    return "🔔"
+  }
+
   async subscribeToNotifications(patientId: string, callback: (notification: Notification) => void) {
     this.subscription = this.supabase
       .channel(`notifications:${patientId}`)
