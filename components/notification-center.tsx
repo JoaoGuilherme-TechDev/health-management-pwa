@@ -185,49 +185,49 @@ export function NotificationCenter() {
                     key={notification.id}
                     onClick={() => handleNotificationClick(notification)}
                     className={cn(
-                      "p-4 hover:bg-gradient-to-r hover:from-blue-100 hover:to-indigo-100 dark:hover:from-blue-900/30 dark:hover:to-indigo-900/30 transition-all flex gap-3 cursor-pointer group",
+                      "p-3 hover:bg-gradient-to-r hover:from-blue-100 hover:to-indigo-100 dark:hover:from-blue-900/30 dark:hover:to-indigo-900/30 transition-all flex gap-2 cursor-pointer group",
                       !notification.read && "bg-blue-50 dark:bg-blue-950/20",
                       notification.actionUrl && "cursor-pointer",
                     )}
                   >
-                    <div className="text-3xl shrink-0 pt-0.5 group-hover:scale-110 transition-transform">
+                    <div className="text-2xl shrink-0 pt-0.5 group-hover:scale-110 transition-transform">
                       {notification.title.match(/[\p{Emoji}]/u)?.[0] || "📬"}
                     </div>
 
                     <div className="flex-1 min-w-0">
-                      <h4 className="font-semibold text-foreground">
+                      <h4 className="font-semibold text-foreground text-sm line-clamp-1">
                         {notification.title.replace(/[\p{Emoji}]/gu, "").trim()}
                       </h4>
-                      <p className="text-sm text-muted-foreground line-clamp-2 mt-1">{notification.message}</p>
-                      <p className="text-xs text-muted-foreground mt-2">
+                      <p className="text-xs text-muted-foreground line-clamp-3 mt-0.5">{notification.message}</p>
+                      <p className="text-xs text-muted-foreground mt-1">
                         {new Date(notification.created_at).toLocaleDateString("pt-BR")}
                       </p>
                     </div>
 
-                    <div className="flex gap-1 shrink-0">
+                    <div className="flex gap-0.5 shrink-0 self-start">
                       {!notification.read && (
                         <Button
                           variant="ghost"
                           size="icon"
-                          className="h-8 w-8"
+                          className="h-7 w-7"
                           onClick={(e) => {
                             e.stopPropagation()
                             handleMarkAsRead(notification.id)
                           }}
                         >
-                          <Check className="h-4 w-4" />
+                          <Check className="h-3.5 w-3.5" />
                         </Button>
                       )}
                       <Button
                         variant="ghost"
                         size="icon"
-                        className="h-8 w-8 text-destructive hover:text-destructive"
+                        className="h-7 w-7 text-destructive hover:text-destructive"
                         onClick={(e) => {
                           e.stopPropagation()
                           handleDelete(notification.id)
                         }}
                       >
-                        <Trash2 className="h-4 w-4" />
+                        <Trash2 className="h-3.5 w-3.5" />
                       </Button>
                     </div>
                   </div>
