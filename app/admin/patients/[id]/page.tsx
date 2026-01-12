@@ -13,7 +13,6 @@ import { PatientAppointmentsTab } from "@/components/patient-appointments-tab"
 import { PatientPrescriptionsTab } from "@/components/patient-prescriptions-tab"
 import { PatientEvolutionTab } from "@/components/patient-evolution-tab"
 import { PatientDietTab } from "@/components/patient-diet-tab"
-import { PatientSupplementsTab } from "@/components/patient-supplements-tab"
 
 export default function PatientDetailsPage() {
   const params = useParams()
@@ -179,10 +178,6 @@ export default function PatientDetailsPage() {
 
         <TabsContent value="diet">
           <PatientDietTab patientId={patientId} />
-        </TabsContent>
-
-        <TabsContent value="supplements">
-          <PatientSupplementsTab patientId={patientId} />
         </TabsContent>
 
         <TabsContent value="evolution">
