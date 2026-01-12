@@ -19,6 +19,7 @@ import {
 } from "@/components/ui/dialog"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { Plus, Trash2, Utensils, FileText, ExternalLink } from "lucide-react"
+import { formatBrasiliaDate } from "@/lib/timezone"
 
 interface PatientDietTabProps {
   patientId: string
@@ -227,144 +228,165 @@ export function PatientDietTab({ patientId }: PatientDietTabProps) {
   }
 
   return (
-    <div className="space-y-4">
-      <div className="flex items-center justify-between">
-        <h3 className="text-lg font-semibold text-foreground">Planos de Dieta Personalizados</h3>
-        <Dialog open={open} onOpenChange={setOpen}>
-          <DialogTrigger asChild>
-            <Button size="sm">
-              <Plus className="h-4 w-4 mr-2" />
-              Adicionar Plano de Dieta
-            </Button>
-          </DialogTrigger>
-          <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
-            <DialogHeader>
-              <DialogTitle>Adicionar Plano de Dieta</DialogTitle>
-              <DialogDescription>Envie um PDF com o plano de dieta personalizado</DialogDescription>
-            </DialogHeader>
-            <form onSubmit={handleSubmit} className="space-y-4">
-              <div className="grid sm:grid-cols-2 gap-4">
-                <div className="space-y-2">
-                  <Label htmlFor="title">Título do Plano *</Label>
-                  <Input
-                    id="title"
-                    value={formData.title}
-                    onChange={(e) => setFormData({ ...formData, title: e.target.value })}
-                    placeholder="Ex: Plano Semanal de Dieta"
-                    required
-                  />
-                </div>
-                <div className="space-y-2">
-                  <Label htmlFor="meal_type">Tipo de Refeição</Label>
-                  <Select value={formData.meal_type} onValueChange={(v) => setFormData({ ...formData, meal_type: v })}>
-                    <SelectTrigger>
-                      <SelectValue />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="breakfast">Café da Manhã</SelectItem>
-                      <SelectItem value="lunch">Almoço</SelectItem>
-                      <SelectItem value="dinner">Jantar</SelectItem>
-                      <SelectItem value="snack">Lanche</SelectItem>
-                    </SelectContent>
-                  </Select>
-                </div>
-              </div>
+    <div className="space-y-6">
+      <Card>
+        <CardHeader>
+          <div className="flex items-center justify-between">
+            <CardTitle>Planos de Dieta Personalizados</CardTitle>
+            <Dialog open={open} onOpenChange={setOpen}>
+              <DialogTrigger asChild>
+                <Button className="gap-2">
+                  <Plus className="h-4 w-4" />
+                  Adicionar Plano
+                </Button>
+              </DialogTrigger>
+              <DialogContent className="max-w-2xl">
+                <DialogHeader>
+                  <DialogTitle>Adicionar Plano de Dieta</DialogTitle>
+                  <DialogDescription>Envie um PDF com o plano de dieta personalizado</DialogDescription>
+                </DialogHeader>
+                <form onSubmit={handleSubmit} className="space-y-4">
+                  <div className="grid sm:grid-cols-2 gap-4">
+                    <div className="space-y-2">
+                      <Label htmlFor="title">Título do Plano *</Label>
+                      <Input
+                        id="title"
+                        value={formData.title}
+                        onChange={(e) => setFormData({ ...formData, title: e.target.value })}
+                        placeholder="Ex: Plano Semanal de Dieta"
+                        required
+                      />
+                    </div>
+                    <div className="space-y-2">
+                      <Label htmlFor="meal_type">Tipo de Refeição</Label>
+                      <Select
+                        value={formData.meal_type}
+                        onValueChange={(v) => setFormData({ ...formData, meal_type: v })}
+                      >
+                        <SelectTrigger>
+                          <SelectValue />
+                        </SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="breakfast">Café da Manhã</SelectItem>
+                          <SelectItem value="lunch">Almoço</SelectItem>
+                          <SelectItem value="dinner">Jantar</SelectItem>
+                          <SelectItem value="snack">Lanche</SelectItem>
+                        </SelectContent>
+                      </Select>
+                    </div>
+                  </div>
 
-              <div className="space-y-2">
-                <Label htmlFor="description">Descrição do Plano</Label>
-                <Textarea
-                  id="description"
-                  value={formData.description}
-                  onChange={(e) => setFormData({ ...formData, description: e.target.value })}
-                  rows={3}
-                  placeholder="Descrição breve do plano de dieta"
-                />
-              </div>
+                  <div className="space-y-2">
+                    <Label htmlFor="description">Descrição do Plano</Label>
+                    <Textarea
+                      id="description"
+                      value={formData.description}
+                      onChange={(e) => setFormData({ ...formData, description: e.target.value })}
+                      rows={3}
+                      placeholder="Descrição breve do plano de dieta"
+                    />
+                  </div>
 
-              <div className="space-y-2">
-                <Label htmlFor="pdf">Arquivo PDF do Plano de Dieta *</Label>
-                <div className="border-2 border-dashed border-border rounded-lg p-4">
-                  {formData.pdf_url && (
-                    <div className="mb-4 flex items-center gap-2 p-2 bg-muted rounded">
-                      <FileText className="h-5 w-5 text-primary" />
-                      <span className="text-sm text-foreground">PDF enviado com sucesso!</span>
+                  <div className="space-y-2">
+                    <Label htmlFor="pdf">Arquivo PDF do Plano de Dieta *</Label>
+                    <div className="border-2 border-dashed border-border rounded-lg p-4">
+                      {formData.pdf_url && (
+                        <div className="mb-4 flex items-center gap-2 p-2 bg-muted rounded">
+                          <FileText className="h-5 w-5 text-primary" />
+                          <span className="text-sm text-foreground">PDF enviado com sucesso!</span>
+                        </div>
+                      )}
+                      <input
+                        id="pdf"
+                        type="file"
+                        accept=".pdf"
+                        onChange={(e) => {
+                          const file = e.target.files?.[0]
+                          if (file) {
+                            if (file.size > 10 * 1024 * 1024) {
+                              alert("O arquivo PDF não pode ser maior que 10MB")
+                              return
+                            }
+                            handlePdfUpload(file)
+                          }
+                        }}
+                        disabled={uploading}
+                        className="block w-full text-sm border border-border rounded-lg cursor-pointer bg-background disabled:opacity-50"
+                        required={!formData.pdf_url}
+                      />
+                    </div>
+                  </div>
+
+                  <div className="flex justify-end gap-2 pt-4">
+                    <Button type="button" variant="outline" onClick={() => setOpen(false)}>
+                      Cancelar
+                    </Button>
+                    <Button type="submit" disabled={uploading || !formData.pdf_url}>
+                      {uploading ? "Enviando..." : "Adicionar Plano"}
+                    </Button>
+                  </div>
+                </form>
+              </DialogContent>
+            </Dialog>
+          </div>
+        </CardHeader>
+        <CardContent>
+          {dietRecipes.length === 0 ? (
+            <div className="text-center py-8 text-muted-foreground">
+              <Utensils className="h-12 w-12 mx-auto mb-4 opacity-50" />
+              <p>Nenhum plano de dieta cadastrado ainda</p>
+            </div>
+          ) : (
+            <div className="space-y-4">
+              {dietRecipes.map((diet) => (
+                <div key={diet.id} className="p-4 rounded-lg border border-border bg-card">
+                  <div className="flex items-start justify-between mb-3">
+                    <div className="flex-1">
+                      <h4 className="font-semibold text-foreground text-lg">{diet.title}</h4>
+                      <div className="inline-flex items-center gap-2 mt-2">
+                        <span className="inline-block px-3 py-1 rounded-full bg-teal-100 text-teal-700 text-xs font-medium">
+                          {getMealTypeLabel(diet.meal_type)}
+                        </span>
+                      </div>
+                    </div>
+                    <Button
+                      variant="ghost"
+                      size="icon"
+                      onClick={() => handleDelete(diet.id)}
+                      className="text-destructive"
+                    >
+                      <Trash2 className="h-4 w-4" />
+                    </Button>
+                  </div>
+
+                  {diet.description && <p className="text-sm text-muted-foreground mt-3 mb-3">{diet.description}</p>}
+
+                  {diet.pdf_url && (
+                    <div className="mt-3 p-3 rounded-lg bg-emerald-50">
+                      <a
+                        href={diet.pdf_url}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="flex items-center gap-2 text-emerald-600 hover:text-emerald-700 font-medium text-sm"
+                      >
+                        <ExternalLink className="h-4 w-4" />
+                        Ver Plano de Dieta
+                      </a>
+                      <p className="text-xs text-emerald-600 mt-1">Clique para abrir ou baixar o arquivo do plano</p>
                     </div>
                   )}
-                  <input
-                    id="pdf"
-                    type="file"
-                    accept=".pdf"
-                    onChange={(e) => {
-                      const file = e.target.files?.[0]
-                      if (file) {
-                        if (file.size > 10 * 1024 * 1024) {
-                          alert("O arquivo PDF não pode ser maior que 10MB")
-                          return
-                        }
-                        handlePdfUpload(file)
-                      }
-                    }}
-                    disabled={uploading}
-                    className="block w-full text-sm border border-border rounded-lg cursor-pointer bg-background disabled:opacity-50"
-                    required={!formData.pdf_url}
-                  />
-                </div>
-              </div>
 
-              <div className="flex justify-end gap-2 pt-4">
-                <Button type="button" variant="outline" onClick={() => setOpen(false)}>
-                  Cancelar
-                </Button>
-                <Button type="submit" disabled={uploading || !formData.pdf_url}>
-                  {uploading ? "Enviando..." : "Adicionar Plano"}
-                </Button>
-              </div>
-            </form>
-          </DialogContent>
-        </Dialog>
-      </div>
-
-      {dietRecipes.length === 0 ? (
-        <Card>
-          <CardContent className="pt-12 pb-12 text-center">
-            <Utensils className="h-12 w-12 mx-auto text-muted-foreground mb-4 opacity-50" />
-            <p className="text-muted-foreground">Nenhum plano de dieta cadastrado ainda</p>
-          </CardContent>
-        </Card>
-      ) : (
-        <div className="grid gap-4">
-          {dietRecipes.map((recipe) => (
-            <Card key={recipe.id}>
-              <CardHeader>
-                <div className="flex items-start justify-between">
-                  <div>
-                    <CardTitle className="text-lg">{recipe.title}</CardTitle>
-                    <p className="text-sm text-muted-foreground mt-1">{getMealTypeLabel(recipe.meal_type)}</p>
+                  <div className="border-t border-border mt-3 pt-3">
+                    <p className="text-xs text-muted-foreground">
+                      Adicionado em: {formatBrasiliaDate(diet.created_at, "date")}
+                    </p>
                   </div>
-                  <Button variant="ghost" size="sm" onClick={() => handleDelete(recipe.id)}>
-                    <Trash2 className="h-4 w-4 text-destructive" />
-                  </Button>
                 </div>
-              </CardHeader>
-              <CardContent className="space-y-4">
-                {recipe.description && <p className="text-sm text-foreground">{recipe.description}</p>}
-
-                {recipe.pdf_url && (
-                  <a
-                    href={recipe.pdf_url}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    className="inline-flex items-center gap-2 text-sm text-primary hover:underline"
-                  >
-                    <ExternalLink className="h-4 w-4" />
-                    Ver Plano de Dieta (PDF)
-                  </a>
-                )}
-              </CardContent>
-            </Card>
-          ))}
-        </div>
-      )}
+              ))}
+            </div>
+          )}
+        </CardContent>
+      </Card>
     </div>
   )
 }

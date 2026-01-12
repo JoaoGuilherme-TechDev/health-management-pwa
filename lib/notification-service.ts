@@ -10,8 +10,8 @@ export interface Notification {
   description?: string
   message?: string
   notes?: string
-  meal_type?: string
   actionUrl?: string
+  meal_type?: string
   type:
     | "info"
     | "success"
@@ -170,6 +170,23 @@ class NotificationService {
       },
     ])
     if (error) throw error
+  }
+
+  async fetchUserNotifications(userId: string) {
+    const { data, error } = await this.supabase
+      .from("notifications")
+      .select("*")
+      .eq("user_id", userId)
+      .eq("read", false)
+      .order("created_at", { ascending: false })
+
+    return { data, error }
+  }
+
+  async markNotificationAsRead(notificationId: string) {
+    const { error } = await this.supabase.from("notifications").update({ read: true }).eq("id", notificationId)
+
+    return { error }
   }
 }
 
