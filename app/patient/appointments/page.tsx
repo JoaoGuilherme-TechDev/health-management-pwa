@@ -44,7 +44,7 @@ export default function AppointmentsPage() {
       const { data, error } = await supabase
         .from("appointments")
         .select("*")
-        .eq("patient_id", user.id)
+        .eq("user_id", user.id)
         .order("scheduled_at", { ascending: true })
 
       if (isMounted) {
