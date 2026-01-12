@@ -18,7 +18,7 @@ import {
   DialogTrigger,
 } from "@/components/ui/dialog"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
-import { Plus, Trash2, Utensils, FileText } from "lucide-react"
+import { Plus, Trash2, Utensils, FileText, ExternalLink } from "lucide-react"
 
 interface PatientDietTabProps {
   patientId: string
@@ -38,50 +38,61 @@ export function PatientDietTab({ patientId }: PatientDietTabProps) {
   })
 
   useEffect(() => {
-    loadDietRecipes()
-
-    const supabase = createClient()
-    const channel = supabase
-      .channel(`diet-${patientId}`)
-      .on(
-        "postgres_changes",
-        {
-          event: "*",
-          schema: "public",
-          table: "patient_diet_recipes",
-          filter: `patient_id=eq.${patientId}`,
-        },
-        () => {
-          loadDietRecipes()
-        },
-      )
-      .subscribe()
-
-    return () => {
-      supabase.removeChannel(channel)
-    }
-  }, [patientId])
-
-  const loadDietRecipes = async () => {
-    const supabase = createClient()
-    try {
-      const { data, error } = await supabase
-        .from("patient_diet_recipes")
-        .select("*")
-        .eq("patient_id", patientId)
-        .order("created_at", { ascending: false })
+    // Fetch diet recipes for the patient
+    const fetchDietRecipes = async () => {
+      const supabase = createClient()
+      const { data, error } = await supabase.from("diet_recipes").select().eq("patient_id", patientId)
       if (error) {
         setError(error.message)
-        setDietRecipes([])
       } else {
         setDietRecipes(data || [])
-        setError(null)
       }
-    } catch (err: any) {
-      setError(err.message || "Falha ao carregar receitas de dieta")
-      setDietRecipes([])
-    } finally {
       setLoading(false)
+    }
+
+    fetchDietRecipes()
+  }, [patientId])
+
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault()
+    const supabase = createClient()
+    const { data, error } = await supabase.from("diet_recipes").insert([formData])
+    if (error) {
+      alert("Erro ao adicionar plano de dieta: " + error.message)
+    } else {
+      setDietRecipes([...dietRecipes, data[0]])
+      setOpen(false)
+      setFormData({
+        title: "",
+        description: "",
+        meal_type: "lunch",
+        pdf_url: "",
+      })
+    }
+  }
+
+  const handleDelete = async (id: string) => {
+    const supabase = createClient()
+    const { error } = await supabase.from("diet_recipes").delete().eq("id", id)
+    if (error) {
+      alert("Erro ao deletar plano de dieta: " + error.message)
+    } else {
+      setDietRecipes(dietRecipes.filter((recipe) => recipe.id !== id))
+    }
+  }
+
+  const getMealTypeLabel = (mealType: string) => {
+    switch (mealType) {
+      case "breakfast":
+        return "Café da Manhã"
+      case "lunch":
+        return "Almoço"
+      case "dinner":
+        return "Jantar"
+      case "snack":
+        return "Lanche"
+      default:
+        return mealType
     }
   }
 
@@ -92,7 +103,8 @@ export function PatientDietTab({ patientId }: PatientDietTabProps) {
       const timestamp = Date.now()
       const sanitizedFileName = file.name.replace(/[^a-zA-Z0-9.-]/g, "_").substring(0, 50)
       const randomStr = Math.random().toString(36).substring(2, 8)
-      const path = `diet-pdfs/${timestamp}-${randomStr}-${sanitizedFileName}`
+      const patientId_ = patientId
+      const path = `${patientId_}/${timestamp}-${randomStr}-${sanitizedFileName}`
       const { data, error } = await supabase.storage.from("diets").upload(path, file)
       if (!error && data) {
         const { data: urlData } = supabase.storage.from("diets").getPublicUrl(path)
@@ -105,72 +117,6 @@ export function PatientDietTab({ patientId }: PatientDietTabProps) {
     } finally {
       setUploading(false)
     }
-  }
-
-  const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault()
-    const supabase = createClient()
-
-    const {
-      data: { user },
-    } = await supabase.auth.getUser()
-
-    const { error } = await supabase.from("patient_diet_recipes").insert({
-      patient_id: patientId,
-      user_id: user?.id,
-      title: formData.title,
-      description: formData.description,
-      meal_type: formData.meal_type,
-      image_url: formData.pdf_url,
-      ingredients: [],
-      preparation: [],
-      calories: null,
-      protein: null,
-      carbs: null,
-      fats: null,
-      notes: "",
-    })
-
-    if (!error) {
-      setOpen(false)
-      setFormData({
-        title: "",
-        description: "",
-        meal_type: "lunch",
-        pdf_url: "",
-      })
-      loadDietRecipes()
-    } else {
-      alert("Erro ao adicionar plano de dieta: " + error.message)
-    }
-  }
-
-  const handleDelete = async (id: string) => {
-    if (!confirm("Tem certeza que deseja excluir este plano de dieta? Esta ação não pode ser desfeita.")) {
-      return
-    }
-
-    const supabase = createClient()
-    const { error } = await supabase.from("patient_diet_recipes").delete().eq("id", id)
-
-    if (error) {
-      console.error("[v0] Erro ao deletar receita:", error)
-      alert("Erro ao excluir plano de dieta")
-      return
-    }
-
-    alert("Plano de dieta excluído com sucesso!")
-    loadDietRecipes()
-  }
-
-  const getMealTypeLabel = (type: string) => {
-    const labels: Record<string, string> = {
-      breakfast: "Café da Manhã",
-      lunch: "Almoço",
-      dinner: "Jantar",
-      snack: "Lanche",
-    }
-    return labels[type] || type
   }
 
   if (loading) {
@@ -300,26 +246,16 @@ export function PatientDietTab({ patientId }: PatientDietTabProps) {
               <CardContent className="space-y-4">
                 {recipe.description && <p className="text-sm text-foreground">{recipe.description}</p>}
 
-                {recipe.image_url && (
-                  <div className="space-y-2">
-                    <p className="text-sm font-medium text-foreground">Plano de Dieta (PDF):</p>
-                    <div className="border border-border rounded-lg overflow-hidden bg-muted">
-                      <iframe
-                        src={`${recipe.image_url}#toolbar=0`}
-                        className="w-full h-96"
-                        title={recipe.title}
-                        style={{ border: "none" }}
-                      />
-                    </div>
-                    <a
-                      href={recipe.image_url}
-                      target="_blank"
-                      rel="noopener noreferrer"
-                      className="text-sm text-primary hover:underline"
-                    >
-                      Abrir em nova aba
-                    </a>
-                  </div>
+                {recipe.pdf_url && (
+                  <a
+                    href={recipe.pdf_url}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="inline-flex items-center gap-2 text-sm text-primary hover:underline"
+                  >
+                    <ExternalLink className="h-4 w-4" />
+                    Ver Plano de Dieta (PDF)
+                  </a>
                 )}
               </CardContent>
             </Card>
