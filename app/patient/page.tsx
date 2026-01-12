@@ -22,7 +22,6 @@ interface HealthStats {
   activeMedications: number
   upcomingAppointments: number
   activeDiets: number
-  supplements: number
   evolution: number
 }
 
@@ -48,8 +47,7 @@ export default function PatientDashboard() {
     activeMedications: 0,
     upcomingAppointments: 0,
     activeDiets: 0,
-    supplements: 0,
-    evolution: 0,
+    evolution: 0
   })
 
   useEffect(() => {
@@ -76,7 +74,7 @@ export default function PatientDashboard() {
         }
 
         // Load stats
-        const [medRes, appoRes, dietRes, suppRes, presRes, evolRes] = await Promise.all([
+        const [medRes, appoRes, dietRes, presRes, evolRes] = await Promise.all([
           supabase.from("medications").select("*", { count: "exact" }).eq("user_id", user.id).eq("is_active", true),
           supabase
             .from("appointments")
@@ -85,7 +83,6 @@ export default function PatientDashboard() {
             .eq("status", "scheduled")
             .gte("scheduled_at", new Date().toISOString()),
           supabase.from("patient_diet_recipes").select("*", { count: "exact" }).eq("patient_id", user.id),
-          supabase.from("patient_supplements").select("*", { count: "exact" }).eq("patient_id", user.id).eq("is_active", true),
           supabase.from("medical_prescriptions").select("*", { count: "exact" }).eq("patient_id", user.id).eq("is_active", true),
           supabase.from("physical_evolution").select("*", { count: "exact" }).eq("user_id", user.id),
         ])
@@ -95,7 +92,6 @@ export default function PatientDashboard() {
             activeMedications: medRes.count || 0,
             upcomingAppointments: appoRes.count || 0,
             activeDiets: dietRes.count || 0,
-            supplements: suppRes.count || 0,
             activePrescriptions: presRes.count || 0,
             evolution: evolRes.count || 0,
           })
@@ -196,25 +192,6 @@ export default function PatientDashboard() {
         })
       subscriptions.push(dietsChannel)
 
-      const supplementsChannel = supabase
-        .channel(`dashboard-supplements-${user.id}`)
-        .on(
-          "postgres_changes",
-          {
-            event: "*",
-            schema: "public",
-            table: "patient_supplements",
-            filter: `patient_id=eq.${user.id}`,
-          },
-          () => {
-            console.log("[v0] Supplements updated")
-            if (isMounted) loadData()
-          },
-        )
-        .subscribe((status) => {
-          console.log("[v0] Supplements subscription status:", status)
-        })
-      subscriptions.push(supplementsChannel)
 
       const recipesChannel = supabase
         .channel(`dashboard-recipes-${user.id}`)
@@ -284,13 +261,6 @@ export default function PatientDashboard() {
         />
         <StatCard title="Receitas Médicas" value={stats.activePrescriptions} icon={FileText} href="/patient/prescriptions" color="red" />
         <StatCard title="Dietas" value={stats.activeDiets} icon={Utensils} href="/patient/diet" color="orange" />
-        <StatCard
-          title="Suplementos"
-          value={stats.supplements}
-          icon={Activity}
-          href="/patient/supplements"
-          color="purple"
-        />
         <StatCard title="Evolução Médica" value={stats.evolution} icon={ChartLine} href="/patient/evolution" color="teal" />
         
       </div>
@@ -303,7 +273,7 @@ interface StatCardProps {
   value: number
   icon: React.ComponentType<{ className?: string }>
   href: string
-  color: "blue" | "green" | "orange" | "purple" | "red" | "teal"
+  color: "blue" | "green" | "orange" | "red" | "teal"
 }
 
 function StatCard({ title, value, icon: Icon, href, color }: StatCardProps) {
@@ -311,7 +281,6 @@ function StatCard({ title, value, icon: Icon, href, color }: StatCardProps) {
     blue: "bg-blue-100 dark:bg-blue-900 text-blue-600 dark:text-blue-400",
     green: "bg-green-100 dark:bg-green-900 text-green-600 dark:text-green-400",
     orange: "bg-orange-100 dark:bg-orange-900 text-orange-600 dark:text-orange-400",
-    purple: "bg-purple-100 dark:bg-purple-900 text-purple-600 dark:text-purple-400",
     red: "bg-red-100 dark:bg-red-900 text-red-600 dark:text-red-400",
     teal: "bg-teal-100 dark:bg-teal-900 text-teal-600 dark:text-teal-400",
   }

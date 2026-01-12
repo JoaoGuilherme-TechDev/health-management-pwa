@@ -123,7 +123,7 @@ export function NotificationCenter() {
   const handleNotificationClick = (notification: Notification) => {
     if (notification.actionUrl) {
       handleMarkAsRead(notification.id)
-      router.push(notification.actionUrl)
+      router.push(notification.actionUrl) 
       setIsOpen(false)
     }
   }
@@ -185,26 +185,28 @@ export function NotificationCenter() {
                     key={notification.id}
                     onClick={() => handleNotificationClick(notification)}
                     className={cn(
-                      "p-3 hover:bg-gradient-to-r hover:from-blue-100 hover:to-indigo-100 dark:hover:from-blue-900/30 dark:hover:to-indigo-900/30 transition-all flex gap-2 cursor-pointer group",
+                      "p-3 hover:bg-gradient-to-r hover:from-blue-100 hover:to-indigo-100 dark:hover:from-blue-900/30 dark:hover:to-indigo-900/30 transition-all flex flex-col gap-2 cursor-pointer group",
                       !notification.read && "bg-blue-50 dark:bg-blue-950/20",
                       notification.actionUrl && "cursor-pointer",
                     )}
                   >
-                    <div className="text-2xl shrink-0 pt-0.5 group-hover:scale-110 transition-transform">
+                    <div className="text-3xl group-hover:scale-110 transition-transform">
                       {notification.title.match(/[\p{Emoji}]/u)?.[0] || "📬"}
                     </div>
 
-                    <div className="flex-1 min-w-0">
-                      <h4 className="font-semibold text-foreground text-sm line-clamp-1">
+                    <div className="flex-1 w-full">
+                      <h4 className="font-semibold text-foreground text-sm line-clamp-1 text-left">
                         {notification.title.replace(/[\p{Emoji}]/gu, "").trim()}
                       </h4>
-                      <p className="text-xs text-muted-foreground line-clamp-3 mt-0.5">{notification.message}</p>
-                      <p className="text-xs text-muted-foreground mt-1">
+                      <p className="text-xs text-muted-foreground line-clamp-3 mt-0.5 text-left">
+                        {notification.message}
+                      </p>
+                      <p className="text-xs text-muted-foreground mt-1 text-left">
                         {new Date(notification.created_at).toLocaleDateString("pt-BR")}
                       </p>
                     </div>
 
-                    <div className="flex gap-0.5 shrink-0 self-start">
+                    <div className="flex gap-0.5 justify-end">
                       {!notification.read && (
                         <Button
                           variant="ghost"

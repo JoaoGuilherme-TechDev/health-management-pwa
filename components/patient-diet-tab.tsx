@@ -18,7 +18,7 @@ import {
   DialogTrigger,
 } from "@/components/ui/dialog"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
-import { Plus, Trash2, Utensils } from "lucide-react"
+import { Plus, Trash2, Utensils, FileText } from "lucide-react"
 
 interface PatientDietTabProps {
   patientId: string
@@ -29,17 +29,12 @@ export function PatientDietTab({ patientId }: PatientDietTabProps) {
   const [loading, setLoading] = useState(true)
   const [open, setOpen] = useState(false)
   const [error, setError] = useState<string | null>(null)
+  const [uploading, setUploading] = useState(false)
   const [formData, setFormData] = useState({
     title: "",
     description: "",
     meal_type: "lunch",
-    ingredients: "",
-    preparation: "",
-    calories: "",
-    protein: "",
-    carbs: "",
-    fats: "",
-    notes: "",
+    pdf_url: "",
   })
 
   useEffect(() => {
@@ -90,6 +85,26 @@ export function PatientDietTab({ patientId }: PatientDietTabProps) {
     }
   }
 
+  const handlePdfUpload = async (file: File) => {
+    const supabase = createClient()
+    try {
+      setUploading(true)
+      const timestamp = Date.now()
+      const path = `diet-pdfs/${timestamp}-${file.name}`
+      const { data, error } = await supabase.storage.from("diets").upload(path, file)
+      if (!error && data) {
+        const { data: urlData } = supabase.storage.from("diets").getPublicUrl(path)
+        setFormData({ ...formData, pdf_url: urlData.publicUrl })
+      } else {
+        alert("Erro ao fazer upload do PDF: " + error?.message)
+      }
+    } catch (err: any) {
+      alert("Erro ao fazer upload: " + err.message)
+    } finally {
+      setUploading(false)
+    }
+  }
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
     const supabase = createClient()
@@ -104,13 +119,14 @@ export function PatientDietTab({ patientId }: PatientDietTabProps) {
       title: formData.title,
       description: formData.description,
       meal_type: formData.meal_type,
-      ingredients: formData.ingredients.split("\n").filter((i) => i.trim()),
-      preparation: formData.preparation.split("\n").filter((p) => p.trim()),
-      calories: formData.calories ? Number.parseInt(formData.calories) : null,
-      protein: formData.protein ? Number.parseFloat(formData.protein) : null,
-      carbs: formData.carbs ? Number.parseFloat(formData.carbs) : null,
-      fats: formData.fats ? Number.parseFloat(formData.fats) : null,
-      notes: formData.notes,
+      image_url: formData.pdf_url,
+      ingredients: [],
+      preparation: [],
+      calories: null,
+      protein: null,
+      carbs: null,
+      fats: null,
+      notes: "",
     })
 
     if (!error) {
@@ -119,22 +135,16 @@ export function PatientDietTab({ patientId }: PatientDietTabProps) {
         title: "",
         description: "",
         meal_type: "lunch",
-        ingredients: "",
-        preparation: "",
-        calories: "",
-        protein: "",
-        carbs: "",
-        fats: "",
-        notes: "",
+        pdf_url: "",
       })
       loadDietRecipes()
     } else {
-      alert("Erro ao adicionar receita: " + error.message)
+      alert("Erro ao adicionar plano de dieta: " + error.message)
     }
   }
 
   const handleDelete = async (id: string) => {
-    if (!confirm("Tem certeza que deseja excluir esta receita? Esta ação não pode ser desfeita.")) {
+    if (!confirm("Tem certeza que deseja excluir este plano de dieta? Esta ação não pode ser desfeita.")) {
       return
     }
 
@@ -143,11 +153,11 @@ export function PatientDietTab({ patientId }: PatientDietTabProps) {
 
     if (error) {
       console.error("[v0] Erro ao deletar receita:", error)
-      alert("Erro ao excluir receita")
+      alert("Erro ao excluir plano de dieta")
       return
     }
 
-    alert("Receita excluída com sucesso!")
+    alert("Plano de dieta excluído com sucesso!")
     loadDietRecipes()
   }
 
@@ -162,33 +172,34 @@ export function PatientDietTab({ patientId }: PatientDietTabProps) {
   }
 
   if (loading) {
-    return <div className="text-center py-4">Carregando receitas...</div>
+    return <div className="text-center py-4">Carregando planos de dieta...</div>
   }
 
   return (
     <div className="space-y-4">
       <div className="flex items-center justify-between">
-        <h3 className="text-lg font-semibold text-foreground">Receitas Personalizadas de Dieta</h3>
+        <h3 className="text-lg font-semibold text-foreground">Planos de Dieta Personalizados</h3>
         <Dialog open={open} onOpenChange={setOpen}>
           <DialogTrigger asChild>
             <Button size="sm">
               <Plus className="h-4 w-4 mr-2" />
-              Adicionar Receita
+              Adicionar Plano de Dieta
             </Button>
           </DialogTrigger>
           <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
             <DialogHeader>
-              <DialogTitle>Adicionar Receita de Dieta</DialogTitle>
-              <DialogDescription>Crie uma receita personalizada para o paciente</DialogDescription>
+              <DialogTitle>Adicionar Plano de Dieta</DialogTitle>
+              <DialogDescription>Envie um PDF com o plano de dieta personalizado</DialogDescription>
             </DialogHeader>
             <form onSubmit={handleSubmit} className="space-y-4">
               <div className="grid sm:grid-cols-2 gap-4">
                 <div className="space-y-2">
-                  <Label htmlFor="title">Título *</Label>
+                  <Label htmlFor="title">Título do Plano *</Label>
                   <Input
                     id="title"
                     value={formData.title}
                     onChange={(e) => setFormData({ ...formData, title: e.target.value })}
+                    placeholder="Ex: Plano Semanal de Dieta"
                     required
                   />
                 </div>
@@ -209,101 +220,53 @@ export function PatientDietTab({ patientId }: PatientDietTabProps) {
               </div>
 
               <div className="space-y-2">
-                <Label htmlFor="description">Descrição</Label>
+                <Label htmlFor="description">Descrição do Plano</Label>
                 <Textarea
                   id="description"
                   value={formData.description}
                   onChange={(e) => setFormData({ ...formData, description: e.target.value })}
-                  rows={2}
+                  rows={3}
+                  placeholder="Descrição breve do plano de dieta"
                 />
               </div>
 
               <div className="space-y-2">
-                <Label htmlFor="ingredients">Ingredientes (um por linha) *</Label>
-                <Textarea
-                  id="ingredients"
-                  value={formData.ingredients}
-                  onChange={(e) => setFormData({ ...formData, ingredients: e.target.value })}
-                  rows={5}
-                  placeholder="200g de frango&#10;1 xícara de arroz integral&#10;2 colheres de azeite"
-                  required
-                />
-              </div>
-
-              <div className="space-y-2">
-                <Label htmlFor="preparation">Modo de Preparo (um passo por linha) *</Label>
-                <Textarea
-                  id="preparation"
-                  value={formData.preparation}
-                  onChange={(e) => setFormData({ ...formData, preparation: e.target.value })}
-                  rows={5}
-                  placeholder="Tempere o frango com sal e limão&#10;Grelhe por 5 minutos de cada lado&#10;Cozinhe o arroz em água fervente"
-                  required
-                />
-              </div>
-
-              <div className="grid sm:grid-cols-4 gap-4">
-                <div className="space-y-2">
-                  <Label htmlFor="calories">Calorias</Label>
-                  <Input
-                    id="calories"
-                    type="number"
-                    value={formData.calories}
-                    onChange={(e) => setFormData({ ...formData, calories: e.target.value })}
-                    placeholder="450"
+                <Label htmlFor="pdf">Arquivo PDF do Plano de Dieta *</Label>
+                <div className="border-2 border-dashed border-border rounded-lg p-4">
+                  {formData.pdf_url && (
+                    <div className="mb-4 flex items-center gap-2 p-2 bg-muted rounded">
+                      <FileText className="h-5 w-5 text-primary" />
+                      <span className="text-sm text-foreground">PDF enviado com sucesso!</span>
+                    </div>
+                  )}
+                  <input
+                    id="pdf"
+                    type="file"
+                    accept=".pdf"
+                    onChange={(e) => {
+                      const file = e.target.files?.[0]
+                      if (file) {
+                        if (file.size > 10 * 1024 * 1024) {
+                          alert("O arquivo PDF não pode ser maior que 10MB")
+                          return
+                        }
+                        handlePdfUpload(file)
+                      }
+                    }}
+                    disabled={uploading}
+                    className="block w-full text-sm border border-border rounded-lg cursor-pointer bg-background disabled:opacity-50"
+                    required={!formData.pdf_url}
                   />
                 </div>
-                <div className="space-y-2">
-                  <Label htmlFor="protein">Proteína (g)</Label>
-                  <Input
-                    id="protein"
-                    type="number"
-                    step="0.1"
-                    value={formData.protein}
-                    onChange={(e) => setFormData({ ...formData, protein: e.target.value })}
-                    placeholder="35"
-                  />
-                </div>
-                <div className="space-y-2">
-                  <Label htmlFor="carbs">Carboidratos (g)</Label>
-                  <Input
-                    id="carbs"
-                    type="number"
-                    step="0.1"
-                    value={formData.carbs}
-                    onChange={(e) => setFormData({ ...formData, carbs: e.target.value })}
-                    placeholder="45"
-                  />
-                </div>
-                <div className="space-y-2">
-                  <Label htmlFor="fats">Gorduras (g)</Label>
-                  <Input
-                    id="fats"
-                    type="number"
-                    step="0.1"
-                    value={formData.fats}
-                    onChange={(e) => setFormData({ ...formData, fats: e.target.value })}
-                    placeholder="12"
-                  />
-                </div>
-              </div>
-
-              <div className="space-y-2">
-                <Label htmlFor="notes">Observações</Label>
-                <Textarea
-                  id="notes"
-                  value={formData.notes}
-                  onChange={(e) => setFormData({ ...formData, notes: e.target.value })}
-                  rows={2}
-                  placeholder="Consumir após o treino"
-                />
               </div>
 
               <div className="flex justify-end gap-2 pt-4">
                 <Button type="button" variant="outline" onClick={() => setOpen(false)}>
                   Cancelar
                 </Button>
-                <Button type="submit">Adicionar</Button>
+                <Button type="submit" disabled={uploading || !formData.pdf_url}>
+                  {uploading ? "Enviando..." : "Adicionar Plano"}
+                </Button>
               </div>
             </form>
           </DialogContent>
@@ -314,7 +277,7 @@ export function PatientDietTab({ patientId }: PatientDietTabProps) {
         <Card>
           <CardContent className="pt-12 pb-12 text-center">
             <Utensils className="h-12 w-12 mx-auto text-muted-foreground mb-4 opacity-50" />
-            <p className="text-muted-foreground">Nenhuma receita de dieta cadastrada ainda</p>
+            <p className="text-muted-foreground">Nenhum plano de dieta cadastrado ainda</p>
           </CardContent>
         </Card>
       ) : (
@@ -333,58 +296,27 @@ export function PatientDietTab({ patientId }: PatientDietTabProps) {
                 </div>
               </CardHeader>
               <CardContent className="space-y-4">
-                {recipe.description && <p className="text-sm text-muted-foreground">{recipe.description}</p>}
+                {recipe.description && <p className="text-sm text-foreground">{recipe.description}</p>}
 
-                {(recipe.calories || recipe.protein || recipe.carbs || recipe.fats) && (
-                  <div className="flex gap-4 text-sm">
-                    {recipe.calories && (
-                      <span className="text-muted-foreground">
-                        <strong>{recipe.calories}</strong> kcal
-                      </span>
-                    )}
-                    {recipe.protein && (
-                      <span className="text-muted-foreground">
-                        Proteína: <strong>{recipe.protein}g</strong>
-                      </span>
-                    )}
-                    {recipe.carbs && (
-                      <span className="text-muted-foreground">
-                        Carbs: <strong>{recipe.carbs}g</strong>
-                      </span>
-                    )}
-                    {recipe.fats && (
-                      <span className="text-muted-foreground">
-                        Gordura: <strong>{recipe.fats}g</strong>
-                      </span>
-                    )}
-                  </div>
-                )}
-
-                <div className="grid sm:grid-cols-2 gap-4 pt-2 border-t">
-                  <div>
-                    <p className="text-sm font-medium text-foreground mb-2">Ingredientes:</p>
-                    <ul className="text-sm text-muted-foreground space-y-1">
-                      {recipe.ingredients.map((ing: string, i: number) => (
-                        <li key={i}>• {ing}</li>
-                      ))}
-                    </ul>
-                  </div>
-                  <div>
-                    <p className="text-sm font-medium text-foreground mb-2">Preparo:</p>
-                    <ol className="text-sm text-muted-foreground space-y-1">
-                      {recipe.preparation.map((step: string, i: number) => (
-                        <li key={i}>
-                          {i + 1}. {step}
-                        </li>
-                      ))}
-                    </ol>
-                  </div>
-                </div>
-
-                {recipe.notes && (
-                  <div className="pt-2 border-t">
-                    <p className="text-sm font-medium text-foreground mb-1">Observações:</p>
-                    <p className="text-sm text-muted-foreground">{recipe.notes}</p>
+                {recipe.image_url && (
+                  <div className="space-y-2">
+                    <p className="text-sm font-medium text-foreground">Plano de Dieta (PDF):</p>
+                    <div className="border border-border rounded-lg overflow-hidden bg-muted">
+                      <iframe
+                        src={`${recipe.image_url}#toolbar=0`}
+                        className="w-full h-96"
+                        title={recipe.title}
+                        style={{ border: "none" }}
+                      />
+                    </div>
+                    <a
+                      href={recipe.image_url}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="text-sm text-primary hover:underline"
+                    >
+                      Abrir em nova aba
+                    </a>
                   </div>
                 )}
               </CardContent>
