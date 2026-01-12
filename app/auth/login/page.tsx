@@ -34,6 +34,14 @@ export default function LoginPage() {
 
       console.log("[v0] Usuário logado:", data.user.id)
 
+      const sessionData = {
+        access_token: data.session?.access_token,
+        refresh_token: data.session?.refresh_token,
+        user_id: data.user.id,
+        expires_at: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString(),
+      }
+      localStorage.setItem("healthcare_session", JSON.stringify(sessionData))
+
       const { data: profile, error: profileError } = await supabase
         .from("profiles")
         .select("role")

@@ -35,7 +35,7 @@ class NotificationService {
           event: "INSERT",
           schema: "public",
           table: "notifications",
-          filter: `user_id=eq.${patientId}`,    
+          filter: `user_id=eq.${patientId}`,
         },
         (payload) => {
           const raw: any = payload.new
@@ -44,8 +44,8 @@ class NotificationService {
             type: raw.notification_type?.includes("appointment")
               ? "appointment"
               : raw.notification_type?.includes("medication")
-              ? "medication"
-              : (raw.notification_type ?? "info"),
+                ? "medication"
+                : (raw.notification_type ?? "info"),
           }
           callback(mapped)
         },
@@ -75,8 +75,8 @@ class NotificationService {
         type: raw.notification_type?.includes("appointment")
           ? "appointment"
           : raw.notification_type?.includes("medication")
-          ? "medication"
-          : (raw.notification_type ?? "info"),
+            ? "medication"
+            : (raw.notification_type ?? "info"),
       }
       return mapped
     })
@@ -113,7 +113,7 @@ class NotificationService {
     return data
   }
 
-  async snoozeMedication(userId: string, medicationId: string, minutes: number) {
+  async snoozeMedication(userId: string, medicationId: string, minutes = 15) {
     const until = new Date(Date.now() + minutes * 60 * 1000).toISOString()
     const { error } = await this.supabase
       .from("medication_reminders")
@@ -121,15 +121,34 @@ class NotificationService {
       .eq("user_id", userId)
       .eq("medication_id", medicationId)
     if (error) throw error
+
+    await this.createNotification({
+      user_id: userId,
+      title: "Lembrete Adiado",
+      description: `Medicamento adiad por ${minutes} minutos`,
+      type: "medication",
+      read: false,
+    })
   }
 
-  async dismissMedication(userId: string, medicationId: string) {
-    const { error } = await this.supabase
-      .from("medication_reminders")
-      .update({ dismissed: true })
-      .eq("user_id", userId)
-      .eq("medication_id", medicationId)
+  async confirmMedicationTaken(userId: string, medicationId: string) {
+    const { error } = await this.supabase.from("medication_adherence").insert([
+      {
+        user_id: userId,
+        medication_id: medicationId,
+        taken_at: new Date().toISOString(),
+        status: "completed",
+      },
+    ])
     if (error) throw error
+
+    await this.createNotification({
+      user_id: userId,
+      title: "Medicamento Confirmado",
+      description: "Sua medicação foi registrada com sucesso",
+      type: "success",
+      read: false,
+    })
   }
 }
 
