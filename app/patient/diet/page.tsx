@@ -2,8 +2,8 @@
 
 import { createClient } from "@/lib/supabase/client"
 import { useEffect, useState } from "react"
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
-import { UtensilsCrossed, Flame, Droplets, Beef, Wheat } from "lucide-react"
+import { Card, CardContent } from "@/components/ui/card"
+import { UtensilsCrossed, Flame, Droplets, Beef, Wheat, ExternalLink } from "lucide-react"
 import { Alert, AlertDescription } from "@/components/ui/alert"
 import { AlertCircle } from "lucide-react"
 
@@ -122,7 +122,7 @@ export default function PatientDietPage() {
   return (
     <div className="space-y-6">
       <div>
-        <h1 className="text-3xl font-bold text-foreground">Minha Dieta e Nutrição</h1>
+        <h1 className="text-3xl font-bold text-foreground">Minha Dieta</h1>
         <p className="text-muted-foreground mt-2">Plano alimentar prescrito pelo seu médico</p>
       </div>
 
@@ -137,104 +137,96 @@ export default function PatientDietPage() {
         <Card>
           <CardContent className="pt-12 pb-12 text-center">
             <UtensilsCrossed className="h-12 w-12 mx-auto text-muted-foreground mb-4 opacity-50" />
-            <h3 className="text-lg font-semibold text-foreground mb-2">Nenhuma receita cadastrada</h3>
-            <p className="text-muted-foreground">Seu médico ainda não adicionou receitas ao seu plano alimentar</p>
+            <h3 className="text-lg font-semibold text-foreground mb-2">Nenhum plano de dieta cadastrado</h3>
+            <p className="text-muted-foreground">Seu médico ainda não adicionou planos alimentares</p>
           </CardContent>
         </Card>
       ) : (
-        <div className="grid md:grid-cols-2 gap-6">
+        <div className="space-y-4">
           {dietRecipes.map((recipe) => (
-            <Card key={recipe.id} className="hover:border-primary transition-colors">
-              <CardHeader>
-                {recipe.image_url && (
-                  <img
-                    src={recipe.image_url || "/placeholder.svg"}
-                    alt={recipe.title}
-                    className="w-full h-48 object-cover rounded-lg mb-4"
-                  />
-                )}
-                <CardTitle>{recipe.title}</CardTitle>
-                <div className="flex items-center gap-2 mt-2 flex-wrap">
-                  {recipe.meal_type && (
-                    <span className="inline-block px-2 py-1 text-xs rounded bg-primary/10 text-primary w-fit">
-                      {recipe.meal_type}
-                    </span>
-                  )}
-                  {recipe.doctor_name && (
-                    <span className="inline-flex items-center gap-1.5 px-2.5 py-1 bg-muted text-muted-foreground rounded-full text-xs font-medium">
-                      <span>Dr(a). {recipe.doctor_name}</span>
-                      {recipe.doctor_crm && <span>• CRM {recipe.doctor_crm}</span>}
-                    </span>
-                  )}
+            <Card
+              key={recipe.id}
+              className="overflow-hidden rounded-xl border border-border/50 hover:border-primary/30 transition-colors"
+            >
+              <CardContent className="p-6">
+                <div className="flex items-start justify-between gap-4">
+                  <div className="flex-1">
+                    <div className="flex items-center gap-3 mb-3">
+                      <h3 className="text-lg font-semibold text-foreground">{recipe.title}</h3>
+                      {recipe.meal_type && (
+                        <span className="inline-flex items-center px-3 py-1 text-xs font-medium rounded-full bg-teal-100 text-teal-700 dark:bg-teal-900/30 dark:text-teal-400">
+                          {recipe.meal_type}
+                        </span>
+                      )}
+                    </div>
+
+                    {recipe.description && <p className="text-sm text-muted-foreground mb-4">{recipe.description}</p>}
+
+                    {recipe.image_url && (
+                      <div className="bg-teal-50 dark:bg-teal-950/20 rounded-lg p-4 mb-4 flex items-center gap-3">
+                        <ExternalLink className="h-5 w-5 text-teal-600 dark:text-teal-400 flex-shrink-0" />
+                        <div className="flex-1">
+                          <a
+                            href={recipe.image_url}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            className="text-sm font-medium text-teal-700 dark:text-teal-400 hover:text-teal-800 dark:hover:text-teal-300"
+                          >
+                            Ver Plano de Dieta
+                          </a>
+                          <p className="text-xs text-teal-600/70 dark:text-teal-500/70">Clique para abrir o arquivo</p>
+                        </div>
+                      </div>
+                    )}
+
+                    {(recipe.calories || recipe.protein || recipe.carbs || recipe.fats) && (
+                      <div className="grid grid-cols-2 md:grid-cols-4 gap-3 p-3 bg-muted/50 rounded-lg mb-4">
+                        {recipe.calories && (
+                          <div className="text-center">
+                            <div className="flex items-center justify-center gap-1 mb-1">
+                              <Flame className="h-4 w-4 text-orange-500" />
+                            </div>
+                            <span className="font-semibold text-sm">{recipe.calories}</span>
+                            <span className="text-xs text-muted-foreground block">kcal</span>
+                          </div>
+                        )}
+                        {recipe.protein && (
+                          <div className="text-center">
+                            <div className="flex items-center justify-center gap-1 mb-1">
+                              <Beef className="h-4 w-4 text-red-500" />
+                            </div>
+                            <span className="font-semibold text-sm">{recipe.protein}g</span>
+                            <span className="text-xs text-muted-foreground block">prot</span>
+                          </div>
+                        )}
+                        {recipe.carbs && (
+                          <div className="text-center">
+                            <div className="flex items-center justify-center gap-1 mb-1">
+                              <Wheat className="h-4 w-4 text-yellow-600" />
+                            </div>
+                            <span className="font-semibold text-sm">{recipe.carbs}g</span>
+                            <span className="text-xs text-muted-foreground block">carb</span>
+                          </div>
+                        )}
+                        {recipe.fats && (
+                          <div className="text-center">
+                            <div className="flex items-center justify-center gap-1 mb-1">
+                              <Droplets className="h-4 w-4 text-blue-500" />
+                            </div>
+                            <span className="font-semibold text-sm">{recipe.fats}g</span>
+                            <span className="text-xs text-muted-foreground block">gord</span>
+                          </div>
+                        )}
+                      </div>
+                    )}
+
+                    {recipe.doctor_name && (
+                      <p className="text-xs text-muted-foreground">
+                        Prescrito por: Dr(a). {recipe.doctor_name} {recipe.doctor_crm && `• CRM ${recipe.doctor_crm}`}
+                      </p>
+                    )}
+                  </div>
                 </div>
-              </CardHeader>
-              <CardContent className="space-y-4">
-                {recipe.description && <p className="text-sm text-muted-foreground">{recipe.description}</p>}
-
-                {(recipe.calories || recipe.protein || recipe.carbs || recipe.fats) && (
-                  <div className="grid grid-cols-2 gap-2 p-3 bg-muted/30 rounded-lg">
-                    {recipe.calories && (
-                      <div className="text-sm flex items-center gap-2">
-                        <Flame className="h-4 w-4 text-orange-500" />
-                        <div>
-                          <span className="font-medium">{recipe.calories}</span>
-                          <span className="text-xs text-muted-foreground ml-1">kcal</span>
-                        </div>
-                      </div>
-                    )}
-                    {recipe.protein && (
-                      <div className="text-sm flex items-center gap-2">
-                        <Beef className="h-4 w-4 text-red-500" />
-                        <div>
-                          <span className="font-medium">{recipe.protein}</span>
-                          <span className="text-xs text-muted-foreground ml-1">g prot</span>
-                        </div>
-                      </div>
-                    )}
-                    {recipe.carbs && (
-                      <div className="text-sm flex items-center gap-2">
-                        <Wheat className="h-4 w-4 text-yellow-600" />
-                        <div>
-                          <span className="font-medium">{recipe.carbs}</span>
-                          <span className="text-xs text-muted-foreground ml-1">g carb</span>
-                        </div>
-                      </div>
-                    )}
-                    {recipe.fats && (
-                      <div className="text-sm flex items-center gap-2">
-                        <Droplets className="h-4 w-4 text-blue-500" />
-                        <div>
-                          <span className="font-medium">{recipe.fats}</span>
-                          <span className="text-xs text-muted-foreground ml-1">g gord</span>
-                        </div>
-                      </div>
-                    )}
-                  </div>
-                )}
-
-                {recipe.ingredients && recipe.ingredients.length > 0 && (
-                  <div>
-                    <h4 className="font-semibold text-sm mb-2">Ingredientes:</h4>
-                    <ul className="list-disc list-inside space-y-1 text-sm text-muted-foreground">
-                      {recipe.ingredients.map((ing: string, idx: number) => (
-                        <li key={idx}>{ing}</li>
-                      ))}
-                    </ul>
-                  </div>
-                )}
-
-                {recipe.preparation && recipe.preparation.length > 0 && (
-                  <div>
-                    <h4 className="font-semibold text-sm mb-2">Modo de Preparo:</h4>
-                    <ol className="list-decimal list-inside space-y-1 text-sm text-muted-foreground">
-                      {recipe.preparation.map((step: string, idx: number) => (
-                        <li key={idx}>{step}</li>
-                      ))}
-                    </ol>
-                  </div>
-                )}
-
-                {recipe.notes && <p className="text-xs text-muted-foreground italic mt-2">Obs: {recipe.notes}</p>}
               </CardContent>
             </Card>
           ))}

@@ -122,6 +122,7 @@ export function PatientAppointmentsTab({ patientId }: { patientId: string }) {
 
     const dataToInsert = {
       patient_id: patientId,
+      user_id: patientId, // Critical: patient_id is the user_id of the patient
       status: "scheduled",
       doctor_name: doctorInfo.name,
       doctor_crm: doctorInfo.crm,
