@@ -121,9 +121,9 @@ export function NotificationCenter() {
   }
 
   const handleNotificationClick = (notification: Notification) => {
-    if (notification.action_url) {
+    if (notification.actionUrl) {
       handleMarkAsRead(notification.id)
-      router.push(notification.action_url)
+      router.push(notification.actionUrl)
       setIsOpen(false)
     }
   }
@@ -187,7 +187,7 @@ export function NotificationCenter() {
                     className={cn(
                       "p-4 hover:bg-gradient-to-r hover:from-blue-100 hover:to-indigo-100 dark:hover:from-blue-900/30 dark:hover:to-indigo-900/30 transition-all flex gap-3 cursor-pointer group",
                       !notification.read && "bg-blue-50 dark:bg-blue-950/20",
-                      notification.action_url && "cursor-pointer",
+                      notification.actionUrl && "cursor-pointer",
                     )}
                   >
                     <div className="text-3xl shrink-0 pt-0.5 group-hover:scale-110 transition-transform">

@@ -11,6 +11,7 @@ export interface Notification {
   message?: string
   notes?: string
   meal_type?: string
+  actionUrl?: string
   type:
     | "info"
     | "success"
