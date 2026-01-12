@@ -13,6 +13,12 @@ export function NotificationCenter() {
   const [notifications, setNotifications] = useState<Notification[]>([])
   const [isOpen, setIsOpen] = useState(false)
   const [loading, setLoading] = useState(true)
+  const [viewport, setViewport] = useState<{ w: number; h: number; dpr: number }>({
+    w: typeof window !== "undefined" ? window.innerWidth : 1024,
+    h: typeof window !== "undefined" ? window.innerHeight : 768,
+    dpr: typeof window !== "undefined" ? window.devicePixelRatio || 1 : 1,
+  })
+  const isMobile = viewport.w <= 480
 
   // Fetch initial notifications
   useEffect(() => {
@@ -52,6 +58,23 @@ export function NotificationCenter() {
   // Setup push notifications
   useEffect(() => {
     pushService.subscribeToPushNotifications()
+  }, [])
+
+  useEffect(() => {
+    const updateViewport = () => {
+      setViewport({
+        w: window.innerWidth,
+        h: window.innerHeight,
+        dpr: window.devicePixelRatio || 1,
+      })
+    }
+    updateViewport()
+    window.addEventListener("resize", updateViewport, { passive: true })
+    window.addEventListener("orientationchange", updateViewport, { passive: true })
+    return () => {
+      window.removeEventListener("resize", updateViewport)
+      window.removeEventListener("orientationchange", updateViewport)
+    }
   }, [])
 
   const showBrowserNotification = useCallback((notification: Notification) => {
@@ -103,6 +126,13 @@ export function NotificationCenter() {
 
   if (!user) return null
 
+  const panelWidth = Math.min(384, Math.max(280, Math.floor(viewport.w * 0.95)))
+  const panelMaxHeight = Math.min(640, Math.floor(viewport.h * (isMobile ? 0.7 : 0.6)))
+  const panelClasses = cn(
+    isMobile ? "fixed right-2 top-[env(safe-area-inset-top)]" : "absolute right-0 top-full mt-2",
+    "bg-background border border-border rounded-lg shadow-lg overflow-hidden z-50",
+  )
+
   return (
     <div className="relative">
       <Button variant="ghost" size="icon" onClick={() => setIsOpen(!isOpen)} className="relative">
@@ -113,7 +143,13 @@ export function NotificationCenter() {
       </Button>
 
       {isOpen && (
-        <div className="absolute right-0 top-full mt-2 w-auto max-h-96 bg-background border border-border rounded-lg shadow-lg overflow-hidden z-50">
+        <div
+          className={panelClasses}
+          style={{
+            width: panelWidth,
+            maxHeight: panelMaxHeight,
+          }}
+        >
           <div className="border-b border-border p-4 block bg-muted/50">
             <div className="flex items-center gap-2 justify-between">
               <h3 className="font-semibold text-foreground">Notificações</h3>
@@ -129,7 +165,7 @@ export function NotificationCenter() {
         
           
 
-          <div className="overflow-y-auto max-h-[calc(100%-3.5rem)]">
+          <div className="overflow-y-auto" style={{ maxHeight: panelMaxHeight - 56 }}>
             {loading ? (
               <div className="p-4 text-center text-muted-foreground">Carregando notificações...</div>
             ) : notifications.length === 0 ? (

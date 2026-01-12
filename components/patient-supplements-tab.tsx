@@ -25,9 +25,10 @@ interface PatientSupplementsTabProps {
   userId?: string
 }
 
-export function PatientSupplementsTab({ patientId, userId }: PatientSupplementsTabProps) {
+export function PatientSupplementsTab({ patientId }: PatientSupplementsTabProps) {
   const [supplements, setSupplements] = useState<any[]>([])
   const [loading, setLoading] = useState(true)
+  const [error, setError] = useState<string | null>(null)
   const [open, setOpen] = useState(false)
   const [formData, setFormData] = useState({
     supplement_name: "",
@@ -55,7 +56,6 @@ export function PatientSupplementsTab({ patientId, userId }: PatientSupplementsT
           filter: `patient_id=eq.${patientId}`,
         },
         () => {
-          console.log("[v0] Suplemento atualizado, recarregando...")
           loadSupplements()
         },
       )
@@ -68,16 +68,25 @@ export function PatientSupplementsTab({ patientId, userId }: PatientSupplementsT
 
   const loadSupplements = async () => {
     const supabase = createClient()
-    const { data } = await supabase
-      .from("patient_supplements")
-      .select("*")
-      .eq("patient_id", patientId)
-      .order("created_at", { ascending: false })
-
-    if (data) {
-      setSupplements(data)
+    try {
+      const { data, error } = await supabase
+        .from("patient_supplements")
+        .select("*")
+        .eq("patient_id", patientId)
+        .order("created_at", { ascending: false })
+      if (error) {
+        setError(error.message)
+        setSupplements([])
+      } else {
+        setSupplements(data || [])
+        setError(null)
+      }
+    } catch (err: any) {
+      setError(err.message || "Falha ao carregar suplementos")
+      setSupplements([])
+    } finally {
+      setLoading(false)
     }
-    setLoading(false)
   }
 
   const handleSubmit = async (e: React.FormEvent) => {

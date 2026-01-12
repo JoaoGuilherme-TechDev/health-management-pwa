@@ -91,7 +91,7 @@ export default function PatientDashboard() {
         ])
 
         if (isMounted) {
-          setStats({
+          setStats({  
             activeMedications: medRes.count || 0,
             upcomingAppointments: appoRes.count || 0,
             activeDiets: dietRes.count || 0,

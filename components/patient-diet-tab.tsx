@@ -28,6 +28,7 @@ export function PatientDietTab({ patientId }: PatientDietTabProps) {
   const [dietRecipes, setDietRecipes] = useState<any[]>([])
   const [loading, setLoading] = useState(true)
   const [open, setOpen] = useState(false)
+  const [error, setError] = useState<string | null>(null)
   const [formData, setFormData] = useState({
     title: "",
     description: "",
@@ -56,7 +57,6 @@ export function PatientDietTab({ patientId }: PatientDietTabProps) {
           filter: `patient_id=eq.${patientId}`,
         },
         () => {
-          console.log("[v0] Receita de dieta atualizada, recarregando...")
           loadDietRecipes()
         },
       )
@@ -69,16 +69,25 @@ export function PatientDietTab({ patientId }: PatientDietTabProps) {
 
   const loadDietRecipes = async () => {
     const supabase = createClient()
-    const { data } = await supabase
-      .from("patient_diet_recipes")
-      .select("*")
-      .eq("patient_id", patientId)
-      .order("created_at", { ascending: false })
-
-    if (data) {
-      setDietRecipes(data)
+    try {
+      const { data, error } = await supabase
+        .from("patient_diet_recipes")
+        .select("*")
+        .eq("patient_id", patientId)
+        .order("created_at", { ascending: false })
+      if (error) {
+        setError(error.message)
+        setDietRecipes([])
+      } else {
+        setDietRecipes(data || [])
+        setError(null)
+      }
+    } catch (err: any) {
+      setError(err.message || "Falha ao carregar receitas de dieta")
+      setDietRecipes([])
+    } finally {
+      setLoading(false)
     }
-    setLoading(false)
   }
 
   const handleSubmit = async (e: React.FormEvent) => {

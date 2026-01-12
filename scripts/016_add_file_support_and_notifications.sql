@@ -80,24 +80,61 @@ CREATE TRIGGER appointment_notification_trigger
   FOR EACH ROW
   EXECUTE FUNCTION create_appointment_notifications();
 
--- Update RLS policies to allow reading diet and supplement plans
--- Drop existing policies if they exist
-DROP POLICY IF EXISTS "patient_diet_recipes_select_own" ON patient_diet_recipes;
-DROP POLICY IF EXISTS "patient_supplements_select_own" ON patient_supplements;
-DROP POLICY IF EXISTS "patient_physical_evolution_select_own" ON physical_evolution;
+ CREATE OR REPLACE FUNCTION create_diet_notifications()
+ RETURNS TRIGGER AS $$
+ BEGIN
+   IF (TG_OP = 'INSERT') THEN
+     INSERT INTO notifications (user_id, title, message, notification_type)
+     VALUES (
+       NEW.patient_id,
+       'Nova Dieta',
+       'Receita adicionada: ' || NEW.title,
+       'diet_added'
+     );
+   END IF;
+   RETURN NEW;
+ END;
+ $$ LANGUAGE plpgsql;
+ 
+ DROP TRIGGER IF EXISTS diet_notification_trigger ON patient_diet_recipes;
+ CREATE TRIGGER diet_notification_trigger
+   AFTER INSERT ON patient_diet_recipes
+   FOR EACH ROW
+   EXECUTE FUNCTION create_diet_notifications();
+ 
+ CREATE OR REPLACE FUNCTION create_supplement_notifications()
+ RETURNS TRIGGER AS $$
+ BEGIN
+   IF (TG_OP = 'INSERT') THEN
+     INSERT INTO notifications (user_id, title, message, notification_type)
+     VALUES (
+       NEW.patient_id,
+       'Novo Suplemento',
+       'Suplemento adicionado: ' || NEW.supplement_name,
+       'supplement_added'
+     );
+   END IF;
+   RETURN NEW;
+ END;
+ $$ LANGUAGE plpgsql;
+ 
+ DROP TRIGGER IF EXISTS supplement_notification_trigger ON patient_supplements;
+ CREATE TRIGGER supplement_notification_trigger
+   AFTER INSERT ON patient_supplements
+   FOR EACH ROW
+   EXECUTE FUNCTION create_supplement_notifications();
 
--- Create new policies
--- Patients can read their own diet recipes
+ DROP POLICY IF EXISTS "patient_diet_recipes_select_own" ON patient_diet_recipes;
 CREATE POLICY "patient_diet_recipes_select_own"
   ON patient_diet_recipes FOR SELECT
   USING (patient_id = auth.uid());
 
--- Patients can read their own supplements
+ DROP POLICY IF EXISTS "patient_supplements_select_own" ON patient_supplements;
 CREATE POLICY "patient_supplements_select_own"
   ON patient_supplements FOR SELECT
   USING (patient_id = auth.uid());
 
--- Patients can read their own physical evolution
+ DROP POLICY IF EXISTS "patient_physical_evolution_select_own" ON physical_evolution;
 CREATE POLICY "patient_physical_evolution_select_own"
   ON physical_evolution FOR SELECT
   USING (user_id = auth.uid());
