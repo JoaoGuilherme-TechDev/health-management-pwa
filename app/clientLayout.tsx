@@ -1,7 +1,7 @@
 "use client"
 
 import type React from "react"
-import { startMedicationReminderCheck, stopMedicationReminderCheck } from "@/lib/medication-reminder-client"
+
 import { useEffect, useState } from "react"
 import { Analytics } from "@vercel/analytics/next"
 
@@ -17,7 +17,7 @@ export default function ClientLayout({
 
     if ("serviceWorker" in navigator) {
       navigator.serviceWorker
-        .register("/api/sw", {
+        .register("/sw.js", {
           scope: "/",
         })
         .then((registration) => {
@@ -30,12 +30,6 @@ export default function ClientLayout({
 
     if ("Notification" in window && Notification.permission === "default") {
       Notification.requestPermission()
-    }
-
-    startMedicationReminderCheck()
-
-    return () => {
-      stopMedicationReminderCheck()
     }
   }, [])
 
