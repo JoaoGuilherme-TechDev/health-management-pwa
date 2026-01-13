@@ -192,6 +192,25 @@ export default function PatientDashboard() {
         })
       subscriptions.push(dietsChannel)
 
+      const prescriptionsChannel = supabase
+        .channel(`dashboard-recipes-${user.id}`)
+        .on(
+          "postgres_changes",
+          {
+            event: "*",
+            schema: "public",
+            table: "medical_prescriptions",
+            filter: `patient_id=eq.${user.id}`,
+          },
+          () => {
+            console.log("[v0] Prescriptions updated")
+            if (isMounted) loadData()
+          },
+        )
+        .subscribe((status) => {
+          console.log("[v0] Prescriptions subscription status:", status)
+        })
+      subscriptions.push(prescriptionsChannel)
 
       const recipesChannel = supabase
         .channel(`dashboard-recipes-${user.id}`)

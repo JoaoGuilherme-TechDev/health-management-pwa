@@ -32,24 +32,7 @@ export async function createMedicationReminders() {
     // Get all active medication schedules
     const { data: schedules, error: schedulesError } = await supabase
       .from("medication_schedules")
-      .select(
-        `
-        id,
-        user_id,
-        medication_id,
-        scheduled_time,
-        days_of_week,
-        is_active,
-        medications (
-          id,
-          name,
-          user_id,
-          start_date,
-          end_date,
-          is_active
-        )
-      `,
-      )
+      .select("id,user_id,medication_id,scheduled_time,days_of_week,is_active")
       .eq("is_active", true)
 
     if (schedulesError) {
@@ -61,11 +44,25 @@ export async function createMedicationReminders() {
       return { success: true, created: 0, message: "No active schedules found" }
     }
 
+    // Get all active medications
+    const { data: medications, error: medicationsError } = await supabase
+      .from("medications")
+      .select("id,name,user_id,start_date,end_date,is_active")
+      .eq("is_active", true)
+
+    if (medicationsError) {
+      console.error("[v0] Error fetching medications:", medicationsError)
+      return { success: false, error: medicationsError.message }
+    }
+
+    // Create a map for quick lookup
+    const medicationMap = new Map(medications?.map((m) => [m.id, m]) ?? [])
+
     let notificationsCreated = 0
 
     // Check each schedule
     for (const schedule of schedules) {
-      const med = schedule.medications as any
+      const med = medicationMap.get(schedule.medication_id)
 
       if (!med || !med.is_active) continue
 
@@ -79,7 +76,7 @@ export async function createMedicationReminders() {
       }
 
       // Check if today is in days_of_week
-      const daysOfWeek = schedule.days_of_week as number[]
+      const daysOfWeek = (schedule.days_of_week as number[]) || []
       if (!daysOfWeek.includes(dayOfWeek)) {
         continue
       }
@@ -104,7 +101,6 @@ export async function createMedicationReminders() {
         continue // Skip if notification already created today
       }
 
-      // Create notification
       const { error: insertError } = await supabase.from("notifications").insert({
         user_id: schedule.user_id,
         title: `💊 ${med.name}`,
@@ -118,6 +114,9 @@ export async function createMedicationReminders() {
 
       if (!insertError) {
         notificationsCreated++
+        console.log(`[v0] Created medication reminder for ${med.name} at ${currentTime}`)
+      } else {
+        console.error(`[v0] Error creating notification for ${med.name}:`, insertError)
       }
     }
 
