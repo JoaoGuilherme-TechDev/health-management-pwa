@@ -110,6 +110,8 @@ export async function createMedicationReminders() {
         related_type: "medication",
         action_url: "/patient/medications",
         type: "reminder",
+        read: false, // Added read field with default false
+        is_active: true, // Added is_active field with default true
       })
 
       if (!insertError) {
