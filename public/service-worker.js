@@ -55,3 +55,10 @@ self.addEventListener("pushsubscriptionchange", (event) => {
     ),
   )
 })
+
+self.addEventListener("message", (event) => {
+  if (!event.data || event.data.type !== "SHOW_NOTIFICATION") return
+
+  const { title, options } = event.data
+  self.registration.showNotification(title, options)
+})

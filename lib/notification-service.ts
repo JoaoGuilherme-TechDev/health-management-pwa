@@ -10,7 +10,6 @@ export interface Notification {
   description?: string
   message?: string
   notes?: string
-  actionUrl?: string
   meal_type?: string
   type:
     | "info"
@@ -28,6 +27,8 @@ export interface Notification {
   scheduled_at?: string
   delivered_at?: string
   notification_type?: string
+  action_url?: string
+  related_id?: string
 }
 
 class NotificationService {
@@ -49,26 +50,40 @@ class NotificationService {
   }
 
   async subscribeToNotifications(patientId: string, callback: (notification: Notification) => void) {
-    this.subscription = this.supabase
-      .channel(`notifications:${patientId}`)
-      .on(
-        "postgres_changes",
-        {
-          event: "INSERT",
-          schema: "public",
-          table: "notifications",
-          filter: `user_id=eq.${patientId}`,
-        },
-        async (payload) => {
-          const raw: any = payload.new
-          const mapped: Notification = {
-            ...raw,
-            type: this.mapNotificationType(raw.notification_type),
-          }
-          callback(mapped)
-        },
-      )
-      .subscribe()
+    try {
+      this.subscription = this.supabase
+        .channel(`notifications:${patientId}`, {
+          config: {
+            broadcast: { self: true },
+          },
+        })
+        .on(
+          "postgres_changes",
+          {
+            event: "INSERT",
+            schema: "public",
+            table: "notifications",
+            filter: `user_id=eq.${patientId}`,
+          },
+          async (payload) => {
+            console.log("[v0] Real-time notification received:", payload)
+            const raw: any = payload.new
+            const mapped: Notification = {
+              ...raw,
+              type: this.mapNotificationType(raw.type || raw.notification_type),
+            }
+            callback(mapped)
+          },
+        )
+        .on("system", {}, (payload) => {
+          console.log("[v0] Realtime system event:", payload)
+        })
+        .subscribe((status) => {
+          console.log("[v0] Subscription status:", status)
+        })
+    } catch (error) {
+      console.error("[v0] Failed to subscribe to notifications:", error)
+    }
   }
 
   private mapNotificationType(notificationType: string): Notification["type"] {
@@ -99,7 +114,7 @@ class NotificationService {
     if (error) throw error
     return (data || []).map((raw: any) => ({
       ...raw,
-      type: this.mapNotificationType(raw.notification_type),
+      type: this.mapNotificationType(raw.type || raw.notification_type),
     }))
   }
 

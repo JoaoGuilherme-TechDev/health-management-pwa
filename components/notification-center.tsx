@@ -40,10 +40,22 @@ export function NotificationCenter() {
   }, [user?.id])
 
   useEffect(() => {
-    if (!user?.id) return
+    if (!user?.id) {
+      setLoading(false)
+      return
+    }
+
+    console.log("[v0] Setting up real-time notification listener for user:", user.id)
 
     const handleNewNotification = (notification: Notification) => {
-      setNotifications((prev) => [notification, ...prev])
+      console.log("[v0] New notification in UI:", notification)
+      setNotifications((prev) => {
+        // Avoid duplicate notifications
+        if (prev.some((n) => n.id === notification.id)) {
+          return prev
+        }
+        return [notification, ...prev]
+      })
       showBrowserNotification(notification)
     }
 
@@ -55,7 +67,9 @@ export function NotificationCenter() {
   }, [user?.id])
 
   useEffect(() => {
-    pushService.subscribeToPushNotifications()
+    pushService.subscribeToPushNotifications().catch((error) => {
+      console.warn("[v0] Push notifications not available:", error)
+    })
   }, [])
 
   useEffect(() => {
@@ -80,6 +94,16 @@ export function NotificationCenter() {
       pushService.sendNotification(notification.title, {
         body: notification.message,
         tag: notification.type,
+      })
+    } else if ("Notification" in window && Notification.permission !== "denied") {
+      // Ask for permission if not already denied
+      Notification.requestPermission().then((permission) => {
+        if (permission === "granted") {
+          pushService.sendNotification(notification.title, {
+            body: notification.message,
+            tag: notification.type,
+          })
+        }
       })
     }
   }, [])
@@ -121,9 +145,9 @@ export function NotificationCenter() {
   }
 
   const handleNotificationClick = (notification: Notification) => {
-    if (notification.actionUrl) {
+    if (notification.action_url) {
       handleMarkAsRead(notification.id)
-      router.push(notification.actionUrl) 
+      router.push(notification.action_url)
       setIsOpen(false)
     }
   }
@@ -135,7 +159,7 @@ export function NotificationCenter() {
   const panelWidth = Math.min(384, Math.max(280, Math.floor(viewport.w * 0.95)))
   const panelMaxHeight = Math.min(640, Math.floor(viewport.h * (isMobile ? 0.7 : 0.6)))
   const panelClasses = cn(
-    isMobile ? "fixed right-2 top-full" : "absolute right-0 top-full mt-2",
+    isMobile ? "fixed right-2 top-[env(safe-area-inset-top)]" : "absolute right-0 top-full mt-2",
     "bg-background border border-border rounded-lg shadow-lg overflow-hidden z-50",
   )
 
@@ -187,7 +211,7 @@ export function NotificationCenter() {
                     className={cn(
                       "p-3 hover:bg-gradient-to-r hover:from-blue-100 hover:to-indigo-100 dark:hover:from-blue-900/30 dark:hover:to-indigo-900/30 transition-all flex flex-col gap-2 cursor-pointer group",
                       !notification.read && "bg-blue-50 dark:bg-blue-950/20",
-                      notification.actionUrl && "cursor-pointer",
+                      notification.action_url && "cursor-pointer",
                     )}
                   >
                     <div className="flex-1 w-full">

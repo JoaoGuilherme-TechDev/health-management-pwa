@@ -65,7 +65,6 @@ if ("serviceWorker" in navigator) {
     })
   }
 
- 
   const setupMessageListener = () => {
     navigator.serviceWorker.addEventListener("message", (event) => {
       const { type, data } = event.data || {}
