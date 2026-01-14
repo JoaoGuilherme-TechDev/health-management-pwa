@@ -1,81 +1,178 @@
+-- Fix reminders logic and ensure all necessary tables exist
+-- This script consolidates table creation and function definitions to ensure everything works
+-- It handles: medication_reminders, notification_settings, notification_event_logs, and reminder processing functions
+
+-- 1. Ensure medication_reminders table exists
+CREATE TABLE IF NOT EXISTS public.medication_reminders (
+  id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
+  medication_id uuid NOT NULL REFERENCES public.medications(id) ON DELETE CASCADE,
+  user_id uuid NOT NULL REFERENCES public.profiles(id) ON DELETE CASCADE,
+  reminder_time time NOT NULL,
+  is_taken boolean DEFAULT false,
+  taken_at timestamp with time zone,
+  reminder_date date NOT NULL,
+  created_at timestamp with time zone DEFAULT now(),
+  schedule_id UUID REFERENCES medication_schedules(id) ON DELETE CASCADE,
+  snoozed_until timestamptz,
+  dismissed boolean DEFAULT false,
+  delivered boolean DEFAULT false
+);
+
+-- Indices for medication_reminders
+CREATE INDEX IF NOT EXISTS idx_medication_reminders_medication_id ON medication_reminders(medication_id);
+CREATE INDEX IF NOT EXISTS idx_medication_reminders_user_id ON medication_reminders(user_id);
+CREATE INDEX IF NOT EXISTS idx_medication_reminders_schedule_id ON medication_reminders(schedule_id);
+CREATE INDEX IF NOT EXISTS idx_medication_reminders_date_time ON medication_reminders(reminder_date, reminder_time);
+
+-- RLS for medication_reminders
+ALTER TABLE medication_reminders ENABLE ROW LEVEL SECURITY;
+
 DO $$
 BEGIN
-  IF EXISTS (
-    SELECT 1
-    FROM information_schema.tables
-    WHERE table_schema = 'public'
-      AND table_name = 'medication_reminders'
-  ) THEN
-    ALTER TABLE medication_reminders
-    ADD CONSTRAINT medication_reminders_unique_instance
-    UNIQUE (medication_id, reminder_date, reminder_time);
-
-    CREATE OR REPLACE FUNCTION process_due_medication_reminders()
-    RETURNS void AS $func$
-    DECLARE
-      now_ts timestamptz := now();
-      now_time time := (now() AT TIME ZONE 'America/Sao_Paulo')::time;
-      now_date date := (now() AT TIME ZONE 'America/Sao_Paulo')::date;
-      reminder_record RECORD;
-    BEGIN
-      FOR reminder_record IN
-        SELECT
-          m.id as medication_id,
-          m.user_id,
-          m.name,
-          m.dosage,
-          ms.scheduled_time
-        FROM medications m
-        JOIN medication_schedules ms ON ms.medication_id = m.id AND ms.is_active = true
-        LEFT JOIN notification_settings ns ON ns.user_id = m.user_id
-        WHERE m.is_active = true
-          AND m.start_date <= now_date
-          AND (m.end_date IS NULL OR m.end_date >= now_date)
-          AND date_trunc('minute', ms.scheduled_time) = date_trunc('minute', now_time)
-          AND extract(dow from (now() AT TIME ZONE 'America/Sao_Paulo'))::int = ANY(ms.days_of_week)
-          AND COALESCE(ns.enable_medication_notifications, true) = true
-      LOOP
-        INSERT INTO medication_reminders (medication_id, user_id, reminder_date, reminder_time)
-        VALUES (reminder_record.medication_id, reminder_record.user_id, now_date, reminder_record.scheduled_time)
-        ON CONFLICT (medication_id, reminder_date, reminder_time) DO NOTHING;
-
-        WITH inserted_reminder AS (
-          SELECT id FROM medication_reminders
-          WHERE medication_id = reminder_record.medication_id
-            AND reminder_date = now_date
-            AND reminder_time = reminder_record.scheduled_time
-        )
-        INSERT INTO notifications (user_id, title, message, notification_type, related_id)
-        SELECT
-          reminder_record.user_id,
-          'Hora de Tomar seu Remédio',
-          reminder_record.name || COALESCE(' • ' || reminder_record.dosage, ''),
-          'medication_reminder',
-          inserted_reminder.id
-        FROM inserted_reminder
-        WHERE NOT EXISTS (
-          SELECT 1 FROM notifications n
-          WHERE n.related_id = inserted_reminder.id
-            AND n.notification_type = 'medication_reminder'
-        );
-
-        INSERT INTO notification_event_logs (user_id, event_type, payload)
-        VALUES (
-          reminder_record.user_id,
-          'medication_reminder_created',
-          jsonb_build_object(
-            'medication_id', reminder_record.medication_id,
-            'reminder_time', reminder_record.scheduled_time,
-            'triggered_at_utc', now_ts
-          )
-        );
-      END LOOP;
-    END;
-    $func$ LANGUAGE plpgsql SECURITY DEFINER;
+  IF NOT EXISTS (SELECT 1 FROM pg_policies WHERE tablename = 'medication_reminders' AND policyname = 'medication_reminders_select') THEN
+    CREATE POLICY "medication_reminders_select" ON public.medication_reminders FOR SELECT USING (auth.uid() = user_id);
   END IF;
-END;
-$$;
+  IF NOT EXISTS (SELECT 1 FROM pg_policies WHERE tablename = 'medication_reminders' AND policyname = 'medication_reminders_insert') THEN
+    CREATE POLICY "medication_reminders_insert" ON public.medication_reminders FOR INSERT WITH CHECK (auth.uid() = user_id);
+  END IF;
+  IF NOT EXISTS (SELECT 1 FROM pg_policies WHERE tablename = 'medication_reminders' AND policyname = 'medication_reminders_update') THEN
+    CREATE POLICY "medication_reminders_update" ON public.medication_reminders FOR UPDATE USING (auth.uid() = user_id);
+  END IF;
+  IF NOT EXISTS (SELECT 1 FROM pg_policies WHERE tablename = 'medication_reminders' AND policyname = 'medication_reminders_delete') THEN
+    CREATE POLICY "medication_reminders_delete" ON public.medication_reminders FOR DELETE USING (auth.uid() = user_id);
+  END IF;
+END $$;
 
+-- Unique constraint for medication_reminders
+DO $$
+BEGIN
+  IF NOT EXISTS (SELECT 1 FROM pg_constraint WHERE conname = 'medication_reminders_unique_instance') THEN
+    ALTER TABLE medication_reminders ADD CONSTRAINT medication_reminders_unique_instance UNIQUE (medication_id, reminder_date, reminder_time);
+  END IF;
+END $$;
+
+-- 2. Ensure notification_settings table exists (Normalized structure matching TS code)
+CREATE TABLE IF NOT EXISTS public.notification_settings (
+  id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
+  user_id uuid NOT NULL REFERENCES public.profiles(id) ON DELETE CASCADE,
+  notification_type text NOT NULL, -- e.g., 'medication_reminder', 'appointment_reminder'
+  enabled boolean DEFAULT true,
+  sound_enabled boolean DEFAULT true,
+  vibration_enabled boolean DEFAULT true,
+  led_enabled boolean DEFAULT true,
+  created_at timestamptz DEFAULT now(),
+  updated_at timestamptz DEFAULT now(),
+  UNIQUE(user_id, notification_type)
+);
+
+-- RLS for notification_settings
+ALTER TABLE notification_settings ENABLE ROW LEVEL SECURITY;
+
+DO $$
+BEGIN
+  IF NOT EXISTS (SELECT 1 FROM pg_policies WHERE tablename = 'notification_settings' AND policyname = 'notification_settings_select') THEN
+    CREATE POLICY "notification_settings_select" ON public.notification_settings FOR SELECT USING (auth.uid() = user_id);
+  END IF;
+  IF NOT EXISTS (SELECT 1 FROM pg_policies WHERE tablename = 'notification_settings' AND policyname = 'notification_settings_insert') THEN
+    CREATE POLICY "notification_settings_insert" ON public.notification_settings FOR INSERT WITH CHECK (auth.uid() = user_id);
+  END IF;
+  IF NOT EXISTS (SELECT 1 FROM pg_policies WHERE tablename = 'notification_settings' AND policyname = 'notification_settings_update') THEN
+    CREATE POLICY "notification_settings_update" ON public.notification_settings FOR UPDATE USING (auth.uid() = user_id);
+  END IF;
+END $$;
+
+-- 3. Ensure notification_event_logs table exists
+CREATE TABLE IF NOT EXISTS notification_event_logs (
+  id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
+  user_id uuid,
+  event_type text,
+  payload jsonb,
+  created_at timestamptz DEFAULT now()
+);
+
+-- 4. Function: Process Medication Reminders (Runs frequently, e.g. every 30 mins)
+CREATE OR REPLACE FUNCTION process_due_medication_reminders()
+RETURNS void AS $func$
+DECLARE
+  now_utc timestamptz := now();
+  now_sp timestamptz := (now() AT TIME ZONE 'America/Sao_Paulo');
+  current_time_minute text := to_char(now_sp, 'HH24:MI');
+BEGIN
+  -- Insert into notifications
+  INSERT INTO notifications (user_id, title, message, notification_type)
+  SELECT
+    m.user_id,
+    'Hora de Tomar seu Remédio',
+    m.name || COALESCE(' • ' || m.dosage, ''),
+    'medication_reminder'
+  FROM medications m
+  JOIN medication_schedules ms ON ms.medication_id = m.id AND ms.is_active = true
+  -- Join with notification_settings for 'medication_reminder' type
+  LEFT JOIN notification_settings ns 
+    ON ns.user_id = m.user_id 
+    AND ns.notification_type = 'medication_reminder'
+  WHERE m.is_active = true
+    AND m.start_date <= (now_sp::date)
+    AND (m.end_date IS NULL OR m.end_date >= (now_sp::date))
+    AND to_char(ms.scheduled_time, 'HH24:MI') = current_time_minute
+    AND extract(dow from now_sp)::int = ANY(ms.days_of_week)
+    -- Check if enabled (default to true if no setting exists)
+    AND COALESCE(ns.enabled, true) = true
+    AND NOT EXISTS (
+      SELECT 1
+      FROM notifications n
+      WHERE n.user_id = m.user_id
+        AND n.notification_type = 'medication_reminder'
+        AND n.message LIKE '%' || m.name || '%'
+        AND date_trunc('minute', n.created_at) = date_trunc('minute', now_utc)
+    );
+
+  -- Log the event
+  INSERT INTO notification_event_logs (user_id, event_type, payload)
+  SELECT
+    m.user_id,
+    'medication_reminder_created_simple',
+    jsonb_build_object(
+      'medication_id', m.id,
+      'scheduled_time', ms.scheduled_time,
+      'triggered_at_utc', now_utc
+    )
+  FROM medications m
+  JOIN medication_schedules ms ON ms.medication_id = m.id AND ms.is_active = true
+  LEFT JOIN notification_settings ns 
+    ON ns.user_id = m.user_id 
+    AND ns.notification_type = 'medication_reminder'
+  WHERE m.is_active = true
+    AND m.start_date <= (now_sp::date)
+    AND (m.end_date IS NULL OR m.end_date >= (now_sp::date))
+    AND to_char(ms.scheduled_time, 'HH24:MI') = current_time_minute
+    AND extract(dow from now_sp)::int = ANY(ms.days_of_week)
+    AND COALESCE(ns.enabled, true) = true
+    AND NOT EXISTS (
+      SELECT 1
+      FROM notification_event_logs l
+      WHERE l.user_id = m.user_id
+        AND l.event_type = 'medication_reminder_created_simple'
+        AND (l.payload->>'medication_id')::uuid = m.id
+        AND (l.payload->>'scheduled_time') = to_char(ms.scheduled_time, 'HH24:MI')
+        AND l.created_at >= now_utc - interval '1 minute'
+    );
+EXCEPTION
+  WHEN others THEN
+    INSERT INTO notification_event_logs (user_id, event_type, payload)
+    VALUES (
+      null,
+      'medication_reminder_error',
+      jsonb_build_object(
+        'error', SQLERRM,
+        'detail', SQLSTATE,
+        'triggered_at_utc', now_utc
+      )
+    );
+END;
+$func$ LANGUAGE plpgsql SECURITY DEFINER;
+
+-- 5. Function: Process Due Appointment Reminders (Exact 24h check, run frequently)
 CREATE OR REPLACE FUNCTION process_due_appointment_reminders(p_lead_minutes integer DEFAULT 1440)
 RETURNS void AS $$
 DECLARE
@@ -93,11 +190,13 @@ BEGIN
     a.id
   FROM appointments a
   JOIN profiles p ON p.id = a.patient_id
-  LEFT JOIN notification_settings ns ON ns.user_id = a.patient_id
+  LEFT JOIN notification_settings ns 
+    ON ns.user_id = a.patient_id
+    AND ns.notification_type = 'appointment_reminder'
   WHERE a.status = 'scheduled'
     AND (a.scheduled_at - make_interval(mins => p_lead_minutes)) AT TIME ZONE 'America/Sao_Paulo'
           BETWEEN from_ts AND to_ts
-    AND COALESCE(ns.enable_appointment_notifications, true) = true
+    AND COALESCE(ns.enabled, true) = true
     AND NOT EXISTS (
       SELECT 1 FROM notification_event_logs l
       WHERE l.user_id = a.patient_id
@@ -124,6 +223,60 @@ BEGIN
       SELECT 1 FROM notification_event_logs l 
       WHERE l.user_id = a.patient_id
         AND l.event_type = 'appointment_reminder_created'
+        AND (l.payload->>'appointment_id')::uuid = a.id
+    );
+END;
+$$ LANGUAGE plpgsql SECURITY DEFINER;
+
+-- 6. Function: Create Appointment Reminders 24h (Daily Batch - for all appointments tomorrow)
+CREATE OR REPLACE FUNCTION create_appointment_reminders_24h()
+RETURNS void AS $$
+DECLARE
+  now_utc timestamptz := now();
+  now_sp timestamptz := (now() AT TIME ZONE 'America/Sao_Paulo');
+  tomorrow_date date := (now_sp + interval '1 day')::date;
+BEGIN
+  -- Insert notifications for all appointments scheduled for tomorrow
+  INSERT INTO notifications (user_id, title, message, notification_type, related_id)
+  SELECT
+    a.patient_id,
+    'Lembrete: Consulta Amanhã',
+    'Consulta amanhã às ' || to_char(a.scheduled_at AT TIME ZONE 'America/Sao_Paulo', 'HH24:MI') || COALESCE(' • ' || a.location, ''),
+    'appointment_reminder',
+    a.id
+  FROM appointments a
+  JOIN profiles p ON p.id = a.patient_id
+  LEFT JOIN notification_settings ns 
+    ON ns.user_id = a.patient_id
+    AND ns.notification_type = 'appointment_reminder'
+  WHERE a.status = 'scheduled'
+    AND (a.scheduled_at AT TIME ZONE 'America/Sao_Paulo')::date = tomorrow_date
+    AND COALESCE(ns.enabled, true) = true
+    AND NOT EXISTS (
+      SELECT 1 FROM notifications n
+      WHERE n.user_id = a.patient_id
+        AND n.notification_type = 'appointment_reminder'
+        AND n.related_id = a.id
+        AND n.created_at >= now_utc - interval '24 hours'
+    );
+
+  -- Log events
+  INSERT INTO notification_event_logs (user_id, event_type, payload)
+  SELECT
+    a.patient_id,
+    'appointment_reminder_created_batch',
+    jsonb_build_object(
+      'appointment_id', a.id,
+      'scheduled_at', a.scheduled_at,
+      'triggered_at_utc', now_utc
+    )
+  FROM appointments a
+  WHERE a.status = 'scheduled'
+    AND (a.scheduled_at AT TIME ZONE 'America/Sao_Paulo')::date = tomorrow_date
+    AND NOT EXISTS (
+      SELECT 1 FROM notification_event_logs l 
+      WHERE l.user_id = a.patient_id
+        AND l.event_type = 'appointment_reminder_created_batch'
         AND (l.payload->>'appointment_id')::uuid = a.id
     );
 END;
