@@ -23,17 +23,26 @@ export async function createMedicationReminders() {
   )
 
   try {
-    // Get current time
     const now = new Date()
-    const currentTime = now.toTimeString().slice(0, 5) // HH:MM format
-    const currentDate = now.toISOString().split("T")[0] // YYYY-MM-DD format
-    const dayOfWeek = now.getDay() // 0 = Sunday, 1 = Monday, etc.
+    const pauloTime = new Date(now.toLocaleString("en-US", { timeZone: "America/Sao_Paulo" }))
+
+    const currentTime = pauloTime.toTimeString().slice(0, 5) // HH:MM format in São Paulo time
+    const currentDate = pauloTime.toISOString().split("T")[0] // YYYY-MM-DD format
+    const dayOfWeek = pauloTime.getDay() // 0 = Sunday, 1 = Monday, etc.
+
+    console.log(
+      "[v0] Checking medication reminders - São Paulo time:",
+      currentTime,
+      "Date:",
+      currentDate,
+      "Day:",
+      dayOfWeek,
+    )
 
     // Get all active medication schedules
     const { data: schedules, error: schedulesError } = await supabase
       .from("medication_schedules")
-      .select("id,user_id,medication_id,scheduled_time,days_of_week,is_active")
-      .eq("is_active", true)
+      .select("id,user_id,medication_id,scheduled_time,days_of_week")
 
     if (schedulesError) {
       console.error("[v0] Error fetching schedules:", schedulesError)
@@ -47,8 +56,7 @@ export async function createMedicationReminders() {
     // Get all active medications
     const { data: medications, error: medicationsError } = await supabase
       .from("medications")
-      .select("id,name,user_id,start_date,end_date,is_active")
-      .eq("is_active", true)
+      .select("id,name,user_id,start_date,end_date")
 
     if (medicationsError) {
       console.error("[v0] Error fetching medications:", medicationsError)
@@ -64,7 +72,7 @@ export async function createMedicationReminders() {
     for (const schedule of schedules) {
       const med = medicationMap.get(schedule.medication_id)
 
-      if (!med || !med.is_active) continue
+      if (!med) continue
 
       // Check if medication is within date range
       const startDate = new Date(med.start_date)
@@ -77,13 +85,21 @@ export async function createMedicationReminders() {
 
       // Check if today is in days_of_week
       const daysOfWeek = (schedule.days_of_week as number[]) || []
-      if (!daysOfWeek.includes(dayOfWeek)) {
+      if (daysOfWeek.length > 0 && !daysOfWeek.includes(dayOfWeek)) {
         continue
       }
 
-      // Check if current time matches scheduled time (within 1-minute window)
+      // This allows notifications to trigger even if the cron job misses the exact minute
       const scheduledTimeStr = (schedule.scheduled_time as string).slice(0, 5)
-      if (scheduledTimeStr !== currentTime) {
+      const scheduledMinutes =
+        Number.parseInt(scheduledTimeStr.split(":")[0]) * 60 + Number.parseInt(scheduledTimeStr.split(":")[1])
+      const currentMinutes =
+        Number.parseInt(currentTime.split(":")[0]) * 60 + Number.parseInt(currentTime.split(":")[1])
+      const timeDifference = Math.abs(currentMinutes - scheduledMinutes)
+
+      // Allow notification if within 2 minutes of scheduled time
+      if (timeDifference > 2 && timeDifference < 1438) {
+        // 1438 = 24*60 - 2 (handles day wrap)
         continue
       }
 
@@ -103,15 +119,12 @@ export async function createMedicationReminders() {
 
       const { error: insertError } = await supabase.from("notifications").insert({
         user_id: schedule.user_id,
-        title: `💊 ${med.name}`,
-        message: `Horário de tomar ${med.name}`,
-        notification_type: "medication_reminder",
+        title: `💊 Hora do medicamento: ${med.name}`,
+        message: `Tomar ${med.name} às ${scheduledTimeStr}`,
+        type: "medication_reminder",
         related_id: schedule.medication_id,
-        related_type: "medication",
         action_url: "/patient/medications",
-        type: "reminder",
-        read: false, // Added read field with default false
-        is_active: true, // Added is_active field with default true
+        read: false,
       })
 
       if (!insertError) {
