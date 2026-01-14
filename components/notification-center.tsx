@@ -40,6 +40,32 @@ export function NotificationCenter() {
   }, [user?.id])
 
   useEffect(() => {
+    if (!user?.id) return
+
+    const interval = setInterval(async () => {
+      try {
+        const data = await notificationService.getNotifications(user.id)
+        setNotifications((prev) => {
+          const map = new Map<string, Notification>()
+          for (const n of prev) {
+            map.set(n.id, n)
+          }
+          for (const n of data) {
+            map.set(n.id, n)
+          }
+          return Array.from(map.values()).sort(
+            (a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime(),
+          )
+        })
+      } catch (error) {
+        console.error("[v0] Failed to refresh notifications:", error)
+      }
+    }, 60000)
+
+    return () => clearInterval(interval)
+  }, [user?.id])
+
+  useEffect(() => {
     if (!user?.id) {
       setLoading(false)
       return
@@ -67,10 +93,12 @@ export function NotificationCenter() {
   }, [user?.id])
 
   useEffect(() => {
-    pushService.subscribeToPushNotifications().catch((error) => {
+    if (!user?.id) return
+
+    pushService.subscribeToPushNotifications(user.id).catch((error) => {
       console.warn("[v0] Push notifications not available:", error)
     })
-  }, [])
+  }, [user?.id])
 
   useEffect(() => {
     const updateViewport = () => {
