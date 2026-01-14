@@ -65,42 +65,55 @@ BEGIN
 END;
 $$;
 
-CREATE OR REPLACE FUNCTION process_due_appointment_reminders()
+CREATE OR REPLACE FUNCTION process_due_appointment_reminders(p_lead_minutes integer DEFAULT 1440)
 RETURNS void AS $$
 DECLARE
-  now_ts timestamptz := now();
+  now_utc timestamptz := now();
+  now_local timestamptz := (now() AT TIME ZONE 'America/Sao_Paulo');
+  from_ts timestamptz := now_local - make_interval(mins => 1);
+  to_ts   timestamptz := now_local + make_interval(mins => 1);
 BEGIN
   INSERT INTO notifications (user_id, title, message, notification_type, related_id)
   SELECT
     a.patient_id,
     'Lembrete: Consulta Amanhã',
-    'Consulta amanhã às ' || to_char(a.scheduled_at, 'HH24:MI') || COALESCE(' • ' || a.location, ''),
+    'Consulta amanhã às ' || to_char(a.scheduled_at AT TIME ZONE 'America/Sao_Paulo', 'HH24:MI') || COALESCE(' • ' || a.location, ''),
     'appointment_reminder',
     a.id
   FROM appointments a
   JOIN profiles p ON p.id = a.patient_id
   LEFT JOIN notification_settings ns ON ns.user_id = a.patient_id
   WHERE a.status = 'scheduled'
-    AND a.scheduled_at > now_ts
-    AND a.scheduled_at <= now_ts + interval '24 hours'
+    AND (a.scheduled_at - make_interval(mins => p_lead_minutes)) AT TIME ZONE 'America/Sao_Paulo'
+          BETWEEN from_ts AND to_ts
     AND COALESCE(ns.enable_appointment_notifications, true) = true
     AND NOT EXISTS (
-      SELECT 1 FROM notifications n
-      WHERE n.related_id = a.id
-      AND n.notification_type = 'appointment_reminder'
+      SELECT 1 FROM notification_event_logs l
+      WHERE l.user_id = a.patient_id
+        AND l.event_type = 'appointment_reminder_created'
+        AND (l.payload->>'appointment_id')::uuid = a.id
     );
 
   INSERT INTO notification_event_logs (user_id, event_type, payload)
-  SELECT a.patient_id, 'appointment_reminder_created',
-         jsonb_build_object('appointment_id', a.id, 'scheduled_at', a.scheduled_at, 'location', a.location)
+  SELECT
+    a.patient_id,
+    'appointment_reminder_created',
+    jsonb_build_object(
+      'appointment_id', a.id,
+      'scheduled_at', a.scheduled_at,
+      'location', a.location,
+      'lead_minutes', p_lead_minutes,
+      'triggered_at_utc', now_utc
+    )
   FROM appointments a
   WHERE a.status = 'scheduled'
-    AND a.scheduled_at > now_ts
-    AND a.scheduled_at <= now_ts + interval '24 hours'
+    AND (a.scheduled_at - make_interval(mins => p_lead_minutes)) AT TIME ZONE 'America/Sao_Paulo'
+          BETWEEN from_ts AND to_ts
     AND NOT EXISTS (
-       SELECT 1 FROM notification_event_logs l 
-       WHERE (l.payload->>'appointment_id')::uuid = a.id 
-       AND l.event_type = 'appointment_reminder_created'
+      SELECT 1 FROM notification_event_logs l 
+      WHERE l.user_id = a.patient_id
+        AND l.event_type = 'appointment_reminder_created'
+        AND (l.payload->>'appointment_id')::uuid = a.id
     );
 END;
 $$ LANGUAGE plpgsql SECURITY DEFINER;
