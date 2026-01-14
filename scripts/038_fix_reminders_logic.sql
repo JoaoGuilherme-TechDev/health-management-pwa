@@ -81,24 +81,15 @@ BEGIN
   END IF;
 END $$;
 
--- 3. Ensure notification_event_logs table exists
-CREATE TABLE IF NOT EXISTS notification_event_logs (
-  id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
-  user_id uuid,
-  event_type text,
-  payload jsonb,
-  created_at timestamptz DEFAULT now()
-);
-
--- 4. Function: Process Medication Reminders (Runs frequently, e.g. every 30 mins)
+-- 4. Function: Process Medication Reminders (simple: if time matches, insert into notifications)
 CREATE OR REPLACE FUNCTION process_due_medication_reminders()
 RETURNS void AS $func$
 DECLARE
-  now_utc timestamptz := now();
-  now_sp timestamptz := (now() AT TIME ZONE 'America/Sao_Paulo');
-  current_time_minute text := to_char(now_sp, 'HH24:MI');
+  now_ts   timestamptz := now();
+  now_sp   timestamptz := (now() AT TIME ZONE 'America/Sao_Paulo');
+  now_time time        := now_sp::time;
+  now_date date        := now_sp::date;
 BEGIN
-  -- Insert into notifications
   INSERT INTO notifications (user_id, title, message, notification_type)
   SELECT
     m.user_id,
@@ -106,68 +97,20 @@ BEGIN
     m.name || COALESCE(' • ' || m.dosage, ''),
     'medication_reminder'
   FROM medications m
-  JOIN medication_schedules ms ON ms.medication_id = m.id AND ms.is_active = true
-  -- Join with notification_settings for 'medication_reminder' type
-  LEFT JOIN notification_settings ns 
-    ON ns.user_id = m.user_id 
-    AND ns.notification_type = 'medication_reminder'
+  JOIN medication_schedules ms
+    ON ms.medication_id = m.id
+   AND ms.is_active = true
   WHERE m.is_active = true
-    AND m.start_date <= (now_sp::date)
-    AND (m.end_date IS NULL OR m.end_date >= (now_sp::date))
-    AND to_char(ms.scheduled_time, 'HH24:MI') = current_time_minute
+    AND m.start_date <= now_date
+    AND (m.end_date IS NULL OR m.end_date >= now_date)
+    AND date_trunc('minute', ms.scheduled_time) = date_trunc('minute', now_time)
     AND extract(dow from now_sp)::int = ANY(ms.days_of_week)
-    -- Check if enabled (default to true if no setting exists)
-    AND COALESCE(ns.enabled, true) = true
     AND NOT EXISTS (
       SELECT 1
       FROM notifications n
       WHERE n.user_id = m.user_id
         AND n.notification_type = 'medication_reminder'
-        AND n.message LIKE '%' || m.name || '%'
-        AND date_trunc('minute', n.created_at) = date_trunc('minute', now_utc)
-    );
-
-  -- Log the event
-  INSERT INTO notification_event_logs (user_id, event_type, payload)
-  SELECT
-    m.user_id,
-    'medication_reminder_created_simple',
-    jsonb_build_object(
-      'medication_id', m.id,
-      'scheduled_time', ms.scheduled_time,
-      'triggered_at_utc', now_utc
-    )
-  FROM medications m
-  JOIN medication_schedules ms ON ms.medication_id = m.id AND ms.is_active = true
-  LEFT JOIN notification_settings ns 
-    ON ns.user_id = m.user_id 
-    AND ns.notification_type = 'medication_reminder'
-  WHERE m.is_active = true
-    AND m.start_date <= (now_sp::date)
-    AND (m.end_date IS NULL OR m.end_date >= (now_sp::date))
-    AND to_char(ms.scheduled_time, 'HH24:MI') = current_time_minute
-    AND extract(dow from now_sp)::int = ANY(ms.days_of_week)
-    AND COALESCE(ns.enabled, true) = true
-    AND NOT EXISTS (
-      SELECT 1
-      FROM notification_event_logs l
-      WHERE l.user_id = m.user_id
-        AND l.event_type = 'medication_reminder_created_simple'
-        AND (l.payload->>'medication_id')::uuid = m.id
-        AND (l.payload->>'scheduled_time') = to_char(ms.scheduled_time, 'HH24:MI')
-        AND l.created_at >= now_utc - interval '1 minute'
-    );
-EXCEPTION
-  WHEN others THEN
-    INSERT INTO notification_event_logs (user_id, event_type, payload)
-    VALUES (
-      null,
-      'medication_reminder_error',
-      jsonb_build_object(
-        'error', SQLERRM,
-        'detail', SQLSTATE,
-        'triggered_at_utc', now_utc
-      )
+        AND n.created_at > now_ts - interval '5 minutes'
     );
 END;
 $func$ LANGUAGE plpgsql SECURITY DEFINER;
@@ -189,42 +132,13 @@ BEGIN
     'appointment_reminder',
     a.id
   FROM appointments a
-  JOIN profiles p ON p.id = a.patient_id
   LEFT JOIN notification_settings ns 
     ON ns.user_id = a.patient_id
     AND ns.notification_type = 'appointment_reminder'
   WHERE a.status = 'scheduled'
     AND (a.scheduled_at - make_interval(mins => p_lead_minutes)) AT TIME ZONE 'America/Sao_Paulo'
           BETWEEN from_ts AND to_ts
-    AND COALESCE(ns.enabled, true) = true
-    AND NOT EXISTS (
-      SELECT 1 FROM notification_event_logs l
-      WHERE l.user_id = a.patient_id
-        AND l.event_type = 'appointment_reminder_created'
-        AND (l.payload->>'appointment_id')::uuid = a.id
-    );
-
-  INSERT INTO notification_event_logs (user_id, event_type, payload)
-  SELECT
-    a.patient_id,
-    'appointment_reminder_created',
-    jsonb_build_object(
-      'appointment_id', a.id,
-      'scheduled_at', a.scheduled_at,
-      'location', a.location,
-      'lead_minutes', p_lead_minutes,
-      'triggered_at_utc', now_utc
-    )
-  FROM appointments a
-  WHERE a.status = 'scheduled'
-    AND (a.scheduled_at - make_interval(mins => p_lead_minutes)) AT TIME ZONE 'America/Sao_Paulo'
-          BETWEEN from_ts AND to_ts
-    AND NOT EXISTS (
-      SELECT 1 FROM notification_event_logs l 
-      WHERE l.user_id = a.patient_id
-        AND l.event_type = 'appointment_reminder_created'
-        AND (l.payload->>'appointment_id')::uuid = a.id
-    );
+    AND COALESCE(ns.enabled, true) = true;
 END;
 $$ LANGUAGE plpgsql SECURITY DEFINER;
 
@@ -236,7 +150,6 @@ DECLARE
   now_sp timestamptz := (now() AT TIME ZONE 'America/Sao_Paulo');
   tomorrow_date date := (now_sp + interval '1 day')::date;
 BEGIN
-  -- Insert notifications for all appointments scheduled for tomorrow
   INSERT INTO notifications (user_id, title, message, notification_type, related_id)
   SELECT
     a.patient_id,
@@ -245,39 +158,11 @@ BEGIN
     'appointment_reminder',
     a.id
   FROM appointments a
-  JOIN profiles p ON p.id = a.patient_id
   LEFT JOIN notification_settings ns 
     ON ns.user_id = a.patient_id
     AND ns.notification_type = 'appointment_reminder'
   WHERE a.status = 'scheduled'
     AND (a.scheduled_at AT TIME ZONE 'America/Sao_Paulo')::date = tomorrow_date
-    AND COALESCE(ns.enabled, true) = true
-    AND NOT EXISTS (
-      SELECT 1 FROM notifications n
-      WHERE n.user_id = a.patient_id
-        AND n.notification_type = 'appointment_reminder'
-        AND n.related_id = a.id
-        AND n.created_at >= now_utc - interval '24 hours'
-    );
-
-  -- Log events
-  INSERT INTO notification_event_logs (user_id, event_type, payload)
-  SELECT
-    a.patient_id,
-    'appointment_reminder_created_batch',
-    jsonb_build_object(
-      'appointment_id', a.id,
-      'scheduled_at', a.scheduled_at,
-      'triggered_at_utc', now_utc
-    )
-  FROM appointments a
-  WHERE a.status = 'scheduled'
-    AND (a.scheduled_at AT TIME ZONE 'America/Sao_Paulo')::date = tomorrow_date
-    AND NOT EXISTS (
-      SELECT 1 FROM notification_event_logs l 
-      WHERE l.user_id = a.patient_id
-        AND l.event_type = 'appointment_reminder_created_batch'
-        AND (l.payload->>'appointment_id')::uuid = a.id
-    );
+    AND COALESCE(ns.enabled, true) = true;
 END;
 $$ LANGUAGE plpgsql SECURITY DEFINER;
