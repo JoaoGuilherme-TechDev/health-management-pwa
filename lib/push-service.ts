@@ -1,7 +1,9 @@
 "use client"
 
+import { createBrowserClient } from "@supabase/ssr"
+
 class PushService {
-  async subscribeToPushNotifications() {
+  async subscribeToPushNotifications(userId?: string) {
     if (!("serviceWorker" in navigator) || !("PushManager" in window)) {
       console.warn("[v0] Push notifications not supported")
       return
@@ -9,16 +11,54 @@ class PushService {
 
     try {
       const registration = await navigator.serviceWorker.ready
-      const subscription = await registration.pushManager.getSubscription()
+      
+      // Use the public key from env
+      const options = {
+        userVisibleOnly: true,
+        applicationServerKey: process.env.NEXT_PUBLIC_VAPID_PUBLIC_KEY 
+          ? this.urlBase64ToUint8Array(process.env.NEXT_PUBLIC_VAPID_PUBLIC_KEY)
+          : undefined
+      }
 
-      if (!subscription) {
-        console.log("[v0] No push subscription found, creating new one")
+      const subscription = await registration.pushManager.subscribe(options)
+
+      if (userId && subscription) {
+        await this.saveSubscription(userId, subscription)
       }
 
       return subscription
     } catch (error) {
       console.error("[v0] Failed to setup push notifications:", error)
     }
+  }
+
+  private async saveSubscription(userId: string, subscription: PushSubscription) {
+    const supabase = createBrowserClient(
+      process.env.NEXT_PUBLIC_SUPABASE_URL!,
+      process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
+    )
+
+    const { error } = await supabase
+      .from("push_subscriptions")
+      .upsert({
+        user_id: userId,
+        subscription: subscription.toJSON(),
+      }, { onConflict: 'user_id, subscription' }) // Assuming there's a unique constraint or we just want to avoid duplicates
+
+    if (error) {
+      console.error("[v0] Failed to save push subscription:", error)
+    }
+  }
+
+  private urlBase64ToUint8Array(base64String: string) {
+    const padding = "=".repeat((4 - (base64String.length % 4)) % 4)
+    const base64 = (base64String + padding).replace(/-/g, "+").replace(/_/g, "/")
+    const rawData = window.atob(base64)
+    const outputArray = new Uint8Array(rawData.length)
+    for (let i = 0; i < rawData.length; ++i) {
+      outputArray[i] = rawData.charCodeAt(i)
+    }
+    return outputArray
   }
 
   async sendNotification(title: string, options: NotificationOptions = {}) {

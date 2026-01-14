@@ -144,6 +144,23 @@ export function NotificationCenter() {
     }
   }
 
+  const handleSnooze = async (notification: Notification, minutes = 15) => {
+    try {
+      if (notification.type === "medication" && notification.related_id) {
+        await notificationService.snoozeMedication(user.id, notification.related_id, minutes)
+      }
+      // Optimistically remove from list or mark as snoozed
+      setNotifications((prev) => prev.filter((n) => n.id !== notification.id))
+    } catch (error) {
+      console.error("[v0] Failed to snooze notification:", error)
+    }
+  }
+
+  const handleDismiss = async (id: string) => {
+    // Dismiss effectively deletes or marks as read/handled
+    handleDelete(id)
+  }
+
   const handleNotificationClick = (notification: Notification) => {
     if (notification.action_url) {
       handleMarkAsRead(notification.id)
@@ -226,30 +243,46 @@ export function NotificationCenter() {
                       </p>
                     </div>
 
-                    <div className="flex gap-0.5 justify-end">
+                    <div className="flex gap-1 justify-end items-center mt-2">
+                      {notification.type === "medication" && (
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          onClick={(e) => {
+                            e.stopPropagation()
+                            handleSnooze(notification)
+                          }}
+                          className="h-7 text-xs px-2 mr-auto"
+                        >
+                          💤 Soneca 15m
+                        </Button>
+                      )}
+                      
                       {!notification.read && (
                         <Button
                           variant="ghost"
                           size="icon"
-                          className="h-7 w-7"
                           onClick={(e) => {
                             e.stopPropagation()
                             handleMarkAsRead(notification.id)
                           }}
+                          className="h-8 w-8 text-primary hover:text-primary hover:bg-primary/10"
+                          title="Marcar como lida"
                         >
-                          <Check className="h-3.5 w-3.5" />
+                          <Check className="h-4 w-4" />
                         </Button>
                       )}
                       <Button
                         variant="ghost"
                         size="icon"
-                        className="h-7 w-7 text-destructive hover:text-destructive"
                         onClick={(e) => {
                           e.stopPropagation()
-                          handleDelete(notification.id)
+                          handleDismiss(notification.id)
                         }}
+                        className="h-8 w-8 text-destructive hover:text-destructive hover:bg-destructive/10"
+                        title="Excluir"
                       >
-                        <Trash2 className="h-3.5 w-3.5" />
+                        <Trash2 className="h-4 w-4" />
                       </Button>
                     </div>
                   </div>

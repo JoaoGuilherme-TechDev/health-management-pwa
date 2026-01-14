@@ -3,18 +3,18 @@ self.addEventListener("push", (event) => {
   if (!(self.Notification && self.Notification.permission === "granted")) {
     return
   }
-
   const data = event.data?.json() ?? {}
   const title = data.title || "HealthCare+"
   const message = data.message || "Nova notificação"
-
-  const options = {
-    body: message,
-    icon: data.icon || "/icon-light-32x32.png",
-    badge: "/badge-72x72.png",
+  
+  const options = { 
+    body: message, 
     tag: data.tag || "notification",
-    data: data.data || {},
-    actions: data.actions || [],
+    icon: "/icon.svg",
+    badge: "/icon.svg",
+    vibrate: data.vibrate || [200, 100, 200],
+    data: data,
+    actions: data.actions || []
   }
 
   event.waitUntil(self.registration.showNotification(title, options))
@@ -23,20 +23,45 @@ self.addEventListener("push", (event) => {
 self.addEventListener("notificationclick", (event) => {
   event.notification.close()
 
-  const urlToOpen = new URL("/", self.location.origin).href
+  const { action, notification } = event
+  const data = notification.data || {}
 
-  event.waitUntil(
-    clients.matchAll({ type: "window", includeUncontrolled: true }).then((windowClients) => {
-      for (const client of windowClients) {
-        if (client.url === urlToOpen && "focus" in client) {
-          return client.focus()
+  if (action === "snooze") {
+    event.waitUntil(
+      fetch('/api/notifications/snooze', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ 
+          id: data.related_id, 
+          type: data.type,
+          minutes: 15,
+          userId: data.user_id 
+        })
+      })
+    )
+  } else if (action === "dismiss") {
+    event.waitUntil(
+      fetch('/api/notifications/dismiss', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ id: data.id })
+      })
+    )
+  } else {
+    // Default click: open app
+    event.waitUntil(
+      self.clients.matchAll({ type: "window" }).then((clientList) => {
+        for (const client of clientList) {
+          if (client.url.includes(self.location.origin) && "focus" in client) {
+            return client.focus()
+          }
         }
-      }
-      if (clients.openWindow) {
-        return clients.openWindow(urlToOpen)
-      }
-    }),
-  )
+        if (self.clients.openWindow) {
+          return self.clients.openWindow(data.url || "/")
+        }
+      })
+    )
+  }
 })
 
 self.addEventListener("pushsubscriptionchange", (event) => {
