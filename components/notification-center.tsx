@@ -123,6 +123,10 @@ export function NotificationCenter() {
         body: notification.message,
         tag: notification.type,
       })
+      if (notification.type === "medication") {
+        pushService.playNotificationSound()
+        pushService.vibrateDevice()
+      }
     } else if ("Notification" in window && Notification.permission !== "denied") {
       // Ask for permission if not already denied
       Notification.requestPermission().then((permission) => {
@@ -131,6 +135,10 @@ export function NotificationCenter() {
             body: notification.message,
             tag: notification.type,
           })
+          if (notification.type === "medication") {
+            pushService.playNotificationSound()
+            pushService.vibrateDevice()
+          }
         }
       })
     }

@@ -13,6 +13,7 @@ self.addEventListener("push", (event) => {
     icon: "/icon.svg",
     badge: "/icon.svg",
     vibrate: data.vibrate || [200, 100, 200],
+    requireInteraction: data.requireInteraction ?? false,
     data: data,
     actions: data.actions || []
   }

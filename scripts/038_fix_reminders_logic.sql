@@ -58,6 +58,17 @@ BEGIN
           WHERE n.related_id = inserted_reminder.id
             AND n.notification_type = 'medication_reminder'
         );
+
+        INSERT INTO notification_event_logs (user_id, event_type, payload)
+        VALUES (
+          reminder_record.user_id,
+          'medication_reminder_created',
+          jsonb_build_object(
+            'medication_id', reminder_record.medication_id,
+            'reminder_time', reminder_record.scheduled_time,
+            'triggered_at_utc', now_ts
+          )
+        );
       END LOOP;
     END;
     $func$ LANGUAGE plpgsql SECURITY DEFINER;
