@@ -55,7 +55,7 @@ export default function PatientEvolutionPage() {
         <p className="text-muted-foreground mt-2">Acompanhe suas medições de bioimpedância</p>
       </div>
 
-      {evolution.length === 0 ? (
+          {evolution.length === 0 ? (
         <Card>
           <CardContent className="pt-12 pb-12 text-center">
             <Scale className="h-12 w-12 mx-auto text-muted-foreground mb-4 opacity-50" />
@@ -63,7 +63,7 @@ export default function PatientEvolutionPage() {
             <p className="text-muted-foreground">Seu médico ainda não registrou medições de bioimpedância</p>
           </CardContent>
         </Card>
-      ) : (
+          ) : (
         <div className="space-y-4">
           {evolution.map((record) => (
             <Card key={record.id}>

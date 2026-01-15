@@ -4,6 +4,7 @@ import type React from "react"
 
 import { useEffect, useState } from "react"
 import { Analytics } from "@vercel/analytics/next"
+import { PWAInstallPrompt } from "@/components/pwa-install-prompt"
 
 export default function ClientLayout({
   children,
@@ -17,7 +18,7 @@ export default function ClientLayout({
 
     if ("serviceWorker" in navigator) {
       navigator.serviceWorker
-        .register("/sw.js", {
+        .register("/service-worker.js", {
           scope: "/",
         })
         .then((registration) => {
@@ -36,6 +37,7 @@ export default function ClientLayout({
   return (
     <body className="font-sans antialiased">
       {children}
+      <PWAInstallPrompt />
       <Analytics />
     </body>
   )
