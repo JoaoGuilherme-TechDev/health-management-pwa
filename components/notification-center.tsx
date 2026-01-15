@@ -289,12 +289,12 @@ export function NotificationCenter() {
                     <div className="flex-1 w-full pl-2 min-w-0">
                       <div className="flex justify-between items-start gap-2">
                         <div className="flex items-start gap-1 min-w-0">
-                          <span className="shrink-0" aria-hidden="true">
+                          <span className="shrink-0 text-base" aria-hidden="true">
                             {getNotificationEmoji(notification)}
                           </span>
                           <h4
                             className={cn(
-                              "font-semibold text-sm line-clamp-2 break-words min-w-0",
+                              "font-semibold text-sm break-words min-w-0",
                               !notification.read ? "text-primary" : "text-foreground",
                             )}
                           >
@@ -306,7 +306,7 @@ export function NotificationCenter() {
                         </span>
                       </div>
                       
-                      <p className="text-xs text-muted-foreground line-clamp-3 mt-1 break-words">
+                      <p className="text-xs text-muted-foreground mt-1 break-words whitespace-normal">
                         {notification.message}
                       </p>
                     </div>
