@@ -23,6 +23,18 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ message: 'No user_id in record' }, { status: 200 });
     }
 
+    if (record.id) {
+      const { data: existing } = await supabase
+        .from('notifications')
+        .select('delivered_at')
+        .eq('id', record.id)
+        .single();
+
+      if (existing && existing.delivered_at) {
+        return NextResponse.json({ message: 'Notification already delivered' }, { status: 200 });
+      }
+    }
+
     // Fetch subscriptions
     const { data: subscriptions, error } = await supabase
       .from('push_subscriptions')
@@ -50,22 +62,25 @@ export async function POST(req: NextRequest) {
 
     webpush.setVapidDetails(vapidEmail, vapidPublicKey, vapidPrivateKey);
 
-    const isMedication = record.notification_type === 'medication_reminder';
+    const notificationType: string = record.notification_type || record.type || 'info';
+    const isMedication = notificationType === 'medication_reminder';
+
+    const actions =
+      isMedication
+        ? [
+            { action: 'dismiss', title: 'Marcar como Lido' },
+          ]
+        : [];
 
     const notificationPayload = JSON.stringify({
       title: record.title,
       message: record.message,
-      tag: record.notification_type,
+      tag: notificationType,
       url: '/', // Or specific URL based on type
-      vibrate: isMedication ? [200, 100, 200, 100, 200] : undefined,
-      requireInteraction: isMedication ? true : undefined,
+      vibrate: isMedication ? [200, 100, 200, 100, 200] : [200, 100, 200],
+      requireInteraction: isMedication,
       data: record,
-      actions: isMedication
-        ? [
-            { action: 'snooze', title: 'Soneca 15m' },
-            { action: 'dismiss', title: 'Marcar como Lido' },
-          ]
-        : [],
+      actions,
     });
 
     const results = await Promise.all(

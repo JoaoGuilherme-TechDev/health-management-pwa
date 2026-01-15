@@ -144,13 +144,10 @@ $func$ LANGUAGE plpgsql SECURITY DEFINER;
 CREATE OR REPLACE FUNCTION process_due_appointment_reminders()
 RETURNS void AS $$
 DECLARE
-  now_sp   timestamptz := (now() AT TIME ZONE 'America/Sao_Paulo');
-  -- Target time is exactly 24 hours from now
-  target_time timestamptz := now_sp + interval '24 hours';
-  -- Use a 2-minute window (±1 minute) to account for cron jitter, 
-  -- relying on the NOT EXISTS check to prevent duplicates.
-  window_start timestamptz := target_time - interval '1 minute';
-  window_end   timestamptz := target_time + interval '1 minute';
+  now_sp        timestamp := (now() AT TIME ZONE 'America/Sao_Paulo');
+  target_time   timestamp := now_sp + interval '24 hours';
+  window_start  timestamp := target_time - interval '2 minutes';
+  window_end    timestamp := target_time + interval '2 minutes';
 BEGIN
   -- Use a CTE to capture the appointments to process atomically
   WITH due_appointments AS (
