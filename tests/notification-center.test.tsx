@@ -44,17 +44,6 @@ vi.mock("@/components/ui/scroll-area", () => ({
   ScrollArea: ({ children, className }: any) => <div className={className} data-testid="scroll-area">{children}</div>,
 }))
 
-vi.mock("@/components/ui/slider", () => ({
-  Slider: ({ value, onValueChange }: any) => (
-    <input
-      type="range"
-      value={value?.[0] ?? 0}
-      onChange={(e) => onValueChange([parseFloat(e.target.value)])}
-      data-testid="volume-slider"
-    />
-  ),
-}))
-
 describe("NotificationCenter", () => {
   const mockNotifications = [
     {
@@ -122,20 +111,4 @@ describe("NotificationCenter", () => {
     expect(screen.queryByText(/snooze/i)).not.toBeInTheDocument()
   })
 
-  it("allows volume adjustment", async () => {
-    render(<NotificationCenter />)
-    
-    const bell = screen.getByRole("button")
-    fireEvent.click(bell)
-
-    await waitFor(() => {
-      expect(screen.getByTestId("volume-slider")).toBeInTheDocument()
-    })
-
-    const slider = screen.getByTestId("volume-slider")
-    fireEvent.change(slider, { target: { value: "0.5" } })
-    
-    // Check local storage or state update (indirectly)
-    expect(localStorage.getItem("notification_volume")).toBe("0.5")
-  })
 })

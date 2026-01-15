@@ -5,10 +5,9 @@ import { useRouter } from "next/navigation"
 import { useAuth } from "@/hooks/use-auth"
 import { notificationService, type Notification } from "@/lib/notification-service"
 import { pushService } from "@/lib/push-service"
-import { Bell, X, Check, Trash2, Volume2, VolumeX } from "lucide-react"
+import { Bell, X, Check, Trash2 } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { ScrollArea } from "@/components/ui/scroll-area"
-import { Slider } from "@/components/ui/slider"
 import { cn } from "@/lib/utils"
 
 export function NotificationCenter() {
@@ -17,20 +16,12 @@ export function NotificationCenter() {
   const [notifications, setNotifications] = useState<Notification[]>([])
   const [isOpen, setIsOpen] = useState(false)
   const [loading, setLoading] = useState(true)
-  const [volume, setVolume] = useState(1.0)
   const [viewport, setViewport] = useState<{ w: number; h: number; dpr: number }>({
     w: typeof window !== "undefined" ? window.innerWidth : 1024,
     h: typeof window !== "undefined" ? window.innerHeight : 768,
     dpr: typeof window !== "undefined" ? window.devicePixelRatio || 1 : 1,
   })
   const isMobile = viewport.w <= 480
-
-  useEffect(() => {
-    const savedVolume = localStorage.getItem("notification_volume")
-    if (savedVolume) {
-      setVolume(parseFloat(savedVolume))
-    }
-  }, [])
 
   useEffect(() => {
     if (!user?.id) return
@@ -127,32 +118,37 @@ export function NotificationCenter() {
     }
   }, [])
 
+  const getNotificationEmoji = (notification: Notification) => {
+    if (notification.type === "medication") return "💊"
+    if (notification.type === "appointment") return "📅"
+    if (notification.type === "prescription") return "📋"
+    if (notification.type === "diet") return "🥗"
+    if (notification.type === "supplement") return "💪"
+    if (notification.type === "evolution") return "📊"
+    return "🔔"
+  }
+
   const showBrowserNotification = useCallback((notification: Notification) => {
     if ("Notification" in window && Notification.permission === "granted") {
       pushService.sendNotification(notification.title, {
         body: notification.message,
         tag: notification.type,
       })
-      // Play sound for all notifications or just medication? User asked for "more prominent alarm sound for notifications"
-      // Let's play for all for now, or important ones. The code previously did it for medication.
-      // User said "all notification types" regarding snooze removal, and "more prominent alarm sound for notifications".
-      // I'll play it for all types but maybe different intensity? For now, standard sound.
-      pushService.playNotificationSound(volume)
+      pushService.playNotificationSound()
       pushService.vibrateDevice()
     } else if ("Notification" in window && Notification.permission !== "denied") {
-      // Ask for permission if not already denied
       Notification.requestPermission().then((permission) => {
         if (permission === "granted") {
           pushService.sendNotification(notification.title, {
             body: notification.message,
             tag: notification.type,
           })
-          pushService.playNotificationSound(volume)
+          pushService.playNotificationSound()
           pushService.vibrateDevice()
         }
       })
     }
-  }, [volume])
+  }, [])
 
   const handleMarkAsRead = async (id: string) => {
     try {
@@ -203,12 +199,6 @@ export function NotificationCenter() {
     }
   }
 
-  const handleVolumeChange = (vals: number[]) => {
-    const newVol = vals[0]
-    setVolume(newVol)
-    localStorage.setItem("notification_volume", newVol.toString())
-  }
-
   const unreadCount = notifications.filter((n) => !n.read).length
 
   if (!user) return null
@@ -237,7 +227,6 @@ export function NotificationCenter() {
             maxHeight: panelMaxHeight,
           }}
         >
-          {/* Header */}
           <div className="border-b border-border p-4 bg-gradient-to-r from-pink-50 to-purple-50 dark:from-pink-950/30 dark:to-purple-950/30">
             <div className="flex items-center justify-between mb-3">
               <h3 className="font-bold text-lg text-foreground flex items-center gap-2">
@@ -248,18 +237,6 @@ export function NotificationCenter() {
               </Button>
             </div>
             
-            {/* Volume Control */}
-            <div className="flex items-center gap-2 mb-3 px-1">
-              {volume === 0 ? <VolumeX className="h-4 w-4 text-muted-foreground" /> : <Volume2 className="h-4 w-4 text-primary" />}
-              <Slider
-                value={[volume]}
-                max={1}
-                step={0.1}
-                onValueChange={handleVolumeChange}
-                className="w-full"
-              />
-            </div>
-
             <div className="flex justify-end gap-2">
               <Button 
                 size="sm" 
@@ -280,7 +257,6 @@ export function NotificationCenter() {
             </div>
           </div>
 
-          {/* Notification List with ScrollArea */}
           <ScrollArea 
             className="w-full" 
             style={{ height: Math.min(400, panelMaxHeight - 130) }} // Adjust height calculation
@@ -312,18 +288,25 @@ export function NotificationCenter() {
                     
                     <div className="flex-1 w-full pl-2">
                       <div className="flex justify-between items-start gap-2">
-                        <h4 className={cn(
-                          "font-semibold text-sm line-clamp-1",
-                          !notification.read ? "text-primary" : "text-foreground"
-                        )}>
-                          {notification.title.replace(/[\p{Emoji}]/gu, "").trim()}
+                        <h4
+                          className={cn(
+                            "font-semibold text-sm line-clamp-1 flex items-center gap-1 break-words",
+                            !notification.read ? "text-primary" : "text-foreground",
+                          )}
+                        >
+                          <span className="shrink-0" aria-hidden="true">
+                            {getNotificationEmoji(notification)}
+                          </span>
+                          <span className="break-words">
+                            {notification.title.replace(/[\p{Emoji}\uFE0F]/gu, "").trim()}
+                          </span>
                         </h4>
                         <span className="text-[10px] text-muted-foreground whitespace-nowrap">
                           {new Date(notification.created_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
                         </span>
                       </div>
                       
-                      <p className="text-xs text-muted-foreground line-clamp-2 mt-1">
+                      <p className="text-xs text-muted-foreground line-clamp-2 mt-1 break-words">
                         {notification.message}
                       </p>
                     </div>
