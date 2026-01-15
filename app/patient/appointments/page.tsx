@@ -5,7 +5,7 @@ import { useEffect, useState } from "react"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
 import { Calendar, MapPin, Clock } from "lucide-react"
-import { formatBrasiliaDate } from "@/lib/timezone"
+import { formatBrasiliaDateAppointment } from "@/lib/timezone"
 
 interface Appointment {
   id: string
@@ -164,8 +164,8 @@ export default function AppointmentsPage() {
                 <div className="flex items-center gap-2 text-muted-foreground">
                   <Clock className="h-4 w-4" />
                   <span>
-                    Consulta Agendada para {formatBrasiliaDate(appointment.scheduled_at, "date")} às{" "}
-                    {formatBrasiliaDate(appointment.scheduled_at, "time")}
+                    Consulta Agendada para {formatBrasiliaDateAppointment(appointment.scheduled_at, "date")} às{" "}
+                    {formatBrasiliaDateAppointment(appointment.scheduled_at, "time")}
                   </span>
                 </div>
                 {appointment.location && (

@@ -65,6 +65,30 @@ CREATE TABLE IF NOT EXISTS public.notification_settings (
   UNIQUE(user_id, notification_type)
 );
 
+-- Ensure notification_type column exists (fix for existing tables)
+DO $$
+BEGIN
+  IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name = 'notification_settings' AND column_name = 'notification_type') THEN
+    ALTER TABLE public.notification_settings ADD COLUMN notification_type text DEFAULT 'general';
+  END IF;
+  
+  -- Ensure enabled column exists
+  IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name = 'notification_settings' AND column_name = 'enabled') THEN
+    ALTER TABLE public.notification_settings ADD COLUMN enabled boolean DEFAULT true;
+  END IF;
+  
+  -- Ensure other columns exist just in case
+  IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name = 'notification_settings' AND column_name = 'sound_enabled') THEN
+    ALTER TABLE public.notification_settings ADD COLUMN sound_enabled boolean DEFAULT true;
+  END IF;
+  IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name = 'notification_settings' AND column_name = 'vibration_enabled') THEN
+    ALTER TABLE public.notification_settings ADD COLUMN vibration_enabled boolean DEFAULT true;
+  END IF;
+  IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name = 'notification_settings' AND column_name = 'led_enabled') THEN
+    ALTER TABLE public.notification_settings ADD COLUMN led_enabled boolean DEFAULT true;
+  END IF;
+END $$;
+
 -- RLS for notification_settings
 ALTER TABLE notification_settings ENABLE ROW LEVEL SECURITY;
 
@@ -144,12 +168,9 @@ $func$ LANGUAGE plpgsql SECURITY DEFINER;
 CREATE OR REPLACE FUNCTION process_due_appointment_reminders()
 RETURNS void AS $$
 DECLARE
-  now_sp        timestamp := (now() AT TIME ZONE 'America/Sao_Paulo');
-  target_time   timestamp := now_sp + interval '24 hours';
-  window_start  timestamp := target_time - interval '2 minutes';
-  window_end    timestamp := target_time + interval '2 minutes';
+  now_sp      timestamp := (now() AT TIME ZONE 'America/Sao_Paulo');
+  target_time timestamp := now_sp + interval '24 hours';
 BEGIN
-  -- Use a CTE to capture the appointments to process atomically
   WITH due_appointments AS (
     SELECT
       a.id,
@@ -158,10 +179,7 @@ BEGIN
       a.location
     FROM appointments a
     WHERE a.status = 'scheduled'
-      -- Compare formatted time or range to ensure we catch it
-      AND (a.scheduled_at AT TIME ZONE 'America/Sao_Paulo') >= window_start
-      AND (a.scheduled_at AT TIME ZONE 'America/Sao_Paulo') <= window_end
-      -- Idempotency check: Ensure notification doesn't already exist for this appointment
+      AND date_trunc('minute', a.scheduled_at AT TIME ZONE 'America/Sao_Paulo') = date_trunc('minute', target_time)
       AND NOT EXISTS (
         SELECT 1
         FROM notifications n
