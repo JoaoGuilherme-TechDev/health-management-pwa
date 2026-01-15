@@ -193,7 +193,7 @@ export default function PatientDashboard() {
       subscriptions.push(dietsChannel)
 
       const prescriptionsChannel = supabase
-        .channel(`dashboard-recipes-${user.id}`)
+        .channel(`dashboard-prescriptions-${user.id}`)
         .on(
           "postgres_changes",
           {

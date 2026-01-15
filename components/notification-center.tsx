@@ -5,8 +5,10 @@ import { useRouter } from "next/navigation"
 import { useAuth } from "@/hooks/use-auth"
 import { notificationService, type Notification } from "@/lib/notification-service"
 import { pushService } from "@/lib/push-service"
-import { Bell, X, Check, Trash2 } from "lucide-react"
+import { Bell, X, Check, Trash2, Volume2, VolumeX } from "lucide-react"
 import { Button } from "@/components/ui/button"
+import { ScrollArea } from "@/components/ui/scroll-area"
+import { Slider } from "@/components/ui/slider"
 import { cn } from "@/lib/utils"
 
 export function NotificationCenter() {
@@ -15,12 +17,20 @@ export function NotificationCenter() {
   const [notifications, setNotifications] = useState<Notification[]>([])
   const [isOpen, setIsOpen] = useState(false)
   const [loading, setLoading] = useState(true)
+  const [volume, setVolume] = useState(1.0)
   const [viewport, setViewport] = useState<{ w: number; h: number; dpr: number }>({
     w: typeof window !== "undefined" ? window.innerWidth : 1024,
     h: typeof window !== "undefined" ? window.innerHeight : 768,
     dpr: typeof window !== "undefined" ? window.devicePixelRatio || 1 : 1,
   })
   const isMobile = viewport.w <= 480
+
+  useEffect(() => {
+    const savedVolume = localStorage.getItem("notification_volume")
+    if (savedVolume) {
+      setVolume(parseFloat(savedVolume))
+    }
+  }, [])
 
   useEffect(() => {
     if (!user?.id) return
@@ -90,7 +100,7 @@ export function NotificationCenter() {
     return () => {
       notificationService.unsubscribe()
     }
-  }, [user?.id])
+  }, [user?.id]) // Removed showBrowserNotification from deps to avoid loop, though it is stable via useCallback if deps are correct.
 
   useEffect(() => {
     if (!user?.id) return
@@ -123,10 +133,12 @@ export function NotificationCenter() {
         body: notification.message,
         tag: notification.type,
       })
-      if (notification.type === "medication") {
-        pushService.playNotificationSound()
-        pushService.vibrateDevice()
-      }
+      // Play sound for all notifications or just medication? User asked for "more prominent alarm sound for notifications"
+      // Let's play for all for now, or important ones. The code previously did it for medication.
+      // User said "all notification types" regarding snooze removal, and "more prominent alarm sound for notifications".
+      // I'll play it for all types but maybe different intensity? For now, standard sound.
+      pushService.playNotificationSound(volume)
+      pushService.vibrateDevice()
     } else if ("Notification" in window && Notification.permission !== "denied") {
       // Ask for permission if not already denied
       Notification.requestPermission().then((permission) => {
@@ -135,14 +147,12 @@ export function NotificationCenter() {
             body: notification.message,
             tag: notification.type,
           })
-          if (notification.type === "medication") {
-            pushService.playNotificationSound()
-            pushService.vibrateDevice()
-          }
+          pushService.playNotificationSound(volume)
+          pushService.vibrateDevice()
         }
       })
     }
-  }, [])
+  }, [volume])
 
   const handleMarkAsRead = async (id: string) => {
     try {
@@ -180,18 +190,6 @@ export function NotificationCenter() {
     }
   }
 
-  const handleSnooze = async (notification: Notification, minutes = 15) => {
-    try {
-      if (notification.type === "medication" && notification.related_id) {
-        await notificationService.snoozeMedication(user.id, notification.related_id, minutes)
-      }
-      // Optimistically remove from list or mark as snoozed
-      setNotifications((prev) => prev.filter((n) => n.id !== notification.id))
-    } catch (error) {
-      console.error("[v0] Failed to snooze notification:", error)
-    }
-  }
-
   const handleDismiss = async (id: string) => {
     // Dismiss effectively deletes or marks as read/handled
     handleDelete(id)
@@ -205,6 +203,12 @@ export function NotificationCenter() {
     }
   }
 
+  const handleVolumeChange = (vals: number[]) => {
+    const newVol = vals[0]
+    setVolume(newVol)
+    localStorage.setItem("notification_volume", newVol.toString())
+  }
+
   const unreadCount = notifications.filter((n) => !n.read).length
 
   if (!user) return null
@@ -213,15 +217,15 @@ export function NotificationCenter() {
   const panelMaxHeight = Math.min(640, Math.floor(viewport.h * (isMobile ? 0.7 : 0.6)))
   const panelClasses = cn(
     isMobile ? "fixed right-2 top-full" : "absolute right-0 top-full mt-2",
-    "bg-background border border-border rounded-lg shadow-lg overflow-hidden z-50",
+    "bg-background border border-border rounded-xl shadow-xl overflow-hidden z-50",
   )
 
   return (
     <div className="relative">
-      <Button variant="ghost" size="icon" onClick={() => setIsOpen(!isOpen)} className="relative">
-        <Bell className="h-5 w-5" />
+      <Button variant="ghost" size="icon" onClick={() => setIsOpen(!isOpen)} className="relative rounded-full hover:bg-muted/50 transition-colors">
+        <Bell className={cn("h-5 w-5", unreadCount > 0 && "text-primary animate-tada")} />
         {unreadCount > 0 && (
-          <span className="absolute top-1 right-1 h-3 w-3 bg-yellow-400 rounded-full animate-pulse shadow-md shadow-yellow-400" />
+          <span className="absolute top-1 right-1 h-3 w-3 bg-red-500 rounded-full border-2 border-background animate-pulse" />
         )}
       </Button>
 
@@ -233,28 +237,64 @@ export function NotificationCenter() {
             maxHeight: panelMaxHeight,
           }}
         >
-          <div className="border-b border-border p-4 block bg-gradient-to-r from-blue-50 to-indigo-50 dark:from-blue-950 dark:to-indigo-950">
-            <div className="flex items-center gap-2 justify-between mb-3">
-              <h3 className="font-semibold text-foreground">✨ Notificações</h3>
-              <Button variant="ghost" size="icon" onClick={() => setIsOpen(false)}>
+          {/* Header */}
+          <div className="border-b border-border p-4 bg-gradient-to-r from-pink-50 to-purple-50 dark:from-pink-950/30 dark:to-purple-950/30">
+            <div className="flex items-center justify-between mb-3">
+              <h3 className="font-bold text-lg text-foreground flex items-center gap-2">
+                ✨ Notificações
+              </h3>
+              <Button variant="ghost" size="icon" onClick={() => setIsOpen(false)} className="h-8 w-8 rounded-full">
                 <X className="h-4 w-4" />
               </Button>
             </div>
+            
+            {/* Volume Control */}
+            <div className="flex items-center gap-2 mb-3 px-1">
+              {volume === 0 ? <VolumeX className="h-4 w-4 text-muted-foreground" /> : <Volume2 className="h-4 w-4 text-primary" />}
+              <Slider
+                value={[volume]}
+                max={1}
+                step={0.1}
+                onValueChange={handleVolumeChange}
+                className="w-full"
+              />
+            </div>
+
             <div className="flex justify-end gap-2">
-              <Button className="w-auto" onClick={handleMarkAllAsRead} variant={"outline"}>
-                Marcar como Lidas
+              <Button 
+                size="sm" 
+                onClick={handleMarkAllAsRead} 
+                variant="outline"
+                className="text-xs h-7 rounded-full"
+              >
+                Lidas
               </Button>
-              <Button className="w-auto" onClick={() => handleDeleteAllNotifications(user.id)} variant={"destructive"}>
-                Deletar Todas
+              <Button 
+                size="sm" 
+                onClick={() => handleDeleteAllNotifications(user.id)} 
+                variant="destructive"
+                className="text-xs h-7 rounded-full"
+              >
+                Limpar
               </Button>
             </div>
           </div>
 
-          <div className="overflow-y-auto" style={{ maxHeight: panelMaxHeight - 56 }}>
+          {/* Notification List with ScrollArea */}
+          <ScrollArea 
+            className="w-full" 
+            style={{ height: Math.min(400, panelMaxHeight - 130) }} // Adjust height calculation
+          >
             {loading ? (
-              <div className="p-4 text-center text-muted-foreground">Carregando notificações...</div>
+              <div className="p-8 text-center text-muted-foreground flex flex-col items-center gap-2">
+                <div className="animate-spin rounded-full h-6 w-6 border-b-2 border-primary" />
+                <p className="text-sm">Carregando...</p>
+              </div>
             ) : notifications.length === 0 ? (
-              <div className="p-4 text-center text-muted-foreground">Nenhuma notificação</div>
+              <div className="p-8 text-center text-muted-foreground flex flex-col items-center gap-2">
+                <Bell className="h-8 w-8 opacity-20" />
+                <p className="text-sm">Nenhuma notificação por enquanto!</p>
+              </div>
             ) : (
               <div className="divide-y divide-border">
                 {notifications.map((notification) => (
@@ -262,38 +302,33 @@ export function NotificationCenter() {
                     key={notification.id}
                     onClick={() => handleNotificationClick(notification)}
                     className={cn(
-                      "p-3 hover:bg-gradient-to-r hover:from-blue-100 hover:to-indigo-100 dark:hover:from-blue-900/30 dark:hover:to-indigo-900/30 transition-all flex flex-col gap-2 cursor-pointer group",
-                      !notification.read && "bg-blue-50 dark:bg-blue-950/20",
-                      notification.action_url && "cursor-pointer",
+                      "p-4 transition-all flex flex-col gap-2 cursor-pointer group relative overflow-hidden",
+                      !notification.read ? "bg-primary/5 hover:bg-primary/10" : "hover:bg-muted/50",
                     )}
                   >
-                    <div className="flex-1 w-full">
-                      <h4 className="font-semibold text-foreground text-sm line-clamp-1 text-left">
-                        {notification.title.replace(/[\p{Emoji}]/gu, "").trim()}
-                      </h4>
-                      <p className="text-xs text-muted-foreground line-clamp-3 mt-0.5 text-left">
+                    {!notification.read && (
+                      <div className="absolute left-0 top-0 bottom-0 w-1 bg-primary" />
+                    )}
+                    
+                    <div className="flex-1 w-full pl-2">
+                      <div className="flex justify-between items-start gap-2">
+                        <h4 className={cn(
+                          "font-semibold text-sm line-clamp-1",
+                          !notification.read ? "text-primary" : "text-foreground"
+                        )}>
+                          {notification.title.replace(/[\p{Emoji}]/gu, "").trim()}
+                        </h4>
+                        <span className="text-[10px] text-muted-foreground whitespace-nowrap">
+                          {new Date(notification.created_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                        </span>
+                      </div>
+                      
+                      <p className="text-xs text-muted-foreground line-clamp-2 mt-1">
                         {notification.message}
-                      </p>
-                      <p className="text-xs text-muted-foreground mt-1 text-left">
-                        {new Date(notification.created_at).toLocaleDateString("pt-BR")}
                       </p>
                     </div>
 
-                    <div className="flex gap-1 justify-end items-center mt-2">
-                      {notification.type === "medication" && (
-                        <Button
-                          variant="outline"
-                          size="sm"
-                          onClick={(e) => {
-                            e.stopPropagation()
-                            handleSnooze(notification)
-                          }}
-                          className="h-7 text-xs px-2 mr-auto"
-                        >
-                          💤 Soneca 15m
-                        </Button>
-                      )}
-                      
+                    <div className="flex gap-1 justify-end items-center mt-1 opacity-0 group-hover:opacity-100 transition-opacity">
                       {!notification.read && (
                         <Button
                           variant="ghost"
@@ -302,10 +337,10 @@ export function NotificationCenter() {
                             e.stopPropagation()
                             handleMarkAsRead(notification.id)
                           }}
-                          className="h-8 w-8 text-primary hover:text-primary hover:bg-primary/10"
+                          className="h-6 w-6 text-primary hover:text-primary hover:bg-primary/10 rounded-full"
                           title="Marcar como lida"
                         >
-                          <Check className="h-4 w-4" />
+                          <Check className="h-3 w-3" />
                         </Button>
                       )}
                       <Button
@@ -315,17 +350,17 @@ export function NotificationCenter() {
                           e.stopPropagation()
                           handleDismiss(notification.id)
                         }}
-                        className="h-8 w-8 text-destructive hover:text-destructive hover:bg-destructive/10"
+                        className="h-6 w-6 text-muted-foreground hover:text-destructive hover:bg-destructive/10 rounded-full"
                         title="Excluir"
                       >
-                        <Trash2 className="h-4 w-4" />
+                        <Trash2 className="h-3 w-3" />
                       </Button>
                     </div>
                   </div>
                 ))}
               </div>
             )}
-          </div>
+          </ScrollArea>
         </div>
       )}
     </div>

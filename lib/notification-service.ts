@@ -165,16 +165,6 @@ class NotificationService {
     if (error) throw error
   }
 
-  async snoozeMedication(userId: string, medicationId: string, minutes = 15) {
-    const until = new Date(Date.now() + minutes * 60 * 1000).toISOString()
-    const { error } = await this.supabase
-      .from("medication_reminders")
-      .update({ snoozed_until: until })
-      .eq("user_id", userId)
-      .eq("medication_id", medicationId)
-    if (error) throw error
-  }
-
   async confirmMedicationTaken(userId: string, medicationId: string) {
     const { error } = await this.supabase.from("medication_adherence").insert([
       {

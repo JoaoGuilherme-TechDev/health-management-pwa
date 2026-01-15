@@ -27,20 +27,7 @@ self.addEventListener("notificationclick", (event) => {
   const { action, notification } = event
   const data = notification.data || {}
 
-  if (action === "snooze") {
-    event.waitUntil(
-      fetch('/api/notifications/snooze', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ 
-          id: data.related_id, 
-          type: data.type,
-          minutes: 15,
-          userId: data.user_id 
-        })
-      })
-    )
-  } else if (action === "dismiss") {
+  if (action === "dismiss") {
     event.waitUntil(
       fetch('/api/notifications/dismiss', {
         method: 'POST',

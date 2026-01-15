@@ -72,9 +72,10 @@ class PushService {
     }
   }
 
-  async playNotificationSound() {
+  async playNotificationSound(volume = 1.0) {
     try {
       const audio = new Audio("/notification-sound.mp3")
+      audio.volume = Math.max(0, Math.min(1, volume))
       await audio.play()
     } catch (error) {
       console.log("[v0] Could not play notification sound:", error)
