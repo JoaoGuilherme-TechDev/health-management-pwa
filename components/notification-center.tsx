@@ -286,27 +286,27 @@ export function NotificationCenter() {
                       <div className="absolute left-0 top-0 bottom-0 w-1 bg-primary" />
                     )}
                     
-                    <div className="flex-1 w-full pl-2">
+                    <div className="flex-1 w-full pl-2 min-w-0">
                       <div className="flex justify-between items-start gap-2">
-                        <h4
-                          className={cn(
-                            "font-semibold text-sm line-clamp-1 flex items-center gap-1 break-words",
-                            !notification.read ? "text-primary" : "text-foreground",
-                          )}
-                        >
+                        <div className="flex items-start gap-1 min-w-0">
                           <span className="shrink-0" aria-hidden="true">
                             {getNotificationEmoji(notification)}
                           </span>
-                          <span className="break-words">
+                          <h4
+                            className={cn(
+                              "font-semibold text-sm line-clamp-2 break-words min-w-0",
+                              !notification.read ? "text-primary" : "text-foreground",
+                            )}
+                          >
                             {notification.title.replace(/[\p{Emoji}\uFE0F]/gu, "").trim()}
-                          </span>
-                        </h4>
-                        <span className="text-[10px] text-muted-foreground whitespace-nowrap">
+                          </h4>
+                        </div>
+                        <span className="text-[10px] text-muted-foreground whitespace-nowrap shrink-0">
                           {new Date(notification.created_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
                         </span>
                       </div>
                       
-                      <p className="text-xs text-muted-foreground line-clamp-2 mt-1 break-words">
+                      <p className="text-xs text-muted-foreground line-clamp-3 mt-1 break-words">
                         {notification.message}
                       </p>
                     </div>
