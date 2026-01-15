@@ -168,8 +168,8 @@ $func$ LANGUAGE plpgsql SECURITY DEFINER;
 CREATE OR REPLACE FUNCTION process_due_appointment_reminders()
 RETURNS void AS $$
 DECLARE
-  now_sp      timestamp := (now() AT TIME ZONE 'America/Sao_Paulo');
-  target_time timestamp := now_sp + interval '24 hours';
+  now_ts      timestamptz := now();
+  target_date date        := (now_ts + interval '24 hours')::date;
 BEGIN
   WITH due_appointments AS (
     SELECT
@@ -179,7 +179,7 @@ BEGIN
       a.location
     FROM appointments a
     WHERE a.status = 'scheduled'
-      AND date_trunc('minute', a.scheduled_at AT TIME ZONE 'America/Sao_Paulo') = date_trunc('minute', target_time)
+      AND a.scheduled_at::date = target_date
       AND NOT EXISTS (
         SELECT 1
         FROM notifications n
@@ -192,34 +192,49 @@ BEGIN
   SELECT
     da.patient_id,
     'Lembrete: Consulta Amanhã',
-    'Sua consulta é amanhã às ' || to_char(da.scheduled_at AT TIME ZONE 'America/Sao_Paulo', 'HH24:MI') || COALESCE(' em ' || da.location, ''),
+    'Sua consulta é amanhã às ' || to_char(da.scheduled_at, 'HH24:MI') || COALESCE(' em ' || da.location, ''),
     'appointment_reminder',
     da.id
   FROM due_appointments da;
 END;
 $$ LANGUAGE plpgsql SECURITY DEFINER;
 
--- 6. Function: Create Appointment Reminders 24h (Daily Batch - for all appointments tomorrow)
+-- 6. Function: Create Appointment Reminders 24h
+-- This is kept for compatibility but uses the same exact 24h logic as process_due_appointment_reminders
 CREATE OR REPLACE FUNCTION create_appointment_reminders_24h()
 RETURNS void AS $$
 DECLARE
-  now_utc timestamptz := now();
-  now_sp timestamptz := (now() AT TIME ZONE 'America/Sao_Paulo');
-  tomorrow_date date := (now_sp + interval '1 day')::date;
+  now_ts      timestamptz := now();
+  target_date date        := (now_ts + interval '24 hours')::date;
 BEGIN
+  WITH due_appointments AS (
+    SELECT
+      a.id,
+      a.patient_id,
+      a.scheduled_at,
+      a.location
+    FROM appointments a
+    LEFT JOIN notification_settings ns 
+      ON ns.user_id = a.patient_id
+      AND ns.notification_type = 'appointment_reminder'
+    WHERE a.status = 'scheduled'
+      AND a.scheduled_at::date = target_date
+      AND COALESCE(ns.enabled, true) = true
+      AND NOT EXISTS (
+        SELECT 1
+        FROM notifications n
+        WHERE n.user_id = a.patient_id
+          AND n.notification_type = 'appointment_reminder'
+          AND n.related_id = a.id
+      )
+  )
   INSERT INTO notifications (user_id, title, message, notification_type, related_id)
   SELECT
-    a.patient_id,
+    da.patient_id,
     'Lembrete: Consulta Amanhã',
-    'Consulta amanhã às ' || to_char(a.scheduled_at AT TIME ZONE 'America/Sao_Paulo', 'HH24:MI') || COALESCE(' • ' || a.location, ''),
+    'Consulta amanhã às ' || to_char(da.scheduled_at, 'HH24:MI') || COALESCE(' • ' || da.location, ''),
     'appointment_reminder',
-    a.id
-  FROM appointments a
-  LEFT JOIN notification_settings ns 
-    ON ns.user_id = a.patient_id
-    AND ns.notification_type = 'appointment_reminder'
-  WHERE a.status = 'scheduled'
-    AND (a.scheduled_at AT TIME ZONE 'America/Sao_Paulo')::date = tomorrow_date
-    AND COALESCE(ns.enabled, true) = true;
+    da.id
+  FROM due_appointments da;
 END;
 $$ LANGUAGE plpgsql SECURITY DEFINER;

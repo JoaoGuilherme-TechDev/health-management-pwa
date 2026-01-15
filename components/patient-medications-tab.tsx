@@ -7,7 +7,7 @@ import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Textarea } from "@/components/ui/textarea"
 import { createClient } from "@/lib/supabase/client"
-import { Plus, Pill, Trash2, Clock, X, AlertCircle } from "lucide-react"
+import { Plus, Pill, Trash2, Clock, X, AlertCircle, Edit2 } from "lucide-react"
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog"
 import { Badge } from "@/components/ui/badge"
 import { formatBrasiliaDate } from "@/lib/timezone"
@@ -18,6 +18,7 @@ export function PatientMedicationsTab({ patientId }: { patientId: string }) {
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
   const [showDialog, setShowDialog] = useState(false)
+  const [editingMedication, setEditingMedication] = useState<any | null>(null)
   const [doctorInfo, setDoctorInfo] = useState({ name: "", crm: "" })
   const [formData, setFormData] = useState({
     name: "",
@@ -165,7 +166,7 @@ export function PatientMedicationsTab({ patientId }: { patientId: string }) {
     try {
       const supabase = createClient()
 
-      const dataToInsert = {
+      const baseData = {
         user_id: patientId,
         doctor_crm: doctorInfo.crm,
         doctor_name: doctorInfo.name,
@@ -178,42 +179,76 @@ export function PatientMedicationsTab({ patientId }: { patientId: string }) {
         side_effects: formData.side_effects,
       }
 
-      console.log("Inserindo medicamento:", dataToInsert)
+      if (editingMedication) {
+        const { error: updateError } = await supabase
+          .from("medications")
+          .update(baseData)
+          .eq("id", editingMedication.id)
 
-      const { data: medication, error: medicationError } = await supabase
-        .from("medications")
-        .insert(dataToInsert)
-        .select()
-        .single()
-
-      if (medicationError) {
-        console.error("Erro ao adicionar medicamento:", medicationError)
-        alert(`Erro ao adicionar medicamento: ${medicationError.message}`)
-        return
-      }
-
-      console.log("Medicamento inserido com sucesso:", medication)
-
-      if (medication) {
-        const schedulesToInsert = schedules.map((time) => ({
-          medication_id: medication.id,
-          user_id: patientId,
-          scheduled_time: time,
-          days_of_week: [0, 1, 2, 3, 4, 5, 6],
-        }))
-
-        const { error: scheduleError } = await supabase
-          .from("medication_schedules")
-          .insert(schedulesToInsert)
-
-        if (scheduleError) {
-          console.error("Erro ao adicionar horários:", scheduleError)
-          alert("Medicamento adicionado, mas houve erro ao configurar os horários")
+        if (updateError) {
+          console.error("Erro ao atualizar medicamento:", updateError)
+          alert(`Erro ao atualizar medicamento: ${updateError.message}`)
+          return
         }
-      }
 
-      alert("Medicamento e horários adicionados com sucesso!")
+        const { error: deleteSchedulesError } = await supabase
+          .from("medication_schedules")
+          .delete()
+          .eq("medication_id", editingMedication.id)
+
+        if (deleteSchedulesError) {
+          console.error("Erro ao atualizar horários (delete):", deleteSchedulesError)
+          alert("Medicamento atualizado, mas houve erro ao atualizar os horários")
+        } else {
+          const schedulesToInsert = schedules.map((time) => ({
+            medication_id: editingMedication.id,
+            user_id: patientId,
+            scheduled_time: time,
+            days_of_week: [0, 1, 2, 3, 4, 5, 6],
+          }))
+
+          const { error: scheduleError } = await supabase.from("medication_schedules").insert(schedulesToInsert)
+
+          if (scheduleError) {
+            console.error("Erro ao atualizar horários:", scheduleError)
+            alert("Medicamento atualizado, mas houve erro ao salvar os horários")
+          }
+        }
+
+        alert("Medicamento atualizado com sucesso!")
+      } else {
+        const { data: medication, error: medicationError } = await supabase
+          .from("medications")
+          .insert(baseData)
+          .select()
+          .single()
+
+        if (medicationError) {
+          console.error("Erro ao adicionar medicamento:", medicationError)
+          alert(`Erro ao adicionar medicamento: ${medicationError.message}`)
+          return
+        }
+
+        if (medication) {
+          const schedulesToInsert = schedules.map((time) => ({
+            medication_id: medication.id,
+            user_id: patientId,
+            scheduled_time: time,
+            days_of_week: [0, 1, 2, 3, 4, 5, 6],
+          }))
+
+          const { error: scheduleError } = await supabase.from("medication_schedules").insert(schedulesToInsert)
+
+          if (scheduleError) {
+            console.error("Erro ao adicionar horários:", scheduleError)
+            alert("Medicamento adicionado, mas houve erro ao configurar os horários")
+          }
+        }
+
+        alert("Medicamento e horários adicionados com sucesso!")
+      }
       setShowDialog(false)
+      setEditingMedication(null)
       setFormData({
         name: "",
         dosage: "",
@@ -254,6 +289,25 @@ export function PatientMedicationsTab({ patientId }: { patientId: string }) {
     }
   }
 
+  const handleEdit = (med: any) => {
+    setFormData({
+      name: med.name || "",
+      dosage: med.dosage || "",
+      start_date: med.start_date || "",
+      end_date: med.end_date || "",
+      reason: med.reason || "",
+      side_effects: med.side_effects || "",
+    })
+    const activeSchedules =
+      med.medication_schedules
+        ?.filter((s: any) => s.is_active)
+        .map((s: any) => s.scheduled_time.substring(0, 5)) || []
+    setSchedules(activeSchedules.length > 0 ? activeSchedules : ["08:00"])
+    setNewScheduleTime("08:00")
+    setEditingMedication(med)
+    setShowDialog(true)
+  }
+
   if (loading) {
     return (
       <div className="flex items-center justify-center py-8">
@@ -278,7 +332,23 @@ export function PatientMedicationsTab({ patientId }: { patientId: string }) {
         <CardHeader>
           <div className="flex items-center justify-between">
             <CardTitle>Medicamentos Prescritos</CardTitle>
-            <Button onClick={() => setShowDialog(true)} className="gap-2">
+            <Button
+              onClick={() => {
+                setEditingMedication(null)
+                setFormData({
+                  name: "",
+                  dosage: "",
+                  start_date: "",
+                  end_date: "",
+                  reason: "",
+                  side_effects: "",
+                })
+                setSchedules(["08:00"])
+                setNewScheduleTime("08:00")
+                setShowDialog(true)
+              }}
+              className="gap-2"
+            >
               <Plus className="h-4 w-4" />
               Adicionar Medicamento
             </Button>
@@ -328,14 +398,19 @@ export function PatientMedicationsTab({ patientId }: { patientId: string }) {
                         {med.end_date && ` • Fim: ${formatBrasiliaDate(med.end_date, "date")}`}
                       </p>
                     </div>
-                    <Button
-                      variant="ghost"
-                      size="icon"
-                      onClick={() => handleDelete(med.id)}
-                      className="text-destructive"
-                    >
-                      <Trash2 className="h-4 w-4" />
-                    </Button>
+                    <div className="flex gap-2">
+                      <Button variant="outline" size="icon" onClick={() => handleEdit(med)}>
+                        <Edit2 className="h-4 w-4" />
+                      </Button>
+                      <Button
+                        variant="ghost"
+                        size="icon"
+                        onClick={() => handleDelete(med.id)}
+                        className="text-destructive"
+                      >
+                        <Trash2 className="h-4 w-4" />
+                      </Button>
+                    </div>
                   </div>
                 </div>
               ))}
@@ -347,7 +422,7 @@ export function PatientMedicationsTab({ patientId }: { patientId: string }) {
       <Dialog open={showDialog} onOpenChange={setShowDialog}>
         <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
           <DialogHeader>
-            <DialogTitle>Adicionar Medicamento</DialogTitle>
+            <DialogTitle>{editingMedication ? "Editar Medicamento" : "Adicionar Medicamento"}</DialogTitle>
           </DialogHeader>
           <div className="space-y-4">
             {doctorInfo.crm && (

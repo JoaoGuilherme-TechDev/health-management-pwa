@@ -18,7 +18,7 @@ import {
   DialogTrigger,
 } from "@/components/ui/dialog"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
-import { Plus, Trash2, Utensils, FileText, ExternalLink } from "lucide-react"
+import { Plus, Trash2, Utensils, FileText, ExternalLink, Edit2 } from "lucide-react"
 import { formatBrasiliaDate } from "@/lib/timezone"
 
 interface PatientDietTabProps {
@@ -31,6 +31,7 @@ export function PatientDietTab({ patientId }: PatientDietTabProps) {
   const [open, setOpen] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const [uploading, setUploading] = useState(false)
+  const [editingDiet, setEditingDiet] = useState<any | null>(null)
   const [formData, setFormData] = useState({
     title: "",
     description: "",
@@ -151,7 +152,7 @@ export function PatientDietTab({ patientId }: PatientDietTabProps) {
       return
     }
 
-    const dataToInsert = {
+    const baseData = {
       patient_id: patientId,
       user_id: user.id,
       doctor_id: user.id,
@@ -159,35 +160,56 @@ export function PatientDietTab({ patientId }: PatientDietTabProps) {
       description: formData.description || null,
       meal_type: formData.meal_type,
       image_url: formData.image_url,
-      created_at: new Date().toISOString(),
       updated_at: new Date().toISOString(),
     }
 
     try {
-      const { data, error } = await supabase.from("patient_diet_recipes").insert(dataToInsert).select()
+      if (editingDiet) {
+        const { error } = await supabase
+          .from("patient_diet_recipes")
+          .update(baseData)
+          .eq("id", editingDiet.id)
 
-      if (error) {
-        console.error("[v0] Erro detalhado:", error)
-        alert(`Erro ao adicionar plano de dieta: ${error.message}`)
-        return
-      }
-
-      if (data && data.length > 0) {
-        console.log("[v0] Plano de dieta adicionado com sucesso:", data[0])
-        setOpen(false)
-        setFormData({
-          title: "",
-          description: "",
-          meal_type: "lunch",
-          image_url: "",
-        })
-        loadDietRecipes()
+        if (error) {
+          console.error("[v0] Erro detalhado:", error)
+          alert(`Erro ao atualizar plano de dieta: ${error.message}`)
+          return
+        }
+        alert("Plano de dieta atualizado com sucesso!")
       } else {
-        alert("Erro: Nenhum dado retornado após inserção")
+        const dataToInsert = {
+          ...baseData,
+          created_at: new Date().toISOString(),
+        }
+
+        const { data, error } = await supabase.from("patient_diet_recipes").insert(dataToInsert).select()
+
+        if (error) {
+          console.error("[v0] Erro detalhado:", error)
+          alert(`Erro ao adicionar plano de dieta: ${error.message}`)
+          return
+        }
+
+        if (!data || data.length === 0) {
+          alert("Erro: Nenhum dado retornado após inserção")
+          return
+        }
+
+        alert("Plano de dieta adicionado com sucesso!")
       }
+
+      setOpen(false)
+      setEditingDiet(null)
+      setFormData({
+        title: "",
+        description: "",
+        meal_type: "lunch",
+        image_url: "",
+      })
+      loadDietRecipes()
     } catch (err) {
       console.error("[v0] Exceção:", err)
-      alert("Erro inesperado ao adicionar plano de dieta")
+      alert("Erro inesperado ao salvar plano de dieta")
     }
   }
 
@@ -207,6 +229,17 @@ export function PatientDietTab({ patientId }: PatientDietTabProps) {
 
     alert("Plano de dieta removido com sucesso!")
     loadDietRecipes()
+  }
+
+  const handleEdit = (diet: any) => {
+    setFormData({
+      title: diet.title || "",
+      description: diet.description || "",
+      meal_type: diet.meal_type || "lunch",
+      image_url: diet.image_url || "",
+    })
+    setEditingDiet(diet)
+    setOpen(true)
   }
 
   const getMealTypeLabel = (mealType: string) => {
@@ -236,7 +269,18 @@ export function PatientDietTab({ patientId }: PatientDietTabProps) {
             <CardTitle>Planos de Dieta Personalizados</CardTitle>
             <Dialog open={open} onOpenChange={setOpen}>
               <DialogTrigger asChild>
-                <Button className="gap-2">
+                <Button
+                  className="gap-2"
+                  onClick={() => {
+                    setEditingDiet(null)
+                    setFormData({
+                      title: "",
+                      description: "",
+                      meal_type: "lunch",
+                      image_url: "",
+                    })
+                  }}
+                >
                   <Plus className="h-4 w-4" />
                   Adicionar Plano
                 </Button>
@@ -356,14 +400,19 @@ export function PatientDietTab({ patientId }: PatientDietTabProps) {
                         <p className="text-sm text-muted-foreground mt-3 line-clamp-2">{diet.description}</p>
                       )}
                     </div>
-                    <Button
-                      variant="ghost"
-                      size="icon"
-                      onClick={() => handleDelete(diet.id)}
-                      className="text-destructive shrink-0"
-                    >
-                      <Trash2 className="h-4 w-4" />
-                    </Button>
+                    <div className="flex gap-2 shrink-0">
+                      <Button variant="outline" size="icon" onClick={() => handleEdit(diet)}>
+                        <Edit2 className="h-4 w-4" />
+                      </Button>
+                      <Button
+                        variant="ghost"
+                        size="icon"
+                        onClick={() => handleDelete(diet.id)}
+                        className="text-destructive"
+                      >
+                        <Trash2 className="h-4 w-4" />
+                      </Button>
+                    </div>
                   </div>
 
                   {diet.image_url && (

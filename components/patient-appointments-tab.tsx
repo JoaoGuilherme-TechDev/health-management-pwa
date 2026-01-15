@@ -7,7 +7,7 @@ import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Textarea } from "@/components/ui/textarea"
 import { createClient } from "@/lib/supabase/client"
-import { Plus, Calendar, Trash2 } from "lucide-react"
+import { Plus, Calendar, Trash2, Edit2 } from "lucide-react"
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog"
 import { formatBrasiliaDateAppointment } from "@/lib/timezone"
 
@@ -16,6 +16,7 @@ export function PatientAppointmentsTab({ patientId }: { patientId: string }) {
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
   const [showDialog, setShowDialog] = useState(false)
+  const [editingAppointment, setEditingAppointment] = useState<any | null>(null)
   const [doctorInfo, setDoctorInfo] = useState({ name: "", crm: "" })
   const [formData, setFormData] = useState({
     title: "",
@@ -120,30 +121,63 @@ export function PatientAppointmentsTab({ patientId }: { patientId: string }) {
       return
     }
 
-    const dataToInsert = {
-      patient_id: patientId,
-      user_id: patientId, // Critical: patient_id is the user_id of the patient
-      status: "scheduled",
-      doctor_name: doctorInfo.name,
-      doctor_crm: doctorInfo.crm,
-      ...formData,
+    const scheduledAtIso = new Date(formData.scheduled_at).toISOString()
+
+    if (editingAppointment) {
+      const { error } = await supabase
+        .from("appointments")
+        .update({
+          title: formData.title,
+          appointment_type: formData.appointment_type,
+          description: formData.description,
+          scheduled_at: scheduledAtIso,
+          location: formData.location,
+          notes: formData.notes,
+          doctor_name: doctorInfo.name,
+          doctor_crm: doctorInfo.crm,
+        })
+        .eq("id", editingAppointment.id)
+
+      if (error) {
+        alert(`Erro ao atualizar consulta: ${error.message}`)
+        console.error("[v0] Erro completo:", error)
+        return
+      }
+
+      alert("Consulta atualizada com sucesso!")
+    } else {
+      const dataToInsert = {
+        patient_id: patientId,
+        user_id: patientId,
+        status: "scheduled",
+        doctor_name: doctorInfo.name,
+        doctor_crm: doctorInfo.crm,
+        title: formData.title,
+        appointment_type: formData.appointment_type,
+        description: formData.description,
+        scheduled_at: scheduledAtIso,
+        location: formData.location,
+        notes: formData.notes,
+      }
+
+      const { data, error } = await supabase.from("appointments").insert(dataToInsert).select()
+
+      if (error) {
+        alert(`Erro ao agendar consulta: ${error.message}`)
+        console.error("[v0] Erro completo:", error)
+        return
+      }
+
+      if (!data || data.length === 0) {
+        alert("Erro: Nenhuma consulta foi agendada. Verifique as permissões.")
+        return
+      }
+
+      alert("Consulta agendada com sucesso!")
     }
 
-    const { data, error } = await supabase.from("appointments").insert(dataToInsert).select()
-
-    if (error) {
-      alert(`Erro ao agendar consulta: ${error.message}`)
-      console.error("[v0] Erro completo:", error)
-      return
-    }
-
-    if (!data || data.length === 0) {
-      alert("Erro: Nenhuma consulta foi agendada. Verifique as permissões.")
-      return
-    }
-
-    alert("Consulta agendada com sucesso!")
     setShowDialog(false)
+    setEditingAppointment(null)
     setFormData({
       title: "",
       appointment_type: "",
@@ -153,6 +187,19 @@ export function PatientAppointmentsTab({ patientId }: { patientId: string }) {
       notes: "",
     })
     loadAppointments()
+  }
+
+  const handleEdit = (apt: any) => {
+    setFormData({
+      title: apt.title || "",
+      appointment_type: apt.appointment_type || "",
+      description: apt.description || "",
+      scheduled_at: apt.scheduled_at ? apt.scheduled_at.slice(0, 16) : "",
+      location: apt.location || "",
+      notes: apt.notes || "",
+    })
+    setEditingAppointment(apt)
+    setShowDialog(true)
   }
 
   const handleDelete = async (id: string) => {
@@ -181,7 +228,21 @@ export function PatientAppointmentsTab({ patientId }: { patientId: string }) {
         <CardHeader>
           <div className="flex items-center justify-between">
             <CardTitle>Consultas Agendadas</CardTitle>
-            <Button onClick={() => setShowDialog(true)} className="gap-2">
+            <Button
+              onClick={() => {
+                setEditingAppointment(null)
+                setFormData({
+                  title: "",
+                  appointment_type: "",
+                  description: "",
+                  scheduled_at: "",
+                  location: "",
+                  notes: "",
+                })
+                setShowDialog(true)
+              }}
+              className="gap-2"
+            >
               <Plus className="h-4 w-4" />
               Agendar Consulta
             </Button>
@@ -231,14 +292,19 @@ export function PatientAppointmentsTab({ patientId }: { patientId: string }) {
                       </p>
                       {apt.location && <p className="text-sm text-muted-foreground">Local: {apt.location}</p>}
                     </div>
-                    <Button
-                      variant="ghost"
-                      size="icon"
-                      onClick={() => handleDelete(apt.id)}
-                      className="text-destructive"
-                    >
-                      <Trash2 className="h-4 w-4" />
-                    </Button>
+                    <div className="flex gap-2">
+                      <Button variant="outline" size="icon" onClick={() => handleEdit(apt)}>
+                        <Edit2 className="h-4 w-4" />
+                      </Button>
+                      <Button
+                        variant="ghost"
+                        size="icon"
+                        onClick={() => handleDelete(apt.id)}
+                        className="text-destructive"
+                      >
+                        <Trash2 className="h-4 w-4" />
+                      </Button>
+                    </div>
                   </div>
                 </div>
               ))}
@@ -250,7 +316,7 @@ export function PatientAppointmentsTab({ patientId }: { patientId: string }) {
       <Dialog open={showDialog} onOpenChange={setShowDialog}>
         <DialogContent className="max-w-2xl">
           <DialogHeader>
-            <DialogTitle>Agendar Consulta</DialogTitle>
+            <DialogTitle>{editingAppointment ? "Editar Consulta" : "Agendar Consulta"}</DialogTitle>
           </DialogHeader>
           <div className="space-y-4">
             {doctorInfo.crm && (

@@ -8,7 +8,7 @@ import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Textarea } from "@/components/ui/textarea"
 import { createClient } from "@/lib/supabase/client"
-import { Plus, FileText, Trash2, ExternalLink } from "lucide-react"
+import { Plus, FileText, Trash2, ExternalLink, Edit2 } from "lucide-react"
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog"
 import { formatBrasiliaDate } from "@/lib/timezone"
 
@@ -17,6 +17,7 @@ export function PatientPrescriptionsTab({ patientId }: { patientId: string }) {
   const [loading, setLoading] = useState(true)
   const [showDialog, setShowDialog] = useState(false)
   const [uploading, setUploading] = useState(false)
+  const [editingPrescription, setEditingPrescription] = useState<any | null>(null)
   const [formData, setFormData] = useState({
     title: "",
     description: "",
@@ -151,7 +152,7 @@ export function PatientPrescriptionsTab({ patientId }: { patientId: string }) {
       user.email ||
       "Médico"
 
-    const dataToInsert = {
+    const baseData = {
       patient_id: patientId,
       doctor_id: user.id,
       title: formData.title,
@@ -159,41 +160,57 @@ export function PatientPrescriptionsTab({ patientId }: { patientId: string }) {
       valid_until: formData.valid_until || null,
       notes: formData.notes || null,
       prescription_file_url: formData.prescription_file_url,
-      created_at: new Date().toISOString(),
       updated_at: new Date().toISOString(),
     }
 
-    console.log("[v0] Dados a inserir:", JSON.stringify(dataToInsert, null, 2))
-
     try {
-      const { data, error } = await supabase.from("medical_prescriptions").insert(dataToInsert).select()
+      if (editingPrescription) {
+        const { error } = await supabase
+          .from("medical_prescriptions")
+          .update(baseData)
+          .eq("id", editingPrescription.id)
 
-      console.log("[v0] Resposta completa:", { data, error })
-
-      if (error) {
-        console.error("[v0] Erro detalhado:", error)
-        alert(`Erro ao adicionar receita: ${error.message}`)
-        return
-      }
-
-      if (data && data.length > 0) {
-        console.log("[v0] Receita adicionada com sucesso:", data[0])
-
-        setShowDialog(false)
-        setFormData({
-          title: "",
-          description: "",
-          valid_until: "",
-          notes: "",
-          prescription_file_url: "",
-        })
-        loadPrescriptions()
+        if (error) {
+          console.error("[v0] Erro detalhado:", error)
+          alert(`Erro ao atualizar receita: ${error.message}`)
+          return
+        }
+        alert("Receita atualizada com sucesso!")
       } else {
-        alert("Erro: Nenhum dado retornado após inserção")
+        const dataToInsert = {
+          ...baseData,
+          created_at: new Date().toISOString(),
+        }
+
+        const { data, error } = await supabase.from("medical_prescriptions").insert(dataToInsert).select()
+
+        if (error) {
+          console.error("[v0] Erro detalhado:", error)
+          alert(`Erro ao adicionar receita: ${error.message}`)
+          return
+        }
+
+        if (!data || data.length === 0) {
+          alert("Erro: Nenhum dado retornado após inserção")
+          return
+        }
+
+        alert("Receita adicionada com sucesso!")
       }
+
+      setShowDialog(false)
+      setEditingPrescription(null)
+      setFormData({
+        title: "",
+        description: "",
+        valid_until: "",
+        notes: "",
+        prescription_file_url: "",
+      })
+      loadPrescriptions()
     } catch (err) {
       console.error("[v0] Exceção:", err)
-      alert("Erro inesperado ao adicionar receita")
+      alert("Erro inesperado ao salvar receita")
     }
   }
 
@@ -215,6 +232,18 @@ export function PatientPrescriptionsTab({ patientId }: { patientId: string }) {
     loadPrescriptions()
   }
 
+  const handleEdit = (pres: any) => {
+    setFormData({
+      title: pres.title || "",
+      description: pres.description || "",
+      valid_until: pres.valid_until ? pres.valid_until.substring(0, 10) : "",
+      notes: pres.notes || "",
+      prescription_file_url: pres.prescription_file_url || "",
+    })
+    setEditingPrescription(pres)
+    setShowDialog(true)
+  }
+
   if (loading) return <div>Carregando receitas...</div>
 
   return (
@@ -223,7 +252,20 @@ export function PatientPrescriptionsTab({ patientId }: { patientId: string }) {
         <CardHeader>
           <div className="flex items-center justify-between">
             <CardTitle>Receitas Médicas e Dietas</CardTitle>
-            <Button onClick={() => setShowDialog(true)} className="gap-2">
+            <Button
+              onClick={() => {
+                setEditingPrescription(null)
+                setFormData({
+                  title: "",
+                  description: "",
+                  valid_until: "",
+                  notes: "",
+                  prescription_file_url: "",
+                })
+                setShowDialog(true)
+              }}
+              className="gap-2"
+            >
               <Plus className="h-4 w-4" />
               Adicionar Receita
             </Button>
@@ -268,14 +310,19 @@ export function PatientPrescriptionsTab({ patientId }: { patientId: string }) {
                         Criado em: {formatBrasiliaDate(pres.created_at, "date")}
                       </p>
                     </div>
-                    <Button
-                      variant="ghost"
-                      size="icon"
-                      onClick={() => handleDelete(pres.id)}
-                      className="text-destructive"
-                    >
-                      <Trash2 className="h-4 w-4" />
-                    </Button>
+                    <div className="flex gap-2">
+                      <Button variant="outline" size="icon" onClick={() => handleEdit(pres)}>
+                        <Edit2 className="h-4 w-4" />
+                      </Button>
+                      <Button
+                        variant="ghost"
+                        size="icon"
+                        onClick={() => handleDelete(pres.id)}
+                        className="text-destructive"
+                      >
+                        <Trash2 className="h-4 w-4" />
+                      </Button>
+                    </div>
                   </div>
                 </div>
               ))}
@@ -287,7 +334,9 @@ export function PatientPrescriptionsTab({ patientId }: { patientId: string }) {
       <Dialog open={showDialog} onOpenChange={setShowDialog}>
         <DialogContent className="max-w-2xl">
           <DialogHeader>
-            <DialogTitle>Adicionar Receita Médica / Dieta</DialogTitle>
+            <DialogTitle>
+              {editingPrescription ? "Editar Receita Médica / Dieta" : "Adicionar Receita Médica / Dieta"}
+            </DialogTitle>
           </DialogHeader>
           <div className="space-y-4">
             <div>

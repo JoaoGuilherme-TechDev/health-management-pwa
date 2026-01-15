@@ -7,7 +7,7 @@ import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Textarea } from "@/components/ui/textarea"
 import { createClient } from "@/lib/supabase/client"
-import { Plus, TrendingUp, Trash2 } from "lucide-react"
+import { Plus, TrendingUp, Trash2, Edit2 } from "lucide-react"
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog"
 import { formatBrasiliaDate } from "@/lib/timezone"
 
@@ -16,6 +16,7 @@ export function PatientEvolutionTab({ patientId }: { patientId: string }) {
   const [evolution, setEvolution] = useState<any[]>([])
   const [loading, setLoading] = useState(true)
   const [showDialog, setShowDialog] = useState(false)
+  const [editingRecord, setEditingRecord] = useState<any | null>(null)
   const [formData, setFormData] = useState({
     weight: "",
     height: "",
@@ -69,7 +70,8 @@ export function PatientEvolutionTab({ patientId }: { patientId: string }) {
 
   const handleAdd = async () => {
     const supabase = createClient()
-    await supabase.from("physical_evolution").insert({
+
+    const payload = {
       user_id: patientId,
       weight: formData.weight ? Number.parseFloat(formData.weight) : null,
       height: formData.height ? Number.parseFloat(formData.height) : null,
@@ -81,9 +83,32 @@ export function PatientEvolutionTab({ patientId }: { patientId: string }) {
       body_water_percentage: formData.body_water_percentage ? Number.parseFloat(formData.body_water_percentage) : null,
       bone_mass: formData.bone_mass ? Number.parseFloat(formData.bone_mass) : null,
       notes: formData.notes,
-    })
+    }
+
+    if (editingRecord) {
+      const { error } = await supabase.from("physical_evolution").update(payload).eq("id", editingRecord.id)
+
+      if (error) {
+        console.error("[v0] Erro ao atualizar medição:", error)
+        alert("Erro ao atualizar medição")
+        return
+      }
+
+      alert("Medição atualizada com sucesso!")
+    } else {
+      const { error } = await supabase.from("physical_evolution").insert(payload)
+
+      if (error) {
+        console.error("[v0] Erro ao adicionar medição:", error)
+        alert("Erro ao adicionar medição")
+        return
+      }
+
+      alert("Medição registrada com sucesso!")
+    }
 
     setShowDialog(false)
+    setEditingRecord(null)
     setFormData({
       weight: "",
       height: "",
@@ -117,6 +142,23 @@ export function PatientEvolutionTab({ patientId }: { patientId: string }) {
     loadEvolution()
   }
 
+  const handleEdit = (record: any) => {
+    setFormData({
+      weight: record.weight?.toString() || "",
+      height: record.height?.toString() || "",
+      muscle_mass: record.muscle_mass?.toString() || "",
+      body_fat_percentage: record.body_fat_percentage?.toString() || "",
+      visceral_fat: record.visceral_fat?.toString() || "",
+      metabolic_age: record.metabolic_age?.toString() || "",
+      bmr: record.bmr?.toString() || "",
+      body_water_percentage: record.body_water_percentage?.toString() || "",
+      bone_mass: record.bone_mass?.toString() || "",
+      notes: record.notes || "",
+    })
+    setEditingRecord(record)
+    setShowDialog(true)
+  }
+
   if (loading) return <div>Carregando evolução física...</div>
 
   return (
@@ -148,14 +190,19 @@ export function PatientEvolutionTab({ patientId }: { patientId: string }) {
                     <div className="text-sm text-muted-foreground">
                       {formatBrasiliaDate(evo.measured_at, "date")}
                     </div>
-                    <Button
-                      variant="ghost"
-                      size="icon"
-                      onClick={() => handleDelete(evo.id)}
-                      className="text-destructive"
-                    >
-                      <Trash2 className="h-4 w-4" />
-                    </Button>
+                    <div className="flex gap-2">
+                      <Button variant="outline" size="icon" onClick={() => handleEdit(evo)}>
+                        <Edit2 className="h-4 w-4" />
+                      </Button>
+                      <Button
+                        variant="ghost"
+                        size="icon"
+                        onClick={() => handleDelete(evo.id)}
+                        className="text-destructive"
+                      >
+                        <Trash2 className="h-4 w-4" />
+                      </Button>
+                    </div>
                   </div>
 
                   <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
@@ -230,7 +277,9 @@ export function PatientEvolutionTab({ patientId }: { patientId: string }) {
       <Dialog open={showDialog} onOpenChange={setShowDialog}>
         <DialogContent className="max-w-3xl max-h-[90vh] overflow-y-auto">
           <DialogHeader>
-            <DialogTitle>Registrar Medição de Bioimpedância</DialogTitle>
+            <DialogTitle>
+              {editingRecord ? "Editar Medição de Bioimpedância" : "Registrar Medição de Bioimpedância"}
+            </DialogTitle>
           </DialogHeader>
           <div className="space-y-6">
             <div className="grid md:grid-cols-3 gap-4">
