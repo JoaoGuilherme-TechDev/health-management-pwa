@@ -6,15 +6,11 @@ export function getCurrentBrasiliaTime(): Date {
 }
 
 export function formatBrasiliaDateAppointment(dateString: string, format: "date" | "time" | "full" = "full"): string {
-  // 1. Removemos qualquer informação de fuso horário da string (Z ou +/-03:00)
-  // 2. Adicionamos 'Z' no final para forçar o JS a ler como UTC "puro"
-  // Isso evita que o sistema tente ajustar o horário para o fuso local do servidor/navegador.
-  const cleanDateString = dateString.replace(/Z$|[+-]\d{2}:?\d{2}$/, "");
-  const date = new Date(cleanDateString + "Z");
+  const date = new Date(dateString)
 
-  // Usamos timeZone: "UTC" para garantir que a formatação use os valores originais
+  // Brasilia timezone is UTC-3 (America/Sao_Paulo)
   const options: Intl.DateTimeFormatOptions = {
-    timeZone: "UTC",
+    timeZone: "America/Sao_Paulo",
   };
 
   if (format === "full") {
