@@ -189,6 +189,11 @@ export default function AppointmentsPage() {
                     <p className="text-sm text-muted-foreground">{appointment.notes}</p>
                   </div>
                 )}
+                {appointment.status === "no_show" && (
+                  <p className="mt-3 text-sm font-medium text-orange-700 dark:text-orange-300 bg-orange-50 dark:bg-orange-950/30 p-3 rounded-md border border-orange-200 dark:border-orange-800">
+                    Paciente não compareceu. Favor reagendar via WhatsApp.
+                  </p>
+                )}
               </CardContent>
             </Card>
           ))}
