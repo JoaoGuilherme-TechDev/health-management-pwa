@@ -247,7 +247,7 @@ export function NotificationCenter() {
             maxHeight: panelMaxHeight,
           }}
         >
-          <div className="border-b border-border p-4 bg-gradient-to-r from-pink-50 to-purple-50 dark:from-pink-950/30 dark:to-purple-950/30">
+          <div className="border-b border-border p-4 bg-gradient-to-r from-emerald-50 to-teal-50 dark:from-emerald-950/30 dark:to-teal-950/30">
             <div className="flex items-center justify-between mb-3">
               <h3 className="font-bold text-lg text-foreground flex items-center gap-2">
                 <Bell className="h-5 w-5 text-primary" />
@@ -299,7 +299,7 @@ export function NotificationCenter() {
                     key={notification.id}
                     onClick={() => handleNotificationClick(notification)}
                     className={cn(
-                      "p-2 sm:p-2.5 transition-all flex flex-col gap-1 cursor-pointer group relative overflow-hidden rounded-lg border shadow-sm bg-background/95 dark:bg-slate-950/80 backdrop-blur",
+                      "p-2 sm:p-2.5 transition-all flex flex-col gap-1 cursor-pointer group relative overflow-hidden rounded-lg border shadow-sm bg-background/95 dark:bg-slate-950/80 backdrop-blur text-left",
                       !notification.read
                         ? "border-primary/40 hover:border-primary/60 hover:shadow-md"
                         : "border-border/70 hover:bg-muted/60",
@@ -342,7 +342,7 @@ export function NotificationCenter() {
                         </span>
                       </div>
                       
-                      <p className="text-[13px] text-muted-foreground mt-0.5 break-words whitespace-normal leading-snug pr-10">
+                      <p className="text-[13px] text-muted-foreground mt-0.5 break-words whitespace-normal leading-snug pr-10 text-left">
                         {notification.message}
                       </p>
                     </div>
