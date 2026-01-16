@@ -104,6 +104,8 @@ export default function AppointmentsPage() {
         return "bg-green-500/10 text-green-500 border-green-500/20"
       case "cancelled":
         return "bg-red-500/10 text-red-500 border-red-500/20"
+      case "no_show":
+        return "bg-orange-500/10 text-orange-500 border-orange-500/20"
       default:
         return "bg-muted text-muted-foreground"
     }
@@ -117,6 +119,8 @@ export default function AppointmentsPage() {
         return "Concluída"
       case "cancelled":
         return "Cancelada"
+      case "no_show":
+        return "Não presente"
       default:
         return status
     }
