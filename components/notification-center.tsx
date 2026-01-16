@@ -250,7 +250,8 @@ export function NotificationCenter() {
           <div className="border-b border-border p-4 bg-gradient-to-r from-pink-50 to-purple-50 dark:from-pink-950/30 dark:to-purple-950/30">
             <div className="flex items-center justify-between mb-3">
               <h3 className="font-bold text-lg text-foreground flex items-center gap-2">
-                ✨ Notificações
+                <Bell className="h-5 w-5 text-primary" />
+                <span>Notificações</span>
               </h3>
               <Button variant="ghost" size="icon" onClick={() => setIsOpen(false)} className="h-8 w-8 rounded-full">
                 <X className="h-4 w-4" />
@@ -341,12 +342,12 @@ export function NotificationCenter() {
                         </span>
                       </div>
                       
-                      <p className="text-[13px] text-muted-foreground mt-0.5 break-words whitespace-normal leading-snug">
+                      <p className="text-[13px] text-muted-foreground mt-0.5 break-words whitespace-normal leading-snug pr-10">
                         {notification.message}
                       </p>
                     </div>
 
-                    <div className="flex gap-1 justify-end items-center mt-0.5 opacity-0 group-hover:opacity-100 transition-opacity">
+                    <div className="pointer-events-none absolute right-2 bottom-2 flex gap-1 items-center opacity-0 group-hover:opacity-100 transition-opacity">
                       {!notification.read && (
                         <Button
                           variant="ghost"
@@ -355,7 +356,7 @@ export function NotificationCenter() {
                             e.stopPropagation()
                             handleMarkAsRead(notification.id)
                           }}
-                          className="h-5 w-5 text-primary hover:text-primary hover:bg-primary/10 rounded-full"
+                          className="h-5 w-5 text-primary hover:text-primary hover:bg-primary/10 rounded-full pointer-events-auto"
                           title="Marcar como lida"
                         >
                           <Check className="h-3 w-3" />
@@ -368,7 +369,7 @@ export function NotificationCenter() {
                           e.stopPropagation()
                           handleDismiss(notification.id)
                         }}
-                        className="h-5 w-5 text-muted-foreground hover:text-destructive hover:bg-destructive/10 rounded-full"
+                          className="h-5 w-5 text-muted-foreground hover:text-destructive hover:bg-destructive/10 rounded-full pointer-events-auto"
                         title="Excluir"
                       >
                         <Trash2 className="h-3 w-3" />
