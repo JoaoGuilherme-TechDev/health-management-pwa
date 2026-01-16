@@ -40,7 +40,6 @@ export default function SupplementsPage() {
       <div className="flex items-center justify-between">
         <div>
           <h1 className="text-3xl font-bold text-foreground">Gerenciar Suplementos</h1>
-          <Dumbbell className="h-12 w-12 text-foreground inline-block mr-2" />
           <p className="text-muted-foreground mt-2">Adicione, edite ou exclua suplementos recomendados</p>
         </div>
         <Button
@@ -110,6 +109,7 @@ export default function SupplementsPage() {
       {supplements.length === 0 && !showForm && (
         <Card>
           <CardContent className="pt-12 text-center">
+            <Dumbbell className="h-12 w-12 text-foreground inline-block mr-2" />
             <p className="text-muted-foreground mb-4">Ainda não há suplementos. Crie o primeiro!</p>
             <Button onClick={() => setShowForm(true)}>
               <Plus className="h-4 w-4 mr-2" />
