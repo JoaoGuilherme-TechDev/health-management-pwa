@@ -72,13 +72,13 @@ export function useAuth() {
 
     const {
       data: { subscription },
-    } = supabase.auth.onAuthStateChange((_event, session) => {
+    } = supabase.auth.onAuthStateChange((event, session) => {
       if (!isMounted) return
 
       if (session?.user) {
         setUser(session.user)
         persistSession(session)
-      } else {
+      } else if (event === "SIGNED_OUT") {
         setUser(null)
         if (typeof window !== "undefined") {
           window.localStorage.removeItem("healthcare_session")

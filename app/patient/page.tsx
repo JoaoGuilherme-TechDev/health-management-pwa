@@ -83,7 +83,7 @@ export default function PatientDashboard() {
             .eq("status", "scheduled")
             .gte("scheduled_at", new Date().toISOString()),
           supabase.from("patient_diet_recipes").select("*", { count: "exact" }).eq("patient_id", user.id),
-          supabase.from("medical_prescriptions").select("*", { count: "exact" }).eq("patient_id", user.id).eq("is_active", true),
+          supabase.from("medical_prescriptions").select("*", { count: "exact" }).eq("patient_id", user.id),
           supabase.from("physical_evolution").select("*", { count: "exact" }).eq("user_id", user.id),
         ])
 

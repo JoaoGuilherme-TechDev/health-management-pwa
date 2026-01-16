@@ -243,7 +243,8 @@ export function PatientDietTab({ patientId }: PatientDietTabProps) {
   }
 
   const getMealTypeLabel = (mealType: string) => {
-    switch (mealType) {
+    if (!mealType) return "Não especificado"
+    switch (mealType.toLowerCase()) {
       case "breakfast":
         return "Café da Manhã"
       case "lunch":
