@@ -298,23 +298,23 @@ export function NotificationCenter() {
                     key={notification.id}
                     onClick={() => handleNotificationClick(notification)}
                     className={cn(
-                      "p-3.5 sm:p-4 transition-all flex flex-col gap-2 cursor-pointer group relative overflow-hidden rounded-xl border shadow-[0_10px_30px_rgba(15,23,42,0.18)] bg-background/95 dark:bg-slate-950/80 backdrop-blur",
+                      "p-3 sm:p-3.5 transition-all flex flex-col gap-1.5 cursor-pointer group relative overflow-hidden rounded-lg border shadow-sm bg-background/95 dark:bg-slate-950/80 backdrop-blur",
                       !notification.read
-                        ? "border-primary/40 ring-1 ring-primary/30 hover:ring-primary/60 hover:translate-y-0.5"
-                        : "border-border/70 hover:bg-muted/60 hover:translate-y-0.5",
+                        ? "border-primary/40 hover:border-primary/60 hover:shadow-md"
+                        : "border-border/70 hover:bg-muted/60",
                     )}
                   >
                     {!notification.read && (
-                      <div className="absolute left-0 top-0 bottom-0 w-1 bg-primary" />
+                      <div className="absolute left-0 top-0 bottom-0 w-0.5 bg-primary/80" />
                     )}
-                    
+
                     <div className="flex-1 w-full pl-2 min-w-0">
                       <div className="flex justify-between items-start gap-2">
                         <div className="flex items-start gap-2 min-w-0">
-                          <div className="shrink-0 flex h-7 w-7 items-center justify-center rounded-full bg-primary/10 text-base">
+                          <div className="shrink-0 flex h-6 w-6 items-center justify-center rounded-full bg-primary/10 text-sm">
                             <span aria-hidden="true">{getNotificationEmoji(notification)}</span>
                           </div>
-                          <div className="min-w-0 space-y-1">
+                          <div className="min-w-0 space-y-0.5">
                             <div className="flex items-center gap-2 min-w-0">
                               <h4
                                 className={cn(
