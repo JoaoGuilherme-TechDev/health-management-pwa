@@ -298,7 +298,7 @@ export function NotificationCenter() {
                     key={notification.id}
                     onClick={() => handleNotificationClick(notification)}
                     className={cn(
-                      "p-3 sm:p-3.5 transition-all flex flex-col gap-1.5 cursor-pointer group relative overflow-hidden rounded-lg border shadow-sm bg-background/95 dark:bg-slate-950/80 backdrop-blur",
+                      "p-2 sm:p-2.5 transition-all flex flex-col gap-1 cursor-pointer group relative overflow-hidden rounded-lg border shadow-sm bg-background/95 dark:bg-slate-950/80 backdrop-blur",
                       !notification.read
                         ? "border-primary/40 hover:border-primary/60 hover:shadow-md"
                         : "border-border/70 hover:bg-muted/60",
@@ -336,17 +336,17 @@ export function NotificationCenter() {
                             </div>
                           </div>
                         </div>
-                        <span className="text-[11px] text-muted-foreground whitespace-nowrap shrink-0">
+                        <span className="text-[10px] text-muted-foreground whitespace-nowrap shrink-0">
                           {new Date(notification.created_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
                         </span>
                       </div>
                       
-                      <p className="text-[13px] text-muted-foreground mt-1 break-words whitespace-normal">
+                      <p className="text-[13px] text-muted-foreground mt-0.5 break-words whitespace-normal leading-snug">
                         {notification.message}
                       </p>
                     </div>
 
-                    <div className="flex gap-1 justify-end items-center mt-1 opacity-0 group-hover:opacity-100 transition-opacity">
+                    <div className="flex gap-1 justify-end items-center mt-0.5 opacity-0 group-hover:opacity-100 transition-opacity">
                       {!notification.read && (
                         <Button
                           variant="ghost"
@@ -355,7 +355,7 @@ export function NotificationCenter() {
                             e.stopPropagation()
                             handleMarkAsRead(notification.id)
                           }}
-                          className="h-6 w-6 text-primary hover:text-primary hover:bg-primary/10 rounded-full"
+                          className="h-5 w-5 text-primary hover:text-primary hover:bg-primary/10 rounded-full"
                           title="Marcar como lida"
                         >
                           <Check className="h-3 w-3" />
@@ -368,7 +368,7 @@ export function NotificationCenter() {
                           e.stopPropagation()
                           handleDismiss(notification.id)
                         }}
-                        className="h-6 w-6 text-muted-foreground hover:text-destructive hover:bg-destructive/10 rounded-full"
+                        className="h-5 w-5 text-muted-foreground hover:text-destructive hover:bg-destructive/10 rounded-full"
                         title="Excluir"
                       >
                         <Trash2 className="h-3 w-3" />
