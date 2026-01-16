@@ -318,7 +318,7 @@ export function NotificationCenter() {
                             <div className="flex items-center gap-2 min-w-0">
                               <h4
                                 className={cn(
-                                  "font-semibold text-sm break-words min-w-0",
+                                  "font-semibold text-[13px] sm:text-sm break-words min-w-0",
                                   !notification.read ? "text-primary" : "text-foreground",
                                 )}
                               >
@@ -326,7 +326,7 @@ export function NotificationCenter() {
                               </h4>
                               <span
                                 className={cn(
-                                  "inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-[10px] font-medium",
+                                  "inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-[11px] font-medium",
                                   "bg-background/80 shadow-sm border border-border/60 dark:border-slate-800",
                                   getNotificationTypePillClass(notification),
                                 )}
@@ -336,12 +336,12 @@ export function NotificationCenter() {
                             </div>
                           </div>
                         </div>
-                        <span className="text-[10px] text-muted-foreground whitespace-nowrap shrink-0">
+                        <span className="text-[11px] text-muted-foreground whitespace-nowrap shrink-0">
                           {new Date(notification.created_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
                         </span>
                       </div>
                       
-                      <p className="text-xs text-muted-foreground mt-1 break-words whitespace-normal">
+                      <p className="text-[13px] text-muted-foreground mt-1 break-words whitespace-normal">
                         {notification.message}
                       </p>
                     </div>
