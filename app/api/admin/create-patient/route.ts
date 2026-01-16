@@ -20,23 +20,6 @@ export async function POST(request: Request) {
       return NextResponse.json({ error: "Invalid payload" }, { status: 400 })
     }
 
-    const { data: existingUser, error: getUserError } =
-      await supabaseAdmin.auth.admin.getUserById(email)
-
-    if (getUserError && getUserError.message !== "User not found") {
-      return NextResponse.json(
-        { error: getUserError.message },
-        { status: 500 },
-      )
-    }
-
-    if (existingUser?.user) {
-      return NextResponse.json(
-        { error: "Este email já está registrado no sistema" },
-        { status: 400 },
-      )
-    }
-
     const { data: created, error: createError } =
       await supabaseAdmin.auth.admin.createUser({
         email,
@@ -50,11 +33,20 @@ export async function POST(request: Request) {
       })
 
     if (createError || !created?.user) {
+      const message = createError?.message ?? ""
+      if (
+        message.includes("already registered") ||
+        message.toLowerCase().includes("duplicate key")
+      ) {
+        return NextResponse.json(
+          { error: "Este email já está registrado no sistema" },
+          { status: 400 },
+        )
+      }
       return NextResponse.json(
         {
           error:
-            createError?.message ||
-            "Falha ao criar usuário de autenticação (admin)",
+            message || "Falha ao criar usuário de autenticação (admin)",
         },
         { status: 500 },
       )
@@ -93,7 +85,11 @@ export async function POST(request: Request) {
       { status: 200 },
     )
   } catch (error) {
-    return NextResponse.json({ error: "Internal Server Error" }, { status: 500 })
+    console.error("[v0] create-patient admin error:", error)
+    return NextResponse.json(
+      { error: "Internal Server Error" },
+      { status: 500 },
+    )
   }
 }
 
