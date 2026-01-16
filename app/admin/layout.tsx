@@ -3,27 +3,24 @@
 import type React from "react"
 
 import { createClient } from "@/lib/supabase/client"
-
 import { useRouter } from "next/navigation"
 import { useEffect, useState } from "react"
 import { Button } from "@/components/ui/button"
 import { Heart, LogOut, Home, Users, Settings, Utensils, Pill, Bell, Dumbbell } from "lucide-react"
 import Link from "next/link"
+import { useAuth } from "@/hooks/use-auth"
 
 
 export default function AdminLayout({ children }: { children: React.ReactNode }) {
-  const [isLoading, setIsLoading] = useState(true)
-  const [isAuthorized, setIsAuthorized] = useState(false)
+  const { user, loading: authLoading } = useAuth()
+  const [checkingRole, setCheckingRole] = useState(true)
   const router = useRouter()
 
   useEffect(() => {
     const checkAuth = async () => {
-      const supabase = createClient()
-      const {
-        data: { user },
-      } = await supabase.auth.getUser()
+      if (authLoading) return
 
-      console.log("[v0] Admin Layout - Usuário:", user?.id)
+      const supabase = createClient()
 
       if (!user) {
         router.push("/auth/login")
@@ -33,30 +30,27 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
       // Check if user is admin
       const { data: profile } = await supabase.from("profiles").select("role").eq("id", user.id).single()
 
-      console.log("[v0] Admin Layout - Perfil encontrado:", profile)
-      console.log("[v0] Admin Layout - Role:", profile?.role)
-
       if (profile?.role !== "admin") {
-        console.log("[v0] Admin Layout - Não é admin, redirecionando para /patient")
         router.push("/patient")
         return
       }
 
-      console.log("[v0] Admin Layout - É admin, autorizando acesso")
-      setIsAuthorized(true)
-      setIsLoading(false)
+      setCheckingRole(false)
     }
 
     checkAuth()
-  }, [router])
+  }, [router, user, authLoading])
 
   const handleLogout = async () => {
     const supabase = createClient()
     await supabase.auth.signOut()
+    if (typeof window !== "undefined") {
+      window.localStorage.removeItem("healthcare_session")
+    }
     router.push("/")
   }
 
-  if (isLoading) {
+  if (authLoading || checkingRole) {
     return (
       <div className="min-h-screen flex items-center justify-center">
         <div className="text-center">
@@ -67,7 +61,7 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
     )
   }
 
-  if (!isAuthorized) {
+  if (!user) {
     return null
   }
 

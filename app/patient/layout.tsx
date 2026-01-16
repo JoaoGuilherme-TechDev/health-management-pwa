@@ -21,20 +21,18 @@ import {
 } from "lucide-react"
 import Link from "next/link"
 import { NotificationCenter } from "@/components/notification-center"
+import { useAuth } from "@/hooks/use-auth"
 
 export default function PatientLayout({ children }: { children: React.ReactNode }) {
-  const [isLoading, setIsLoading] = useState(true)
-  const [isSignedIn, setIsSignedIn] = useState(false)
+  const { user, loading: authLoading } = useAuth()
+  const [checkingRole, setCheckingRole] = useState(true)
   const router = useRouter()
 
   useEffect(() => {
     const checkAuth = async () => {
-      const supabase = createClient()
-      const {
-        data: { user },
-      } = await supabase.auth.getUser()
+      if (authLoading) return
 
-      console.log("[v0] Patient Layout - Usuário:", user?.id)
+      const supabase = createClient()
 
       if (!user) {
         router.push("/auth/login")
@@ -43,30 +41,27 @@ export default function PatientLayout({ children }: { children: React.ReactNode 
 
       const { data: profile } = await supabase.from("profiles").select("role").eq("id", user.id).single()
 
-      console.log("[v0] Patient Layout - Perfil encontrado:", profile)
-      console.log("[v0] Patient Layout - Role:", profile?.role)
-
       if (profile?.role === "admin") {
-        console.log("[v0] Patient Layout - É admin, redirecionando para /admin")
         router.push("/admin")
         return
       }
 
-      console.log("[v0] Patient Layout - É paciente, autorizando acesso")
-      setIsSignedIn(true)
-      setIsLoading(false)
+      setCheckingRole(false)
     }
 
     checkAuth()
-  }, [router])
+  }, [router, user, authLoading])
 
   const handleLogout = async () => {
     const supabase = createClient()
     await supabase.auth.signOut()
+    if (typeof window !== "undefined") {
+      window.localStorage.removeItem("healthcare_session")
+    }
     router.push("/")
   }
 
-  if (isLoading) {
+  if (authLoading || checkingRole) {
     return (
       <div className="min-h-screen flex items-center justify-center">
         <div className="text-center">
@@ -77,7 +72,7 @@ export default function PatientLayout({ children }: { children: React.ReactNode 
     )
   }
 
-  if (!isSignedIn) {
+  if (!user) {
     return null
   }
 
