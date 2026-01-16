@@ -45,9 +45,14 @@ export default function SettingsPage() {
         data: { user },
       } = await supabase.auth.getUser()
 
-      if (user) {
-        const { data } = await supabase.from("profiles").select("*").eq("id", user.id).single()
+      if (!user) {
+        router.push("/auth/login")
+        return
+      }
 
+      const { data } = await supabase.from("profiles").select("*").eq("id", user.id).single()
+      if (data) {
+        setProfile(data)
       }
 
       setLoading(false)
@@ -78,7 +83,7 @@ export default function SettingsPage() {
       console.warn("⚠️ AVISO: Service Workers não funcionam com IPs públicos em HTTP")
       console.warn("   Acesse por http://localhost:3000 para notificações funcionarem")
     }
-  }, [])
+  }, [router])
 
 
 
