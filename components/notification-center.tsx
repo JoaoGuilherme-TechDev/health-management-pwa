@@ -10,6 +10,70 @@ import { Button } from "@/components/ui/button"
 import { ScrollArea } from "@/components/ui/scroll-area"
 import { cn } from "@/lib/utils"
 
+const getStorageKey = (userId: string) => `notifications_cache_${userId}`
+const getAckKey = (userId: string) => `notifications_ack_${userId}`
+
+const loadStoredNotifications = (userId: string): Notification[] => {
+  if (typeof window === "undefined") return []
+  try {
+    const raw = window.localStorage.getItem(getStorageKey(userId))
+    if (!raw) return []
+    const parsed = JSON.parse(raw)
+    if (!Array.isArray(parsed)) return []
+    return parsed as Notification[]
+  } catch {
+    return []
+  }
+}
+
+const saveStoredNotifications = (userId: string, items: Notification[]) => {
+  if (typeof window === "undefined") return
+  try {
+    const sorted = [...items].sort(
+      (a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime(),
+    )
+    window.localStorage.setItem(getStorageKey(userId), JSON.stringify(sorted))
+  } catch {
+  }
+}
+
+const loadAckedIds = (userId: string): Set<string> => {
+  if (typeof window === "undefined") return new Set()
+  try {
+    const raw = window.localStorage.getItem(getAckKey(userId))
+    if (!raw) return new Set()
+    const parsed = JSON.parse(raw)
+    if (!Array.isArray(parsed)) return new Set()
+    return new Set(parsed as string[])
+  } catch {
+    return new Set()
+  }
+}
+
+const saveAckedIds = (userId: string, ids: Set<string>) => {
+  if (typeof window === "undefined") return
+  try {
+    window.localStorage.setItem(getAckKey(userId), JSON.stringify(Array.from(ids)))
+  } catch {
+  }
+}
+
+const logNotificationEvents = async (
+  events: { notificationId: string; eventType: string }[],
+) => {
+  if (events.length === 0) return
+  try {
+    await fetch("/api/notifications/event", {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({ events }),
+    })
+  } catch {
+  }
+}
+
 export function NotificationCenter() {
   const router = useRouter()
   const { user } = useAuth()
@@ -26,10 +90,24 @@ export function NotificationCenter() {
   useEffect(() => {
     if (!user?.id) return
 
+    const local = loadStoredNotifications(user.id)
+    if (local.length > 0) {
+      setNotifications(
+        local.sort(
+          (a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime(),
+        ),
+      )
+      setLoading(false)
+    }
+
     const loadNotifications = async () => {
       try {
         const data = await notificationService.getNotifications(user.id)
-        setNotifications(data)
+        setNotifications(
+          data.sort(
+            (a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime(),
+          ),
+        )
       } catch (error) {
         console.error("[v0] Failed to load notifications:", error)
       } finally {
@@ -77,7 +155,6 @@ export function NotificationCenter() {
     const handleNewNotification = (notification: Notification) => {
       console.log("[v0] New notification in UI:", notification)
       setNotifications((prev) => {
-        // Avoid duplicate notifications
         if (prev.some((n) => n.id === notification.id)) {
           return prev
         }
@@ -100,6 +177,24 @@ export function NotificationCenter() {
       console.warn("[v0] Push notifications not available:", error)
     })
   }, [user?.id])
+
+  useEffect(() => {
+    if (!user?.id) return
+    if (notifications.length === 0) return
+    saveStoredNotifications(user.id, notifications)
+    const acked = loadAckedIds(user.id)
+    const newEvents: { notificationId: string; eventType: string }[] = []
+    for (const n of notifications) {
+      if (!acked.has(n.id)) {
+        acked.add(n.id)
+        newEvents.push({ notificationId: n.id, eventType: "client_received" })
+      }
+    }
+    if (newEvents.length > 0) {
+      logNotificationEvents(newEvents)
+      saveAckedIds(user.id, acked)
+    }
+  }, [notifications, user?.id])
 
   useEffect(() => {
     const updateViewport = () => {
@@ -152,7 +247,7 @@ export function NotificationCenter() {
     if ("Notification" in window && Notification.permission === "granted") {
       pushService.sendNotification(notification.title, {
         body: notification.message,
-        tag: notification.type,
+        tag: notification.id,
       })
       pushService.playNotificationSound()
       pushService.vibrateDevice()
@@ -174,6 +269,7 @@ export function NotificationCenter() {
     try {
       await notificationService.markAsRead(id)
       setNotifications((prev) => prev.map((n) => (n.id === id ? { ...n, read: true } : n)))
+      logNotificationEvents([{ notificationId: id, eventType: "client_read" }])
     } catch (error) {
       console.error("[v0] Failed to mark notification as read:", error)
     }
@@ -192,6 +288,10 @@ export function NotificationCenter() {
     try {
       await notificationService.markAllAsRead(user.id)
       setNotifications((prev) => prev.map((n) => ({ ...n, read: true })))
+      const ids = notifications.filter((n) => !n.read).map((n) => n.id)
+      if (ids.length > 0) {
+        logNotificationEvents(ids.map((id) => ({ notificationId: id, eventType: "client_read" })))
+      }
     } catch (error) {
       console.error("[v0] Failed to mark all notifications as read:", error)
     }

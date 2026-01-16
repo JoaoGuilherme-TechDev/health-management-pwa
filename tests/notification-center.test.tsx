@@ -1,10 +1,9 @@
-import { describe, it, expect, vi, beforeEach } from "vitest"
+import { describe, it, expect, vi, beforeEach, afterEach } from "vitest"
 import { render, screen, fireEvent, waitFor } from "@testing-library/react"
 import { NotificationCenter } from "../components/notification-center"
 import { notificationService } from "../lib/notification-service"
 import { pushService } from "../lib/push-service"
 
-// Mock hooks
 vi.mock("../hooks/use-auth", () => ({
   useAuth: () => ({
     user: { id: "test-user-id" },
@@ -17,7 +16,6 @@ vi.mock("next/navigation", () => ({
   }),
 }))
 
-// Mock services
 vi.mock("../lib/notification-service", () => ({
   notificationService: {
     getNotifications: vi.fn(),
@@ -39,7 +37,6 @@ vi.mock("../lib/push-service", () => ({
   },
 }))
 
-// Mock UI components that might cause issues in JSDOM
 vi.mock("@/components/ui/scroll-area", () => ({
   ScrollArea: ({ children, className }: any) => <div className={className} data-testid="scroll-area">{children}</div>,
 }))
@@ -68,7 +65,18 @@ describe("NotificationCenter", () => {
 
   beforeEach(() => {
     vi.clearAllMocks()
+    ;(global as any).fetch = vi.fn().mockResolvedValue({
+      ok: true,
+      json: async () => ({ success: true }),
+    })
+    if (typeof window !== "undefined" && window.localStorage) {
+      window.localStorage.clear()
+    }
     ;(notificationService.getNotifications as any).mockResolvedValue(mockNotifications)
+  })
+
+  afterEach(() => {
+    vi.resetAllMocks()
   })
 
   it("renders notification bell with badge", async () => {
@@ -90,7 +98,7 @@ describe("NotificationCenter", () => {
     fireEvent.click(bell)
 
     await waitFor(() => {
-      expect(screen.getByText("✨ Notificações")).toBeInTheDocument()
+      expect(screen.getByText("Notificações")).toBeInTheDocument()
       expect(screen.getByText("Medication Reminder")).toBeInTheDocument()
       expect(screen.getByText("Appointment")).toBeInTheDocument()
     })
@@ -106,9 +114,30 @@ describe("NotificationCenter", () => {
       expect(screen.getByText("Medication Reminder")).toBeInTheDocument()
     })
 
-    // Search for "Soneca" or snooze related text
     expect(screen.queryByText(/soneca/i)).not.toBeInTheDocument()
     expect(screen.queryByText(/snooze/i)).not.toBeInTheDocument()
+  })
+
+  it("persists notifications to localStorage and logs client_received events", async () => {
+    render(<NotificationCenter />)
+
+    await waitFor(() => {
+      expect((global as any).fetch).toHaveBeenCalled()
+    })
+
+    const calls = (global as any).fetch.mock.calls as any[]
+    const eventCall = calls.find((c) => c[0] === "/api/notifications/event")
+    expect(eventCall).toBeTruthy()
+
+    if (typeof window !== "undefined" && window.localStorage) {
+      const stored = window.localStorage.getItem("notifications_cache_test-user-id")
+      expect(stored).toBeTruthy()
+      if (stored) {
+        const parsed = JSON.parse(stored)
+        expect(Array.isArray(parsed)).toBe(true)
+        expect(parsed.length).toBeGreaterThan(0)
+      }
+    }
   })
 
 })

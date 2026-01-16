@@ -72,7 +72,7 @@ self.addEventListener("push", (event) => {
   
   const options = { 
     body: message, 
-    tag: data.tag || "notification",
+    tag: data.tag || data.id || "notification",
     icon: "/icon.svg",
     badge: "/icon.svg",
     vibrate: data.vibrate || [200, 100, 200],
@@ -81,7 +81,32 @@ self.addEventListener("push", (event) => {
     actions: data.actions || []
   }
 
-  event.waitUntil(self.registration.showNotification(title, options))
+  event.waitUntil(
+    Promise.all([
+      self.registration.showNotification(title, options),
+      (async () => {
+        try {
+          if (data && data.id) {
+            await fetch("/api/notifications/event", {
+              method: "POST",
+              headers: {
+                "Content-Type": "application/json",
+              },
+              body: JSON.stringify({
+                events: [
+                  {
+                    notificationId: data.id,
+                    eventType: "push_displayed",
+                  },
+                ],
+              }),
+            })
+          }
+        } catch (e) {
+        }
+      })(),
+    ]),
+  )
 })
 
 self.addEventListener("notificationclick", (event) => {
@@ -99,18 +124,40 @@ self.addEventListener("notificationclick", (event) => {
       })
     )
   } else {
-    // Default click: open app
     event.waitUntil(
-      self.clients.matchAll({ type: "window" }).then((clientList) => {
-        for (const client of clientList) {
-          if (client.url.includes(self.location.origin) && "focus" in client) {
-            return client.focus()
+      Promise.all([
+        self.clients.matchAll({ type: "window" }).then((clientList) => {
+          for (const client of clientList) {
+            if (client.url.includes(self.location.origin) && "focus" in client) {
+              return client.focus()
+            }
           }
-        }
-        if (self.clients.openWindow) {
-          return self.clients.openWindow(data.url || "/")
-        }
-      })
+          if (self.clients.openWindow) {
+            return self.clients.openWindow(data.url || "/")
+          }
+        }),
+        (async () => {
+          try {
+            if (data && data.id) {
+              await fetch("/api/notifications/event", {
+                method: "POST",
+                headers: {
+                  "Content-Type": "application/json",
+                },
+                body: JSON.stringify({
+                  events: [
+                    {
+                      notificationId: data.id,
+                      eventType: "push_clicked",
+                    },
+                  ],
+                }),
+              })
+            }
+          } catch (e) {
+          }
+        })(),
+      ]),
     )
   }
 })
