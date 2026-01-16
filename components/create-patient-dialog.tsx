@@ -27,85 +27,46 @@ export function CreatePatientDialog({ open, onOpenChange, onPatientCreated }: Cr
   })
 
   const handleSubmit = async (e: React.FormEvent) => {
-  e.preventDefault()
-  setError(null)
-  setLoading(true)
+    e.preventDefault()
+    setError(null)
+    setLoading(true)
 
-  try {
-    console.log("[v0] Criando paciente...")
-    const supabase = createClient()
+    try {
+      console.log("[v0] Criando paciente...")
 
-    // Check if email exists
-    const { data: existingUser } = await supabase
-      .from("profiles")
-      .select("id")
-      .eq("email", formData.email)
-      .maybeSingle()
-
-    if (existingUser) {
-      throw new Error("Este email já está registrado no sistema")
-    }
-
-    // Create user with signup (will send confirmation email)
-    const { data: authData, error: signUpError } = await supabase.auth.signUp({
-      email: formData.email,
-      password: formData.password,
-      options: {
-        data: {
-          first_name: formData.firstName,
-          last_name: formData.lastName,
-          role: "patient"
+      const response = await fetch("/api/admin/create-patient", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
         },
-      },
-    })
-
-    if (signUpError) {
-      let errorMessage = signUpError.message
-      if (signUpError.message.includes("User already registered")) {
-        errorMessage = "Este email já está registrado no sistema"
-      } else if (signUpError.message.includes("Password should be at least")) {
-        errorMessage = "A senha deve ter pelo menos 6 caracteres"
-      } else if (signUpError.message.includes("Invalid email")) {
-        errorMessage = "Email inválido"
-      }
-      throw new Error(errorMessage)
-    }
-
-    if (!authData.user) {
-      throw new Error("Falha ao criar usuário")
-    }
-
-    // Wait and update profile
-    await new Promise((resolve) => setTimeout(resolve, 1000))
-    
-    const { error: updateError } = await supabase
-      .from("profiles")
-      .update({
-        first_name: formData.firstName,
-        last_name: formData.lastName,
-        role: "patient",
+        body: JSON.stringify({
+          firstName: formData.firstName,
+          lastName: formData.lastName,
+          email: formData.email,
+          password: formData.password,
+        }),
       })
-      .eq("id", authData.user.id)
 
-    if (updateError) {
-      console.warn("[v0] Aviso ao atualizar perfil:", updateError)
-      // Continue anyway - the trigger should have created it
+      const result = await response.json()
+
+      if (!response.ok) {
+        throw new Error(result.error || "Falha ao criar paciente")
+      }
+
+      setFormData({ firstName: "", lastName: "", email: "", password: "" })
+      onOpenChange(false)
+      onPatientCreated()
+
+      alert(
+        `Paciente "${formData.firstName} ${formData.lastName}" criado!\nO Paciente pode fazer login com:\nEmail: ${formData.email}\nSenha: ${formData.password}`,
+      )
+    } catch (err) {
+      console.error("[v0] Erro:", err)
+      setError(err instanceof Error ? err.message : "Falha ao criar paciente")
+    } finally {
+      setLoading(false)
     }
-
-    // Success
-    setFormData({ firstName: "", lastName: "", email: "", password: "" })
-    onOpenChange(false)
-    onPatientCreated()
-    
-    alert(`Paciente "${formData.firstName} ${formData.lastName}" criado!\nO Paciente pode fazer login com:\nEmail: ${formData.email}\nSenha: ${formData.password}`)
-
-  } catch (err) {
-    console.error("[v0] Erro:", err)
-    setError(err instanceof Error ? err.message : "Falha ao criar paciente")
-  } finally {
-    setLoading(false)
   }
-}
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
