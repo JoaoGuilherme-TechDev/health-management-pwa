@@ -189,6 +189,25 @@ export function PatientAppointmentsTab({ patientId }: { patientId: string }) {
     loadAppointments()
   }
 
+  const handleStatusChange = async (id: string, newStatus: string) => {
+    const supabase = createClient()
+    const { error } = await supabase.from("appointments").update({ status: newStatus }).eq("id", id)
+
+    if (error) {
+      alert("Erro ao atualizar status da consulta")
+      return
+    }
+
+    await loadAppointments()
+  }
+
+  const isToday = (dateString: string) => {
+    if (!dateString) return false
+    const today = new Date().toLocaleDateString("pt-BR", { timeZone: "America/Sao_Paulo" })
+    const aptDate = formatBrasiliaDateAppointment(dateString, "date")
+    return today === aptDate
+  }
+
   const handleEdit = (apt: any) => {
     setFormData({
       title: apt.title || "",
@@ -272,14 +291,18 @@ export function PatientAppointmentsTab({ patientId }: { patientId: string }) {
                               ? "bg-blue-100 text-blue-700 dark:bg-blue-900 dark:text-blue-300"
                               : apt.status === "completed"
                                 ? "bg-green-100 text-green-700 dark:bg-green-900 dark:text-green-300"
-                                : "bg-red-100 text-red-700 dark:bg-red-900 dark:text-red-300"
+                                : apt.status === "no_show"
+                                  ? "bg-orange-100 text-orange-700 dark:bg-orange-900 dark:text-orange-300"
+                                  : "bg-red-100 text-red-700 dark:bg-red-900 dark:text-red-300"
                           }`}
                         >
                           {apt.status === "scheduled"
                             ? "Agendada"
                             : apt.status === "completed"
                               ? "Concluída"
-                              : "Cancelada"}
+                              : apt.status === "no_show"
+                                ? "Não presente"
+                                : "Cancelada"}
                         </span>
                       </div>
                       <h4 className="font-semibold text-foreground text-lg">{apt.title}</h4>
@@ -291,6 +314,32 @@ export function PatientAppointmentsTab({ patientId }: { patientId: string }) {
                         {formatBrasiliaDateAppointment(apt.scheduled_at, "time")}
                       </p>
                       {apt.location && <p className="text-sm text-muted-foreground">Local: {apt.location}</p>}
+
+                      {apt.status === "scheduled" && isToday(apt.scheduled_at) && (
+                        <div className="flex flex-wrap gap-2 mt-3">
+                          <Button
+                            size="sm"
+                            className="bg-green-600 hover:bg-green-700 text-white"
+                            onClick={() => handleStatusChange(apt.id, "completed")}
+                          >
+                            Consulta realizada
+                          </Button>
+                          <Button
+                            size="sm"
+                            variant="secondary"
+                            className="bg-orange-100 text-orange-800 hover:bg-orange-200 dark:bg-orange-900 dark:text-orange-200"
+                            onClick={() => handleStatusChange(apt.id, "no_show")}
+                          >
+                            Paciente Não Presente
+                          </Button>
+                        </div>
+                      )}
+
+                      {apt.status === "no_show" && (
+                        <p className="mt-3 text-sm font-medium text-orange-700 dark:text-orange-300 bg-orange-50 dark:bg-orange-950/30 p-3 rounded-md border border-orange-200 dark:border-orange-800">
+                          Paciente não compareceu. Favor reagendar via WhatsApp.
+                        </p>
+                      )}
                     </div>
                     <div className="flex gap-2">
                       <Button variant="outline" size="icon" onClick={() => handleEdit(apt)}>
