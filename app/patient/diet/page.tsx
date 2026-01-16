@@ -32,6 +32,23 @@ export default function PatientDietPage() {
   const [userId, setUserId] = useState<string | null>(null)
   const [isMounted, setIsMounted] = useState(true)
 
+
+  const getMealTypeLabel = (mealType: string) => {
+    if (!mealType) return "Não especificado"
+    switch (mealType.toLowerCase()) {
+      case "breakfast":
+        return "Café da Manhã"
+      case "lunch":
+        return "Almoço"
+      case "dinner":
+        return "Jantar"
+      case "snack":
+        return "Lanche"
+      default:
+        return mealType
+    }
+  }
+  
   useEffect(() => {
     setIsMounted(true)
     return () => setIsMounted(false)
@@ -155,7 +172,7 @@ export default function PatientDietPage() {
                       <h3 className="text-lg font-semibold text-foreground">{recipe.title}</h3>
                       {recipe.meal_type && (
                         <span className="inline-flex items-center px-3 py-1 text-xs font-medium rounded-full bg-teal-100 text-teal-700 dark:bg-teal-900/30 dark:text-teal-400">
-                          {recipe.meal_type}
+                          {getMealTypeLabel(recipe.meal_type)}
                         </span>
                       )}
                     </div>

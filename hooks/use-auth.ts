@@ -26,6 +26,32 @@ export function useAuth() {
 
     const initAuth = async () => {
       try {
+        if (typeof window !== "undefined") {
+          const stored = window.localStorage.getItem("healthcare_session")
+          if (stored) {
+            try {
+              const parsed = JSON.parse(stored)
+
+              if (parsed?.refresh_token) {
+                const { data, error } = await supabase.auth.setSession({
+                  access_token: parsed.access_token,
+                  refresh_token: parsed.refresh_token,
+                })
+
+                if (!isMounted) return
+
+                if (!error && data.session?.user) {
+                  setUser(data.session.user)
+                  persistSession(data.session)
+                  setLoading(false)
+                  return
+                }
+              }
+            } catch {
+            }
+          }
+        }
+
         const {
           data: { session },
         } = await supabase.auth.getSession()
@@ -37,29 +63,6 @@ export function useAuth() {
           persistSession(session)
           setLoading(false)
           return
-        }
-
-        if (typeof window !== "undefined") {
-          const stored = window.localStorage.getItem("healthcare_session")
-          if (stored) {
-            const parsed = JSON.parse(stored)
-
-            if (parsed?.refresh_token) {
-              const { data, error } = await supabase.auth.setSession({
-                access_token: parsed.access_token,
-                refresh_token: parsed.refresh_token,
-              })
-
-              if (!isMounted) return
-
-              if (!error && data.session?.user) {
-                setUser(data.session.user)
-                persistSession(data.session)
-                setLoading(false)
-                return
-              }
-            }
-          }
         }
       } catch {
       }
