@@ -128,6 +128,26 @@ export function NotificationCenter() {
     return "🔔"
   }
 
+  const getNotificationTypeLabel = (notification: Notification) => {
+    if (notification.type === "medication") return "Remédio"
+    if (notification.type === "appointment") return "Consulta"
+    if (notification.type === "prescription") return "Receita"
+    if (notification.type === "diet") return "Dieta"
+    if (notification.type === "supplement") return "Suplemento"
+    if (notification.type === "evolution") return "Evolução"
+    return "Atualização"
+  }
+
+  const getNotificationTypePillClass = (notification: Notification) => {
+    if (notification.type === "medication") return "bg-sky-500/10 text-sky-700 dark:text-sky-200"
+    if (notification.type === "appointment") return "bg-emerald-500/10 text-emerald-700 dark:text-emerald-200"
+    if (notification.type === "prescription") return "bg-violet-500/10 text-violet-700 dark:text-violet-200"
+    if (notification.type === "diet") return "bg-lime-500/10 text-lime-700 dark:text-lime-200"
+    if (notification.type === "supplement") return "bg-amber-500/10 text-amber-700 dark:text-amber-200"
+    if (notification.type === "evolution") return "bg-indigo-500/10 text-indigo-700 dark:text-indigo-200"
+    return "bg-slate-500/10 text-slate-700 dark:text-slate-200"
+  }
+
   const showBrowserNotification = useCallback((notification: Notification) => {
     if ("Notification" in window && Notification.permission === "granted") {
       pushService.sendNotification(notification.title, {
@@ -259,7 +279,7 @@ export function NotificationCenter() {
 
           <ScrollArea 
             className="w-full" 
-            style={{ height: Math.min(400, panelMaxHeight - 130) }} // Adjust height calculation
+            style={{ height: Math.min(400, panelMaxHeight - 130) }}
           >
             {loading ? (
               <div className="p-8 text-center text-muted-foreground flex flex-col items-center gap-2">
@@ -278,8 +298,10 @@ export function NotificationCenter() {
                     key={notification.id}
                     onClick={() => handleNotificationClick(notification)}
                     className={cn(
-                      "p-4 transition-all flex flex-col gap-2 cursor-pointer group relative overflow-hidden",
-                      !notification.read ? "bg-primary/5 hover:bg-primary/10" : "hover:bg-muted/50",
+                      "p-3.5 sm:p-4 transition-all flex flex-col gap-2 cursor-pointer group relative overflow-hidden rounded-xl border shadow-[0_10px_30px_rgba(15,23,42,0.18)] bg-background/95 dark:bg-slate-950/80 backdrop-blur",
+                      !notification.read
+                        ? "border-primary/40 ring-1 ring-primary/30 hover:ring-primary/60 hover:translate-y-0.5"
+                        : "border-border/70 hover:bg-muted/60 hover:translate-y-0.5",
                     )}
                   >
                     {!notification.read && (
@@ -288,18 +310,31 @@ export function NotificationCenter() {
                     
                     <div className="flex-1 w-full pl-2 min-w-0">
                       <div className="flex justify-between items-start gap-2">
-                        <div className="flex items-start gap-1 min-w-0">
-                          <span className="shrink-0 text-base" aria-hidden="true">
-                            {getNotificationEmoji(notification)}
-                          </span>
-                          <h4
-                            className={cn(
-                              "font-semibold text-sm break-words min-w-0",
-                              !notification.read ? "text-primary" : "text-foreground",
-                            )}
-                          >
-                            {notification.title.replace(/[\p{Emoji}\uFE0F]/gu, "").trim()}
-                          </h4>
+                        <div className="flex items-start gap-2 min-w-0">
+                          <div className="shrink-0 flex h-7 w-7 items-center justify-center rounded-full bg-primary/10 text-base">
+                            <span aria-hidden="true">{getNotificationEmoji(notification)}</span>
+                          </div>
+                          <div className="min-w-0 space-y-1">
+                            <div className="flex items-center gap-2 min-w-0">
+                              <h4
+                                className={cn(
+                                  "font-semibold text-sm break-words min-w-0",
+                                  !notification.read ? "text-primary" : "text-foreground",
+                                )}
+                              >
+                                {notification.title.replace(/[\p{Emoji}\uFE0F]/gu, "").trim()}
+                              </h4>
+                              <span
+                                className={cn(
+                                  "inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-[10px] font-medium",
+                                  "bg-background/80 shadow-sm border border-border/60 dark:border-slate-800",
+                                  getNotificationTypePillClass(notification),
+                                )}
+                              >
+                                {getNotificationTypeLabel(notification)}
+                              </span>
+                            </div>
+                          </div>
                         </div>
                         <span className="text-[10px] text-muted-foreground whitespace-nowrap shrink-0">
                           {new Date(notification.created_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
