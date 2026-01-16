@@ -4,17 +4,8 @@
 CREATE OR REPLACE FUNCTION create_appointment_notifications()
 RETURNS TRIGGER AS $$
 BEGIN
-  -- Create notification for new appointment
-  IF (NEW.status = 'scheduled' AND OLD IS NULL) THEN
-    INSERT INTO notifications (user_id, title, message, notification_type)
-    VALUES (
-      NEW.patient_id,
-      'Nova Consulta Agendada',
-      'Consulta agendada para ' || to_char(NEW.scheduled_at AT TIME ZONE 'America/Sao_Paulo', 'DD/MM/YYYY às HH24:MI'),
-      'appointment_created'
-    );
-  END IF;
-
+  -- Keep trigger for compatibility, but do not create any notification here.
+  -- Appointment reminders are handled exclusively by process_due_appointment_reminders().
   RETURN NEW;
 END;
 $$ LANGUAGE plpgsql SECURITY DEFINER;

@@ -4,7 +4,7 @@ import { createClient } from "@/lib/supabase/client"
 import { useEffect, useState } from "react"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent } from "@/components/ui/card"
-import { Trash2, Edit2, Plus } from "lucide-react"
+import { Trash2, Edit2, Plus, Dumbbell } from "lucide-react"
 import SupplementForm from "@/components/supplement-form"
 
 export default function SupplementsPage() {
@@ -40,6 +40,7 @@ export default function SupplementsPage() {
       <div className="flex items-center justify-between">
         <div>
           <h1 className="text-3xl font-bold text-foreground">Gerenciar Suplementos</h1>
+          <Dumbbell className="h-12 w-12 text-foreground inline-block mr-2" />
           <p className="text-muted-foreground mt-2">Adicione, edite ou exclua suplementos recomendados</p>
         </div>
         <Button

@@ -80,6 +80,9 @@ export default function AdminSettingsPage() {
     setLoggingOut(true)
     const supabase = createClient()
     await supabase.auth.signOut()
+    if (typeof window !== "undefined") {
+      window.localStorage.removeItem("healthcare_session")
+    }
     router.push("/auth/login")
   }
 
