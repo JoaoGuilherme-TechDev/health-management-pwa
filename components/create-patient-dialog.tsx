@@ -155,7 +155,7 @@ export function CreatePatientDialog({ open, onOpenChange, onPatientCreated }: Cr
           </div>
 
           <div className="space-y-2">
-            <Label htmlFor="password">Senha Temporária *</Label>
+            <Label htmlFor="password">Senha *</Label>
             <Input
               id="password"
               type="password"

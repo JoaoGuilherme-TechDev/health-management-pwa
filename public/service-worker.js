@@ -116,20 +116,27 @@ self.addEventListener("notificationclick", (event) => {
   const data = notification.data || {}
 
   if (action === "dismiss") {
+    event.notification.close()
     event.waitUntil(
-      fetch('/api/notifications/dismiss', {
+      fetch(new URL('/api/notifications/dismiss', self.location.origin).toString(), {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ id: data.id })
-      })
+      }).catch(() => {})
     )
   } else {
     event.waitUntil(
       Promise.all([
-        self.clients.matchAll({ type: "window" }).then((clientList) => {
+        self.clients.matchAll({ type: "window", includeUncontrolled: true }).then((clientList) => {
           for (const client of clientList) {
             if (client.url.includes(self.location.origin) && "focus" in client) {
-              return client.focus()
+              return client.focus().then(w => {
+                  // Optional: Send message to client to navigate
+                  if (w && w.postMessage) {
+                      w.postMessage({ type: 'NAVIGATE', url: data.url || '/' })
+                  }
+                  return w
+              })
             }
           }
           if (self.clients.openWindow) {
@@ -139,7 +146,7 @@ self.addEventListener("notificationclick", (event) => {
         (async () => {
           try {
             if (data && data.id) {
-              await fetch("/api/notifications/event", {
+              await fetch(new URL("/api/notifications/event", self.location.origin).toString(), {
                 method: "POST",
                 headers: {
                   "Content-Type": "application/json",

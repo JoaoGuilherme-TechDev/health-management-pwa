@@ -1,6 +1,7 @@
 {
   "name": "HealthCare+ - Gerenciamento de Saúde",
   "short_name": "HealthCare+",
+  "gcm_sender_id": "103953800507",
   "description": "Sistema completo de gerenciamento de saúde para pacientes e profissionais médicos.",
   "start_url": "/",
   "scope": "/",
