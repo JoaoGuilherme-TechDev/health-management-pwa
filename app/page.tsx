@@ -5,8 +5,12 @@ import Link from "next/link"
 import { Heart, X } from "lucide-react"
 import { useState, useEffect } from "react"
 import { createClient } from "@/lib/supabase/client"
+import { useRouter } from "next/navigation"
+import { useAuth } from "@/hooks/use-auth"
 
 export default function Home() {
+  const { user, loading: authLoading } = useAuth()
+  const router = useRouter()
   const [selectedRecipe, setSelectedRecipe] = useState<number | null>(null)
   const [recipes, setRecipes] = useState<any[]>([])
   const [supplements, setSupplements] = useState<any[]>([])
@@ -14,12 +18,19 @@ export default function Home() {
   const [loading, setLoading] = useState(true)
 
   useEffect(() => {
-    loadContent()
-  }, [])
+    if (!authLoading && user) {
+      router.replace("/patient")
+      return
+    }
+    
+    if (!authLoading && !user) {
+      loadContent()
+    }
+  }, [authLoading, user, router])
 
- // In app/page.tsx, update the loadContent function:
+  // In app/page.tsx, update the loadContent function:
 
-const loadContent = async () => {
+  const loadContent = async () => {
   console.log("Starting loadContent...")
   
   try {
