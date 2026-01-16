@@ -110,7 +110,7 @@ export function PWAInstallPrompt() {
                 <Calendar className="h-4 w-4 text-pink-500 mt-0.5" />
                 <div>
                   <p className="font-medium text-foreground text-xs">Consultas</p>
-                  <p className="text-[11px] leading-snug">Lembretes fofos de consultas e retornos importantes.</p>
+                  <p className="text-[11px] leading-snug">Lembretes de consultas e retornos importantes.</p>
                 </div>
               </div>
               <div className="flex items-start gap-2 rounded-xl bg-sky-50/80 dark:bg-sky-950/40 px-3 py-2">
