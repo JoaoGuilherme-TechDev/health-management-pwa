@@ -40,7 +40,7 @@ export function CreatePatientDialog({ open, onOpenChange, onPatientCreated }: Cr
       .from("profiles")
       .select("id")
       .eq("email", formData.email)
-      .single()
+      .maybeSingle()
 
     if (existingUser) {
       throw new Error("Este email já está registrado no sistema")
@@ -166,9 +166,6 @@ export function CreatePatientDialog({ open, onOpenChange, onPatientCreated }: Cr
               minLength={6}
               placeholder="Mínimo 6 caracteres"
             />
-            <p className="text-xs text-muted-foreground">
-              O paciente poderá alterar esta senha no primeiro acesso.
-            </p>
           </div>
 
           {error && (
