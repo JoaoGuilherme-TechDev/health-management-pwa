@@ -27,13 +27,11 @@ BEGIN
         'medication_reminder'
       FROM medications m
       JOIN medication_schedules ms ON ms.medication_id = m.id AND ms.is_active = true
-      LEFT JOIN notification_settings ns ON ns.user_id = m.user_id
       WHERE m.is_active = true
         AND m.start_date <= now_date
         AND (m.end_date IS NULL OR m.end_date >= now_date)
         AND date_trunc('minute', ms.scheduled_time) = date_trunc('minute', now_time)
         AND extract(dow from (now() AT TIME ZONE 'America/Sao_Paulo'))::int = ANY(ms.days_of_week)
-        AND COALESCE(ns.enable_medication_notifications, true) = true
         AND NOT EXISTS (
           SELECT 1 FROM notifications n
           WHERE n.user_id = m.user_id
@@ -46,4 +44,3 @@ BEGIN
   END IF;
 END;
 $$;
-

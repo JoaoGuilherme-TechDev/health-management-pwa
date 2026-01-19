@@ -17,6 +17,21 @@ create table if not exists public.profiles (
   updated_at timestamp with time zone default now()
 );
 
+DO $$
+BEGIN
+  IF NOT EXISTS (
+    SELECT 1
+    FROM pg_index i
+    JOIN pg_class t ON t.oid = i.indrelid
+    JOIN pg_attribute a ON a.attrelid = t.oid AND a.attnum = ANY(i.indkey)
+    WHERE t.relname = 'profiles'
+      AND a.attname = 'id'
+      AND i.indisunique
+  ) THEN
+    ALTER TABLE public.profiles ADD CONSTRAINT profiles_id_unique UNIQUE (id);
+  END IF;
+END $$;
+
 -- Create health metrics table
 create table if not exists public.health_metrics (
   id uuid primary key default gen_random_uuid(),

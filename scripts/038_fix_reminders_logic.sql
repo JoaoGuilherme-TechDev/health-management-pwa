@@ -231,7 +231,7 @@ BEGIN
   INSERT INTO notifications (user_id, title, message, notification_type, related_id)
   SELECT
     da.patient_id,
-    'Lembrete: Consulta Amanhã',
+    '⏰Consulta Amanhã',
     'Consulta amanhã às ' || to_char(da.scheduled_at, 'HH24:MI') || COALESCE(' • ' || da.location, ''),
     'appointment_reminder',
     da.id

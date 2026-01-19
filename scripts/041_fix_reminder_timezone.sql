@@ -4,8 +4,17 @@
 CREATE OR REPLACE FUNCTION create_appointment_notifications()
 RETURNS TRIGGER AS $$
 BEGIN
-  -- Keep trigger for compatibility, but do not create any notification here.
-  -- Appointment reminders are handled exclusively by process_due_appointment_reminders().
+  IF (NEW.status = 'scheduled' AND OLD IS NULL) THEN
+    INSERT INTO notifications (user_id, title, message, notification_type, related_id)
+    VALUES (
+      NEW.patient_id,
+      'Nova Consulta Agendada',
+      'Consulta agendada para ' || to_char(NEW.scheduled_at AT TIME ZONE 'America/Sao_Paulo', 'DD/MM/YYYY \"às\" HH24:MI'),
+      'appointment_scheduled',
+      NEW.id
+    );
+  END IF;
+
   RETURN NEW;
 END;
 $$ LANGUAGE plpgsql SECURITY DEFINER;
@@ -25,11 +34,7 @@ BEGIN
       a.scheduled_at,
       a.location
     FROM appointments a
-    LEFT JOIN notification_settings ns 
-      ON ns.user_id = a.patient_id
-      AND ns.notification_type = 'appointment_reminder'
     WHERE a.status = 'scheduled'
-      AND COALESCE(ns.enabled, true) = true
       AND (a.scheduled_at AT TIME ZONE 'America/Sao_Paulo')::date = (now_sp + interval '24 hours')::date
       AND (a.scheduled_at AT TIME ZONE 'America/Sao_Paulo') - now_sp <= interval '24 hours'
       AND (a.scheduled_at AT TIME ZONE 'America/Sao_Paulo') - now_sp > interval '24 hours' - (window_minutes || ' minutes')::interval
