@@ -2,7 +2,6 @@
 
 import type React from "react"
 
-import { createClient } from "@/lib/supabase/client"
 import { useRouter } from "next/navigation"
 import { useEffect, useState } from "react"
 import { Button } from "@/components/ui/button"
@@ -19,9 +18,23 @@ import {
   FileText,
   LogOut,
 } from "lucide-react"
+import { Logo } from "@/components/logo"
 import Link from "next/link"
 import { NotificationCenter } from "@/components/notification-center"
 import { useAuth } from "@/hooks/use-auth"
+import { ModeToggle } from "@/components/mode-toggle"
+
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+  AlertDialogTrigger,
+} from "@/components/ui/alert-dialog"
 
 export default function PatientLayout({ children }: { children: React.ReactNode }) {
   const { user, loading: authLoading } = useAuth()
@@ -32,18 +45,24 @@ export default function PatientLayout({ children }: { children: React.ReactNode 
     const checkAuth = async () => {
       if (authLoading) return
 
-      const supabase = createClient()
-
       if (!user) {
-        router.push("/auth/login")
+        router.push("/login")
         return
       }
 
-      const { data: profile } = await supabase.from("profiles").select("role").eq("id", user.id).single()
-
-      if (profile?.role === "admin") {
-        router.push("/admin")
-        return
+      try {
+        const res = await fetch(`/api/data?table=profiles&match_key=id&match_value=${user.id}`)
+        if (res.ok) {
+          const data = await res.json()
+          const profile = Array.isArray(data) ? data[0] : data
+          
+          if (profile?.role === "admin") {
+            router.push("/admin")
+            return
+          }
+        }
+      } catch (e) {
+        console.error("Role check error", e)
       }
 
       setCheckingRole(false)
@@ -53,10 +72,9 @@ export default function PatientLayout({ children }: { children: React.ReactNode 
   }, [router, user, authLoading])
 
   const handleLogout = async () => {
-    const supabase = createClient()
-    await supabase.auth.signOut()
+    await fetch('/api/auth/signout', { method: 'POST' })
     if (typeof window !== "undefined") {
-      window.localStorage.removeItem("healthcare_session")
+      window.localStorage.removeItem("er_session")
     }
     router.push("/")
   }
@@ -77,29 +95,47 @@ export default function PatientLayout({ children }: { children: React.ReactNode 
   }
 
   return (
-    <div className="min-h-screen bg-background">
+    <div className="h-screen bg-background flex flex-col overflow-hidden">
       {/* Top Navigation - Mobile optimized */}
-      <nav className="sticky top-0 z-50 border-b border-border bg-background/95 backdrop-blur supports-backdrop-filter:bg-background/60">
+      <nav className="border-b border-border bg-background/95 backdrop-blur supports-backdrop-filter:bg-background/60">
         <div className="mx-auto px-3 sm:px-6 lg:px-8 py-3 sm:py-4 flex items-center justify-between">
           <Link href="/patient" className="flex items-center gap-2">
-            <Heart className="h-5 w-5 sm:h-6 sm:w-6 text-primary" />
-            <span className="text-base sm:text-xl font-bold text-foreground">HealthCare+</span>
+            <Logo className="h-5 w-5 sm:h-6 sm:w-6" />
+            <span className="text-base sm:text-xl font-bold text-foreground font-logo">Dra. Estefânia Rappelli</span>
           </Link>
-          <div className="flex items-center gap-2" >
-            <Button variant="outline" className="gap-2">
-              <NotificationCenter/>
-            </Button>
+          <div className="flex items-center gap-6" >
+            <NotificationCenter/>
+            <ModeToggle />
             
-          <Button onClick={handleLogout} variant="destructive" className="gap-2">
-            <LogOut className="h-4 w-4" />
-          </Button>
+            <AlertDialog>
+              <AlertDialogTrigger asChild>
+                <Button variant="destructive" className="gap-2">
+                  <LogOut className="h-4 w-4" />
+                  <span className="hidden sm:inline">Sair</span>
+                </Button>
+              </AlertDialogTrigger>
+              <AlertDialogContent>
+                <AlertDialogHeader>
+                  <AlertDialogTitle>Tem certeza que deseja sair?</AlertDialogTitle>
+                  <AlertDialogDescription>
+                    Você precisará fazer login novamente para acessar sua conta.
+                  </AlertDialogDescription>
+                </AlertDialogHeader>
+                <AlertDialogFooter>
+                  <AlertDialogCancel>Cancelar</AlertDialogCancel>
+                  <AlertDialogAction onClick={handleLogout} className="bg-destructive text-destructive-foreground hover:bg-destructive/90">
+                    Sair
+                  </AlertDialogAction>
+                </AlertDialogFooter>
+              </AlertDialogContent>
+            </AlertDialog>
           </div>
           
         </div>
       </nav>
 
-      <div className="flex">
-        <aside className="hidden md:flex w-64 border-r border-border bg-muted/30 flex-col">
+      <div className="flex flex-1 overflow-hidden">
+        <aside className="hidden md:flex w-64 border-r border-border bg-muted/30 flex-col overflow-y-auto">
           <nav className="flex-1 space-y-2 p-6">
             <NavLink href="/patient" icon={Home} label="Painel" />
             <NavLink href="/patient/medications" icon={Pill} label="Medicamentos" />
@@ -124,7 +160,7 @@ export default function PatientLayout({ children }: { children: React.ReactNode 
         </div>
 
         {/* Main Content - Mobile optimized padding */}
-        <main className="flex-1 p-3 sm:p-6 lg:p-8 pb-20 md:pb-6">{children}</main>
+        <main className="flex-1 p-3 sm:p-6 lg:p-8 pb-20 md:pb-6 overflow-y-auto">{children}</main>
       </div>
     </div>
   )

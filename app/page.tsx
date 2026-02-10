@@ -3,9 +3,10 @@
 import { Button } from "@/components/ui/button"
 import Link from "next/link"
 import { Heart, X } from "lucide-react"
+import { Logo } from "@/components/logo"
 import { useState, useEffect } from "react"
-import { createClient } from "@/lib/supabase/client"
 import { useRouter } from "next/navigation"
+import { ModeToggle } from "@/components/mode-toggle"
 import { useAuth } from "@/hooks/use-auth"
 
 export default function Home() {
@@ -31,68 +32,52 @@ export default function Home() {
   // In app/page.tsx, update the loadContent function:
 
   const loadContent = async () => {
-  console.log("Starting loadContent...")
-  
-  try {
-    const supabase = createClient()
-    console.log("Supabase client created")
+    console.log("Starting loadContent...")
+    
+    try {
+      // Load doctor info
+      const adminRes = await fetch('/api/data?table=profiles&match_key=role&match_value=admin')
+      if (adminRes.ok) {
+        const admins = await adminRes.json()
+        if (Array.isArray(admins) && admins.length > 0) {
+          const adminProfile = admins[0]
+          console.log("Doctor info loaded:", adminProfile)
+          setDoctorInfo(adminProfile)
+        }
+      }
 
-    // Load doctor info
-    const { data: adminProfile, error: adminError } = await supabase
-      .from("profiles")
-      .select("doctor_full_name, doctor_crm, doctor_specialization")
-      .eq("role", "admin")
-      .single()
+      // Load recipes
+      console.log("Loading recipes...")
+      const recipesRes = await fetch('/api/data?table=recipes')
+      if (recipesRes.ok) {
+        const recipesData = await recipesRes.json()
+        // Sort manually since API might not sort
+        const sortedRecipes = Array.isArray(recipesData) 
+          ? recipesData.sort((a: any, b: any) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime())
+          : []
+        console.log("Recipes loaded:", sortedRecipes.length, "items")
+        setRecipes(sortedRecipes)
+      }
 
-    if (adminError) {
-      console.error("Error loading doctor info:", adminError)
-    } else {
-      console.log("Doctor info loaded:", adminProfile)
-      setDoctorInfo(adminProfile)
+      // Load supplements
+      console.log("Loading supplements from supplement_catalog...")
+      const supplementsRes = await fetch('/api/data?table=supplement_catalog')
+      if (supplementsRes.ok) {
+        const supplementsData = await supplementsRes.json()
+        const sortedSupplements = Array.isArray(supplementsData)
+          ? supplementsData.sort((a: any, b: any) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime())
+          : []
+        console.log("Supplements loaded:", sortedSupplements.length, "items")
+        setSupplements(sortedSupplements)
+      }
+
+    } catch (error) {
+      console.error("Unexpected error in loadContent:", error)
+    } finally {
+      console.log("Loading complete")
+      setLoading(false)
     }
-
-    // Load recipes and supplements separately for better debugging
-    console.log("Loading recipes...")
-    const { data: recipesData, error: recipesError } = await supabase
-      .from("recipes")
-      .select("*")
-      .order("created_at", { ascending: false })
-
-    if (recipesError) {
-      console.error("Error loading recipes:", recipesError)
-    } else {
-      console.log("Recipes loaded:", recipesData?.length, "items")
-      setRecipes(recipesData || [])
-    }
-
-    // Load supplements - make sure table name is correct
-    console.log("Loading supplements from supplement_catalog...")
-    const { data: supplementsData, error: supplementsError } = await supabase
-      .from("supplement_catalog")
-      .select("*")
-      .order("created_at", { ascending: false })
-
-    if (supplementsError) {
-      console.error("Error loading supplements:", supplementsError)
-      console.error("Full error details:", {
-        message: supplementsError.message,
-        code: supplementsError.code,
-        details: supplementsError.details,
-        hint: supplementsError.hint
-      })
-    } else {
-      console.log("Supplements loaded:", supplementsData?.length, "items")
-      console.log("Sample supplement:", supplementsData?.[0])
-      setSupplements(supplementsData || [])
-    }
-
-  } catch (error) {
-    console.error("Unexpected error in loadContent:", error)
-  } finally {
-    console.log("Loading complete")
-    setLoading(false)
   }
-}
 
   if (loading) {
     return <div className="min-h-screen bg-background flex items-center justify-center">Carregando...</div>
@@ -104,12 +89,13 @@ export default function Home() {
       <nav className="sticky top-0 z-50 border-b border-border bg-background/95 backdrop-blur supports-backdrop-filter:bg-background/60">
         <div className="mx-auto max-w-6xl px-4 sm:px-6 lg:px-8 py-4 flex items-center justify-between">
           <div className="flex items-center gap-2">
-            <Heart className="h-6 w-6 text-primary" />
-            <span className="text-xl font-bold text-foreground">HealthCare+</span>
+            <Logo className="h-8 w-8" />
+            <span className="text-xl font-bold text-foreground font-logo">Dra. Estefânia Rappelli</span>
           </div>
           <div className="flex items-center gap-4">
+            <ModeToggle />
             <Button asChild>
-              <Link href="/auth/login">Entrar</Link>
+              <Link href="/login">Entrar</Link>
             </Button>
           </div>
         </div>
@@ -215,8 +201,8 @@ export default function Home() {
   <div className="mx-auto max-w-6xl">
     <div className="flex flex-col sm:flex-row justify-between items-center gap-8 mb-8">
       <div className="flex items-center gap-2">
-        <Heart className="h-5 w-5 text-primary" />
-        <span className="font-semibold text-foreground">HealthCare+</span>
+        <Logo className="h-6 w-6" />
+        <span className="font-semibold text-foreground">Dra. Estefânia Rappelli</span>
       </div>
       <div className="flex gap-6 text-sm text-muted-foreground">
         <Link href="/privacy-policy" className="hover:text-foreground transition-colors">
@@ -231,7 +217,7 @@ export default function Home() {
       </div>
     </div>
     <div className="border-t border-border pt-8 text-center text-sm text-muted-foreground">
-      <p>&copy; 2025 HealthCare+. Todos os direitos reservados. Sua saúde é nossa missão.</p>
+      <p>&copy; 2025 Dra. Estefânia Rappelli. Todos os direitos reservados. Nutrologia e Performance.</p>
     </div>
   </div>
 </footer>
@@ -253,11 +239,18 @@ export default function Home() {
 
             <div className="p-6 space-y-6">
               {recipes[selectedRecipe].image_url && (
-                <img
-                  src={recipes[selectedRecipe].image_url || "/placeholder.svg"}
-                  alt={recipes[selectedRecipe].title}
-                  className="w-full h-64 object-cover rounded-lg"
-                />
+                <div className="relative w-full h-64 overflow-hidden rounded-lg">
+                  <img
+                    src={recipes[selectedRecipe].image_url || "/placeholder.svg"}
+                    alt={recipes[selectedRecipe].title}
+                    className="absolute inset-0 w-full h-full object-cover opacity-50 blur-sm scale-110"
+                  />
+                  <img
+                    src={recipes[selectedRecipe].image_url || "/placeholder.svg"}
+                    alt={recipes[selectedRecipe].title}
+                    className="relative w-full h-full object-contain z-10"
+                  />
+                </div>
               )}
 
               {/* Ingredients */}

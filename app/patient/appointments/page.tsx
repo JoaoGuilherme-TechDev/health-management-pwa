@@ -1,6 +1,6 @@
 "use client"
 
-import { createClient } from "@/lib/supabase/client"
+import { useRouter } from "next/navigation"
 import { useEffect, useState } from "react"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
@@ -21,80 +21,58 @@ interface Appointment {
 }
 
 export default function AppointmentsPage() {
+  const router = useRouter()
   const [appointments, setAppointments] = useState<Appointment[]>([])
   const [loading, setLoading] = useState(true)
 
   useEffect(() => {
-    const supabase = createClient()
     let isMounted = true
-    const channels: any[] = []
 
     const loadAppointments = async () => {
-      const {
-        data: { user },
-      } = await supabase.auth.getUser()
-
-      if (!user) {
-        setLoading(false)
-        return
-      }
-
-      console.log("[v0] Loading appointments for user:", user.id)
-
-      const { data, error } = await supabase
-        .from("appointments")
-        .select("*")
-        .eq("user_id", user.id)
-        .order("scheduled_at", { ascending: true })
-
-      if (isMounted) {
-        if (!error && data) {
-          setAppointments(data)
+      try {
+        const authRes = await fetch('/api/auth/me')
+        if (!authRes.ok) {
+          router.push("/login")
+          return
         }
-        setLoading(false)
+        const { user } = await authRes.json()
+
+        if (!user) {
+          setLoading(false)
+          return
+        }
+
+        console.log("Loading appointments for user:", user.id)
+
+        const res = await fetch(`/api/data?table=appointments&match_key=user_id&match_value=${user.id}`)
+        
+        if (isMounted) {
+          if (res.ok) {
+             let data = await res.json()
+             if (!Array.isArray(data)) data = [data]
+             // Sort manually
+             data.sort((a: any, b: any) => new Date(a.scheduled_at).getTime() - new Date(b.scheduled_at).getTime())
+             setAppointments(data)
+          }
+          setLoading(false)
+        }
+      } catch (error) {
+        console.error("Error loading appointments:", error)
+        if (isMounted) setLoading(false)
       }
     }
 
     loadAppointments()
 
-    const setupRealtime = async () => {
-      const {
-        data: { user },
-      } = await supabase.auth.getUser()
-
-      if (!user || !isMounted) return
-
-      const channel = supabase
-        .channel(`appointments-patient-${user.id}`)
-        .on(
-          "postgres_changes",
-          {
-            event: "*",
-            schema: "public",
-            table: "appointments",
-            filter: `patient_id=eq.${user.id}`,
-          },
-          () => {
-            console.log("[v0] Appointment changed, reloading...")
-            if (isMounted) loadAppointments()
-          },
-        )
-        .subscribe((status) => {
-          console.log("[v0] Subscription status:", status)
-        })
-
-      channels.push(channel)
-    }
-
-    setupRealtime()
+    const interval = setInterval(() => {
+       if (isMounted && !document.hidden) loadAppointments()
+    }, 15000)
 
     return () => {
       isMounted = false
-      channels.forEach((channel) => {
-        supabase.removeChannel(channel)
-      })
+      clearInterval(interval)
     }
-  }, [])
+  }, [router])
 
   const getStatusColor = (status: string) => {
     switch (status) {
@@ -127,11 +105,16 @@ export default function AppointmentsPage() {
   }
 
   if (loading) {
-    return <div className="text-center py-12">Carregando consultas...</div>
+    return (
+      <div className="container mx-auto p-4 md:p-6">
+        <div className="text-center py-12">Carregando consultas...</div>
+      </div>
+    )
   }
 
   return (
-    <div className="space-y-6">
+    <div className="container mx-auto p-4 md:p-6">
+      <div className="space-y-6">
       <div>
         <h1 className="text-3xl font-bold text-foreground">Consultas</h1>
         <p className="text-muted-foreground mt-1">Visualize suas consultas médicas agendadas</p>
@@ -200,5 +183,6 @@ export default function AppointmentsPage() {
         </div>
       )}
     </div>
+  </div>
   )
 }

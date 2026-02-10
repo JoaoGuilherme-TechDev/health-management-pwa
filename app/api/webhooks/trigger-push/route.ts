@@ -1,16 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import webpush from 'web-push';
-import { createClient } from '@supabase/supabase-js';
-
-// Initialize Supabase Admin Client
-const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL!;
-const supabaseServiceKey = process.env.SUPABASE_SERVICE_ROLE_KEY!;
-
-if (!supabaseUrl || !supabaseServiceKey) {
-  console.error('Missing Supabase environment variables');
-}
-
-const supabase = createClient(supabaseUrl, supabaseServiceKey);
+import { pool } from '@/lib/db';
 
 export async function POST(req: NextRequest) {
   try {
@@ -24,11 +14,8 @@ export async function POST(req: NextRequest) {
     }
 
     if (record.id) {
-      const { data: existing } = await supabase
-        .from('notifications')
-        .select('delivered_at')
-        .eq('id', record.id)
-        .single();
+      const res = await pool.query('SELECT delivered_at FROM notifications WHERE id = $1', [record.id]);
+      const existing = res.rows[0];
 
       if (existing && existing.delivered_at) {
         return NextResponse.json({ message: 'Notification already delivered' }, { status: 200 });
@@ -36,15 +23,8 @@ export async function POST(req: NextRequest) {
     }
 
     // Fetch subscriptions
-    const { data: subscriptions, error } = await supabase
-      .from('push_subscriptions')
-      .select('subscription')
-      .eq('user_id', record.user_id);
-
-    if (error) {
-      console.error('Error fetching subscriptions:', error);
-      return NextResponse.json({ error: error.message }, { status: 500 });
-    }
+    const subsRes = await pool.query('SELECT subscription FROM push_subscriptions WHERE user_id = $1', [record.user_id]);
+    const subscriptions = subsRes.rows;
 
     if (!subscriptions || subscriptions.length === 0) {
       return NextResponse.json({ message: 'No subscriptions found' }, { status: 200 });
@@ -92,34 +72,31 @@ export async function POST(req: NextRequest) {
           await webpush.sendNotification(sub.subscription, notificationPayload);
           
           // Log success
-          await supabase
-            .from('notification_event_logs')
-            .insert({
-              user_id: record.user_id,
-              event_type: 'push_delivery_success',
-              payload: { notification_id: record.id, notification_type: record.notification_type },
-            });
+          await pool.query(
+            `INSERT INTO notification_event_logs (user_id, event_type, payload) VALUES ($1, $2, $3)`,
+            [record.user_id, 'push_delivery_success', { notification_id: record.id, notification_type: record.notification_type }]
+          );
             
           return { success: true };
         } catch (err: any) {
           console.error('Failed to send push:', err);
           
           // Log failure
-          await supabase
-            .from('notification_event_logs')
-            .insert({
-              user_id: record.user_id,
-              event_type: 'push_delivery_failed',
-              payload: { notification_id: record.id, error: String(err) },
-            });
+          await pool.query(
+            `INSERT INTO notification_event_logs (user_id, event_type, payload) VALUES ($1, $2, $3)`,
+            [record.user_id, 'push_delivery_failed', { notification_id: record.id, error: String(err) }]
+          );
             
           // If subscription is invalid (410 Gone), remove it
           if (err.statusCode === 410 || err.statusCode === 404) {
-             await supabase
-              .from('push_subscriptions')
-              .delete()
-              .eq('subscription', sub.subscription); // JSON containment match might be tricky, but assuming exact match works or use ID if available
-              // Better to delete by matching the whole JSON object if possible, or we need an ID on push_subscriptions
+             // Delete by subscription JSON content matching
+             // This is tricky in SQL if subscription is JSONB.
+             // Assuming sub.subscription is the JSON object.
+             // We can cast to text or use containment.
+             await pool.query(
+                `DELETE FROM push_subscriptions WHERE subscription::text = $1::text`,
+                [JSON.stringify(sub.subscription)]
+             );
           }
           
           return { success: false, error: err };
@@ -127,13 +104,12 @@ export async function POST(req: NextRequest) {
       })
     );
 
-    // Update delivered_at if at least one success
-    const anySuccess = results.some((r) => r.success);
+    const anySuccess = results.some((r: { success: boolean }) => r.success);
     if (anySuccess) {
-      await supabase
-        .from('notifications')
-        .update({ delivered_at: new Date().toISOString() })
-        .eq('id', record.id);
+      await pool.query(
+        'UPDATE notifications SET delivered_at = NOW() WHERE id = $1',
+        [record.id]
+      );
     }
 
     return NextResponse.json({ success: true, results });

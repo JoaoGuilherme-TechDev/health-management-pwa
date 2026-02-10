@@ -1,12 +1,11 @@
 "use client"
 
+import { useState, useEffect } from "react"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { Label } from "@/components/ui/label"
 import { Input } from "@/components/ui/input"
 import { Textarea } from "@/components/ui/textarea"
-import { createClient } from "@/lib/supabase/client"
-import { useEffect, useState } from "react"
 import { useRouter } from "next/navigation"
 import { LogOut } from "lucide-react"
 
@@ -30,56 +29,78 @@ export default function AdminSettingsPage() {
   }, [])
 
   const loadProfile = async () => {
-    const supabase = createClient()
-    const {
-      data: { user },
-    } = await supabase.auth.getUser()
+    try {
+      const authRes = await fetch('/api/auth/me')
+      if (!authRes.ok) {
+        router.push("/login")
+        return
+      }
+      const { user } = await authRes.json()
 
-    if (!user) {
-      router.push("/auth/login")
-      return
+      const res = await fetch(`/api/data?table=profiles&match_key=id&match_value=${user.id}`)
+      if (res.ok) {
+        const data = await res.json()
+        if (data && data.length > 0) {
+          const profileData = data[0]
+          setProfile(profileData)
+          setFormData({
+            doctor_full_name: profileData.doctor_full_name || "",
+            doctor_crm: profileData.doctor_crm || "",
+            doctor_specialization: profileData.doctor_specialization || "",
+            doctor_registration_state: profileData.doctor_registration_state || "",
+            professional_address: profileData.professional_address || "",
+            professional_phone: profileData.professional_phone || "",
+          })
+        }
+      }
+    } catch (error) {
+      console.error("Error loading profile:", error)
+    } finally {
+      setLoading(false)
     }
-
-    const { data } = await supabase.from("profiles").select("*").eq("id", user.id).single()
-
-    if (data) {
-      setProfile(data)
-      setFormData({
-        doctor_full_name: data.doctor_full_name || "",
-        doctor_crm: data.doctor_crm || "",
-        doctor_specialization: data.doctor_specialization || "",
-        doctor_registration_state: data.doctor_registration_state || "",
-        professional_address: data.professional_address || "",
-        professional_phone: data.professional_phone || "",
-      })
-    }
-    setLoading(false)
   }
 
   const handleSave = async () => {
     setSaving(true)
-    const supabase = createClient()
-    const {
-      data: { user },
-    } = await supabase.auth.getUser()
+    try {
+      const authRes = await fetch("/api/auth/me")
+      if (!authRes.ok) {
+        alert("Sessão expirada. Faça login novamente.")
+        router.push("/login")
+        return
+      }
 
-    if (!user) return
+      const { user } = await authRes.json()
+      if (!user) {
+        alert("Sessão expirada. Faça login novamente.")
+        router.push("/login")
+        return
+      }
 
-    const { error } = await supabase.from("profiles").update(formData).eq("id", user.id)
+      const res = await fetch(`/api/data?table=profiles&match_key=id&match_value=${user.id}`, {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(formData),
+      })
 
-    if (error) {
+      if (res.ok) {
+        alert("Informações salvas com sucesso!")
+        loadProfile()
+      } else {
+        const errorText = await res.text()
+        alert("Erro ao salvar: " + errorText)
+      }
+    } catch (error: any) {
+      console.error("Error saving profile:", error)
       alert("Erro ao salvar: " + error.message)
-    } else {
-      alert("Informações salvas com sucesso!")
-      loadProfile()
+    } finally {
+      setSaving(false)
     }
-    setSaving(false)
   }
 
   const handleLogout = async () => {
     setLoggingOut(true)
-    const supabase = createClient()
-    await supabase.auth.signOut()
+    await fetch('/api/auth/signout', { method: 'POST' })
     if (typeof window !== "undefined") {
       window.localStorage.removeItem("healthcare_session")
     }

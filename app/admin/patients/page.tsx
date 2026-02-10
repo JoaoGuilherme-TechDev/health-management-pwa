@@ -1,6 +1,5 @@
 "use client"
 
-import { createClient } from "@/lib/supabase/client"
 import { useState, useEffect } from "react"
 import { Card, CardContent } from "@/components/ui/card"
 import { Input } from "@/components/ui/input"
@@ -37,21 +36,24 @@ export default function PatientsPage() {
   useEffect(() => {
     const loadPatients = async () => {
       try {
-        const supabase = createClient()
-        const { data } = await supabase
-          .from("profiles")
-          .select("*")
-          .eq("role", "patient")
-          .order("created_at", { ascending: false })
-
-        setPatients(data || [])
+        const res = await fetch('/api/data?table=profiles&match_key=role&match_value=patient')
+        if (res.ok) {
+          const data = await res.json()
+          // Sort by created_at desc
+          const sortedData = Array.isArray(data) 
+            ? data.sort((a: any, b: any) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime())
+            : []
+          setPatients(sortedData)
+        }
       } catch (err) {
         console.error("[v0] Erro ao carregar pacientes:", err)
       }
     }
 
     loadPatients() // Carrega imediatamente
-    const interval = setInterval(loadPatients, 5000) // Atualiza a cada 5 segundos
+    const interval = setInterval(() => {
+      if (!document.hidden) loadPatients()
+    }, 15000) // Atualiza a cada 15 segundos
 
     return () => clearInterval(interval)
   }, [])
@@ -60,15 +62,32 @@ export default function PatientsPage() {
     if (!patientToDelete) return
 
     setDeleting(true)
-    const supabase = createClient()
+    
+    try {
+      // First try to delete via API which should handle cascading if DB is set up correctly
+      // If we need explicit cascading, we might need a specific API route
+      const res = await fetch(`/api/data?table=profiles&match_key=id&match_value=${patientToDelete.id}`, {
+        method: 'DELETE'
+      })
 
-    const { error } = await supabase.rpc("delete_patient_cascade", { patient_id: patientToDelete.id })
-
-    if (error) {
+      if (res.ok) {
+        alert("Paciente deletado com sucesso!")
+        setPatientToDelete(null)
+        // Refresh list
+        const loadRes = await fetch('/api/data?table=profiles&match_key=role&match_value=patient')
+        if (loadRes.ok) {
+          const data = await loadRes.json()
+          const sortedData = Array.isArray(data) 
+            ? data.sort((a: any, b: any) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime())
+            : []
+          setPatients(sortedData)
+        }
+      } else {
+        const errorData = await res.json()
+        alert(`Erro ao deletar paciente: ${errorData.error || 'Unknown error'}`)
+      }
+    } catch (error: any) {
       alert(`Erro ao deletar paciente: ${error.message}`)
-    } else {
-      alert("Paciente deletado com sucesso!")
-      setPatientToDelete(null)
     }
 
     setDeleting(false)

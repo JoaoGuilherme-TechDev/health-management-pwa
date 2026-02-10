@@ -2,7 +2,6 @@
 
 import type React from "react"
 
-import { createClient } from "@/lib/supabase/client"
 import { useEffect, useState } from "react"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
@@ -51,51 +50,69 @@ export default function PatientDashboard() {
   })
 
   useEffect(() => {
-    const supabase = createClient()
     let isMounted = true
-    const channels: any[] = []
 
     const loadData = async () => {
-      const {
-        data: { user },
-      } = await supabase.auth.getUser()
-
-      if (!user) {
-        if (isMounted) setLoading(false)
-        return
-      }
-
       try {
-        // Load profile
-        const { data: profileData } = await supabase.from("profiles").select("*").eq("id", user.id).single()
+        const authRes = await fetch('/api/auth/me')
+        if (!authRes.ok) {
+          if (isMounted) setLoading(false)
+          return
+        }
+        const { user } = await authRes.json()
 
-        if (isMounted && profileData) {
-          setProfile(profileData)
+        if (!user) {
+          if (isMounted) setLoading(false)
+          return
+        }
+
+        // Load profile
+        const profileRes = await fetch(`/api/data?table=profiles&match_key=id&match_value=${user.id}`)
+        if (profileRes.ok) {
+          const profileData = await profileRes.json()
+          const profile = Array.isArray(profileData) ? profileData[0] : profileData
+          if (isMounted && profile) {
+            setProfile(profile)
+          }
         }
 
         // Load stats
-        const [medRes, appoRes, dietRes, presRes, evolRes] = await Promise.all([
-          supabase.from("medications").select("*", { count: "exact" }).eq("user_id", user.id).eq("is_active", true),
-          supabase
-            .from("appointments")
-            .select("*", { count: "exact" })
-            .eq("patient_id", user.id)
-            .eq("status", "scheduled")
-            .gte("scheduled_at", new Date().toISOString()),
-          supabase.from("patient_diet_recipes").select("*", { count: "exact" }).eq("patient_id", user.id),
-          supabase.from("medical_prescriptions").select("*", { count: "exact" }).eq("patient_id", user.id),
-          supabase.from("physical_evolution").select("*", { count: "exact" }).eq("user_id", user.id),
+        // We'll fetch data and count locally since /api/data returns all rows
+        const fetchData = async (table: string, matchKey?: string, matchValue?: any) => {
+          let url = `/api/data?table=${table}`
+          if (matchKey && matchValue) {
+            url += `&match_key=${matchKey}&match_value=${matchValue}`
+          }
+          const res = await fetch(url)
+          if (!res.ok) return []
+          return await res.json()
+        }
+
+        const [medications, appointments, diets, prescriptions, evolution] = await Promise.all([
+            fetchData('medications', 'user_id', user.id),
+            fetchData('appointments', 'patient_id', user.id),
+            fetchData('patient_diet_recipes', 'patient_id', user.id),
+            fetchData('medical_prescriptions', 'patient_id', user.id),
+            fetchData('physical_evolution', 'user_id', user.id)
         ])
 
         if (isMounted) {
-          setStats({  
-            activeMedications: medRes.count || 0,
-            upcomingAppointments: appoRes.count || 0,
-            activeDiets: dietRes.count || 0,
-            activePrescriptions: presRes.count || 0,
-            evolution: evolRes.count || 0,
-          })
+            // Filter appointments manually for status and date
+            const upcomingAppointments = Array.isArray(appointments) ? appointments.filter((app: any) => 
+                app.status === 'scheduled' && new Date(app.scheduled_at) >= new Date()
+            ).length : 0
+
+            const activeMedications = Array.isArray(medications) ? medications.filter((med: any) => med.is_active).length : 0
+
+            setStats({  
+            activeMedications: activeMedications,
+            upcomingAppointments: upcomingAppointments,
+            activeDiets: Array.isArray(diets) ? diets.length : 0,
+            activePrescriptions: Array.isArray(prescriptions) ? prescriptions.length : 0,
+            evolution: Array.isArray(evolution) ? evolution.length : 0,
+            })
         }
+
       } catch (error) {
         console.error("[v0] Error loading dashboard:", error)
       } finally {
@@ -105,143 +122,15 @@ export default function PatientDashboard() {
 
     loadData()
 
-    // Subscribe to real-time updates for all tables
-    const setupRealtime = async () => {
-      const {
-        data: { user },
-      } = await supabase.auth.getUser()
-
-      if (!user || !isMounted) return
-
-      const subscriptions: any[] = []
-
-      // Medications channel
-      const medicationsChannel = supabase
-        .channel(`dashboard-medications-${user.id}`)
-        .on(
-          "postgres_changes",
-          {
-            event: "*",
-            schema: "public",
-            table: "medications",
-            filter: `user_id=eq.${user.id}`,
-          },
-          () => {
-            console.log("[v0] Medications updated")
-            if (isMounted) loadData()
-          },
-        )
-        .subscribe((status) => {
-          console.log("[v0] Medications subscription status:", status)
-        })
-      subscriptions.push(medicationsChannel)
-
-      const evolutionChannel = supabase
-        .channel(`dashboard-evolution-${user.id}`)
-        .on(
-          "postgres_changes",
-          {
-            event: "*",
-            schema: "public",
-            table: "physical_evolution",
-            filter: `user_id=eq.${user.id}`,
-          },
-          () => {
-            console.log("[v0] Evolution updated")
-            if (isMounted) loadData()
-          },
-        )
-      // Appointments channel
-      const appointmentsChannel = supabase
-        .channel(`dashboard-appointments-${user.id}`)
-        .on(
-          "postgres_changes",
-          {
-            event: "*",
-            schema: "public",
-            table: "appointments",
-            filter: `patient_id=eq.${user.id}`,
-          },
-          () => {
-            console.log("[v0] Appointments updated")
-            if (isMounted) loadData()
-          },
-        )
-        .subscribe((status) => {
-          console.log("[v0] Appointments subscription status:", status)
-        })
-      subscriptions.push(appointmentsChannel)
-
-      const dietsChannel = supabase
-        .channel(`dashboard-diets-${user.id}`)
-        .on(
-          "postgres_changes",
-          {
-            event: "*",
-            schema: "public",
-            table: "patient_diet_recipes",
-            filter: `patient_id=eq.${user.id}`,
-          },
-          () => {
-            console.log("[v0] Diets updated")
-            if (isMounted) loadData()
-          },
-        )
-        .subscribe((status) => {
-          console.log("[v0] Diets subscription status:", status)
-        })
-      subscriptions.push(dietsChannel)
-
-      const prescriptionsChannel = supabase
-        .channel(`dashboard-prescriptions-${user.id}`)
-        .on(
-          "postgres_changes",
-          {
-            event: "*",
-            schema: "public",
-            table: "medical_prescriptions",
-            filter: `patient_id=eq.${user.id}`,
-          },
-          () => {
-            console.log("[v0] Prescriptions updated")
-            if (isMounted) loadData()
-          },
-        )
-        .subscribe((status) => {
-          console.log("[v0] Prescriptions subscription status:", status)
-        })
-      subscriptions.push(prescriptionsChannel)
-
-      const recipesChannel = supabase
-        .channel(`dashboard-recipes-${user.id}`)
-        .on(
-          "postgres_changes",
-          {
-            event: "*",
-            schema: "public",
-            table: "patient_diet_recipes",
-            filter: `patient_id=eq.${user.id}`,
-          },
-          () => {
-            console.log("[v0] Recipes updated")
-            if (isMounted) loadData()
-          },
-        )
-        .subscribe((status) => {
-          console.log("[v0] Recipes subscription status:", status)
-        })
-      subscriptions.push(recipesChannel)
-
-      channels.push(...subscriptions)
-    }
-
-    setupRealtime()
+    const POLL_INTERVAL_MS = process.env.NODE_ENV === 'test' ? 100 : 15000
+    const interval = setInterval(() => {
+        if (!document.hidden) loadData()
+    }, POLL_INTERVAL_MS)
+ 
 
     return () => {
       isMounted = false
-      channels.forEach((channel) => {
-        supabase.removeChannel(channel)
-      })
+      clearInterval(interval)
     }
   }, [])
 

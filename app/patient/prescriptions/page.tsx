@@ -1,7 +1,7 @@
 // app/patient/prescriptions/page.tsx
 "use client"
 
-import { createClient } from "@/lib/supabase/client"
+import { useRouter } from "next/navigation"
 import { useEffect, useState } from "react"
 import { Card, CardContent } from "@/components/ui/card"
 import { FileText, Calendar, ExternalLink } from "lucide-react"
@@ -22,44 +22,46 @@ interface Prescription {
 }
 
 export default function PrescriptionsPage() {
+  const router = useRouter()
   const [prescriptions, setPrescriptions] = useState<Prescription[]>([])
   const [loading, setLoading] = useState(true)
 
   useEffect(() => {
-    const supabase = createClient()
     let isMounted = true
-    const channels: any[] = []
 
     const loadPrescriptions = async () => {
       try {
-        const {
-          data: { user },
-        } = await supabase.auth.getUser()
+        const authRes = await fetch('/api/auth/me')
+        if (!authRes.ok) {
+          router.push("/login")
+          return
+        }
+        const { user } = await authRes.json()
 
         if (!user) {
           if (isMounted) setLoading(false)
           return
         }
 
-        console.log("[v0] Loading prescriptions for user:", user.id)
+        console.log("Loading prescriptions for user:", user.id)
 
-        const { data, error } = await supabase
-          .from("medical_prescriptions")
-          .select("*")
-          .eq("patient_id", user.id)
-          .order("created_at", { ascending: false })
-
+        const res = await fetch(`/api/data?table=medical_prescriptions&match_key=patient_id&match_value=${user.id}`)
+        
         if (isMounted) {
-          if (error) {
-            console.error("[v0] Error loading prescriptions:", error)
-            setPrescriptions([])
+          if (res.ok) {
+            let data = await res.json()
+            if (!Array.isArray(data)) data = [data]
+            // Sort
+            data.sort((a: any, b: any) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime())
+            setPrescriptions(data)
           } else {
-            setPrescriptions(data || [])
+             console.error("Error loading prescriptions:", await res.text())
+             setPrescriptions([])
           }
           setLoading(false)
         }
       } catch (error: any) {
-        console.error("[v0] Unexpected error:", error)
+        console.error("Unexpected error:", error)
         if (isMounted) {
           setPrescriptions([])
           setLoading(false)
@@ -69,45 +71,15 @@ export default function PrescriptionsPage() {
 
     loadPrescriptions()
 
-    // Setup real-time subscription
-    const setupRealtime = async () => {
-      const {
-        data: { user },
-      } = await supabase.auth.getUser()
-
-      if (!user || !isMounted) return
-
-      const channel = supabase
-        .channel(`patient-prescriptions-${user.id}`)
-        .on(
-          "postgres_changes",
-          {
-            event: "*",
-            schema: "public",
-            table: "medical_prescriptions",
-            filter: `patient_id=eq.${user.id}`,
-          },
-          () => {
-            console.log("[v0] Prescription changed, reloading...")
-            if (isMounted) loadPrescriptions()
-          },
-        )
-        .subscribe((status) => {
-          console.log("[v0] Prescription subscription status:", status)
-        })
-
-      channels.push(channel)
-    }
-
-    setupRealtime()
+    const interval = setInterval(() => {
+        if (isMounted && !document.hidden) loadPrescriptions()
+    }, 15000)
 
     return () => {
       isMounted = false
-      channels.forEach((channel) => {
-        supabase.removeChannel(channel)
-      })
+      clearInterval(interval)
     }
-  }, [])
+  }, [router])
 
   const isPrescriptionValid = (validUntil: string | null) => {
     if (!validUntil) return true

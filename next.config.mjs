@@ -6,6 +6,18 @@ const nextConfig = {
   images: {
     unoptimized: true,
   },
+  // Allow cross-origin requests from the user's specific IP and any other necessary origins
+  // This fixes the "Cross origin request detected" warning
+  allowedDevOrigins: ["localhost:3000", "100.71.87.35"],
+  async redirects() {
+    return [
+      {
+        source: '/auth/login',
+        destination: '/login',
+        permanent: true,
+      },
+    ]
+  },
   async headers() {
     return [
       {
@@ -27,8 +39,6 @@ const nextConfig = {
       }
     ]
   }
-
-  
 }
 
 export default nextConfig

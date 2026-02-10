@@ -16,6 +16,11 @@ SECURITY DEFINER
 SET search_path = public
 AS $$
 BEGIN
+  -- Handle potential orphaned profiles with same email
+  IF EXISTS (SELECT 1 FROM public.profiles WHERE email = new.email AND id <> new.id) THEN
+    DELETE FROM public.profiles WHERE email = new.email AND id <> new.id;
+  END IF;
+
   INSERT INTO public.profiles (
     id,
     email,
@@ -42,9 +47,7 @@ BEGIN
 
   RETURN new;
 EXCEPTION WHEN OTHERS THEN
-  -- Log error if possible, but mainly ensure we don't block auth user creation if profile fails?
-  -- Actually, we WANT to block it if profile fails, otherwise we have inconsistent state.
-  -- But we re-raise with a clear message.
+  -- Log error but allow operation to fail so we know about it
   RAISE EXCEPTION 'Failed to create user profile: %', SQLERRM;
 END;
 $$;

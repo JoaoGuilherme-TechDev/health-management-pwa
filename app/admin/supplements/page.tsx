@@ -1,6 +1,5 @@
 "use client"
 
-import { createClient } from "@/lib/supabase/client"
 import { useEffect, useState } from "react"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent } from "@/components/ui/card"
@@ -12,24 +11,36 @@ export default function SupplementsPage() {
   const [loading, setLoading] = useState(true)
   const [showForm, setShowForm] = useState(false)
   const [editingSupplement, setEditingSupplement] = useState<any>(null)
-  const supabase = createClient()
 
   useEffect(() => {
     loadSupplements()
   }, [])
 
   const loadSupplements = async () => {
-    const { data, error } = await supabase.from("supplement_catalog").select("*").order("created_at", { ascending: false })
-    if (!error) {
-      setSupplements(data || [])
+    try {
+      const res = await fetch("/api/data?table=supplement_catalog")
+      if (res.ok) {
+        const data = await res.json()
+        setSupplements(data || [])
+      }
+    } catch (error) {
+      console.error("Error loading supplements:", error)
+    } finally {
+      setLoading(false)
     }
-    setLoading(false)
   }
 
   const handleDelete = async (id: string) => {
     if (confirm("Tem certeza de que deseja excluir este suplemento?")) {
-      await supabase.from("supplement_catalog").delete().eq("id", id)
-      loadSupplements()
+      try {
+        await fetch(`/api/data?table=supplement_catalog&match_key=id&match_value=${id}`, {
+          method: 'DELETE'
+        })
+        loadSupplements()
+      } catch (error) {
+        console.error("Error deleting supplement:", error)
+        alert("Erro ao excluir suplemento")
+      }
     }
   }
 

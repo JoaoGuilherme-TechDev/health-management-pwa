@@ -2,7 +2,6 @@
 
 import type React from "react"
 
-import { createClient } from "@/lib/supabase/client"
 import { useEffect, useState } from "react"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
@@ -20,6 +19,7 @@ import {
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { Plus, Trash2, Utensils, FileText, ExternalLink, Edit2 } from "lucide-react"
 import { formatBrasiliaDate } from "@/lib/timezone"
+import { useAuth } from "@/hooks/use-auth"
 
 interface PatientDietTabProps {
   patientId: string
@@ -39,55 +39,39 @@ export function PatientDietTab({ patientId }: PatientDietTabProps) {
     image_url: "",
   })
 
+  const { user } = useAuth()
+
   useEffect(() => {
     loadDietRecipes()
+    
+    const interval = setInterval(() => {
+      if (!document.hidden) loadDietRecipes()
+    }, 15000)
 
-    const supabase = createClient()
-    const channel = supabase
-      .channel(`diet-recipes-${patientId}`)
-      .on(
-        "postgres_changes",
-        {
-          event: "*",
-          schema: "public",
-          table: "patient_diet_recipes",
-          filter: `patient_id=eq.${patientId}`,
-        },
-        () => {
-          console.log("[v0] Plano de dieta atualizado, recarregando...")
-          loadDietRecipes()
-        },
-      )
-      .subscribe()
-
-    return () => {
-      supabase.removeChannel(channel)
-    }
+    return () => clearInterval(interval)
   }, [patientId])
 
   const loadDietRecipes = async () => {
-    const supabase = createClient()
-    const { data, error } = await supabase
-      .from("patient_diet_recipes")
-      .select("*")
-      .eq("patient_id", patientId)
-      .order("created_at", { ascending: false })
-
-    if (error) {
+    try {
+      const res = await fetch(`/api/data?table=patient_diet_recipes&match_key=patient_id&match_value=${patientId}`)
+      
+      if (res.ok) {
+        const data = await res.json()
+        setDietRecipes(data || [])
+        setError(null)
+      } else {
+        const err = await res.json()
+        setError(err.error || "Erro ao carregar dietas")
+      }
+    } catch (error: any) {
       setError(error.message)
-    } else {
-      setDietRecipes(data || [])
+    } finally {
+      setLoading(false)
     }
-    setLoading(false)
   }
 
   const handlePdfUpload = async (file: File) => {
     setUploading(true)
-    const supabase = createClient()
-
-    const {
-      data: { user },
-    } = await supabase.auth.getUser()
 
     if (!user) {
       alert("Usuário não autenticado")
@@ -103,30 +87,33 @@ export function PatientDietTab({ patientId }: PatientDietTabProps) {
     console.log("[v0] Fazendo upload para:", filePath)
 
     try {
-      const { data, error } = await supabase.storage.from("diets").upload(filePath, file, {
-        cacheControl: "3600",
-        upsert: false,
+      const formData = new FormData()
+      formData.append("file", file)
+      formData.append("bucket", "diets")
+      formData.append("path", filePath)
+
+      const res = await fetch("/api/upload", {
+        method: "POST",
+        body: formData,
       })
 
-      if (error) {
-        console.error("[v0] Erro detalhado no upload:", error)
-        alert(`Erro ao fazer upload: ${error.message}`)
-        return
+      const data = await res.json()
+
+      if (!res.ok) {
+        throw new Error(data.error || "Erro no upload")
       }
 
       console.log("[v0] Upload bem-sucedido:", data)
 
-      const { data: urlData } = supabase.storage.from("diets").getPublicUrl(filePath)
-
-      if (urlData?.publicUrl) {
-        console.log("[v0] URL pública gerada:", urlData.publicUrl)
-        setFormData({ ...formData, image_url: urlData.publicUrl })
+      if (data.publicUrl) {
+        console.log("[v0] URL pública gerada:", data.publicUrl)
+        setFormData((prev) => ({ ...prev, image_url: data.publicUrl }))
       } else {
         alert("Erro ao gerar URL pública do arquivo")
       }
     } catch (err: any) {
       console.error("[v0] Exceção no upload:", err)
-      alert("Erro inesperado ao fazer upload do arquivo")
+      alert(`Erro ao fazer upload: ${err.message}`)
     } finally {
       setUploading(false)
     }
@@ -134,27 +121,19 @@ export function PatientDietTab({ patientId }: PatientDietTabProps) {
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
-    const supabase = createClient()
 
     if (!formData.image_url) {
       alert("Por favor, faça o upload do PDF antes de adicionar.")
       return
     }
 
-    const {
-      data: { user },
-      error: authError,
-    } = await supabase.auth.getUser()
-
-    if (authError || !user) {
-      console.error("[v0] Erro de autenticação:", authError)
+    if (!user) {
       alert("Erro: Usuário não autenticado")
       return
     }
 
     const baseData = {
       patient_id: patientId,
-      user_id: user.id,
       doctor_id: user.id,
       title: formData.title,
       description: formData.description || null,
@@ -165,15 +144,15 @@ export function PatientDietTab({ patientId }: PatientDietTabProps) {
 
     try {
       if (editingDiet) {
-        const { error } = await supabase
-          .from("patient_diet_recipes")
-          .update(baseData)
-          .eq("id", editingDiet.id)
+        const res = await fetch(`/api/data?table=patient_diet_recipes&match_key=id&match_value=${editingDiet.id}`, {
+            method: 'PUT',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(baseData)
+        })
 
-        if (error) {
-          console.error("[v0] Erro detalhado:", error)
-          alert(`Erro ao atualizar plano de dieta: ${error.message}`)
-          return
+        if (!res.ok) {
+            const err = await res.json()
+            throw new Error(err.error || "Erro ao atualizar")
         }
         alert("Plano de dieta atualizado com sucesso!")
       } else {
@@ -182,17 +161,15 @@ export function PatientDietTab({ patientId }: PatientDietTabProps) {
           created_at: new Date().toISOString(),
         }
 
-        const { data, error } = await supabase.from("patient_diet_recipes").insert(dataToInsert).select()
+        const res = await fetch(`/api/data?table=patient_diet_recipes`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(dataToInsert)
+        })
 
-        if (error) {
-          console.error("[v0] Erro detalhado:", error)
-          alert(`Erro ao adicionar plano de dieta: ${error.message}`)
-          return
-        }
-
-        if (!data || data.length === 0) {
-          alert("Erro: Nenhum dado retornado após inserção")
-          return
+        if (!res.ok) {
+            const err = await res.json()
+            throw new Error(err.error || "Erro ao adicionar")
         }
 
         alert("Plano de dieta adicionado com sucesso!")
@@ -207,9 +184,9 @@ export function PatientDietTab({ patientId }: PatientDietTabProps) {
         image_url: "",
       })
       loadDietRecipes()
-    } catch (err) {
+    } catch (err: any) {
       console.error("[v0] Exceção:", err)
-      alert("Erro inesperado ao salvar plano de dieta")
+      alert(`Erro inesperado ao salvar plano de dieta: ${err.message}`)
     }
   }
 
@@ -218,17 +195,21 @@ export function PatientDietTab({ patientId }: PatientDietTabProps) {
       return
     }
 
-    const supabase = createClient()
-    const { error } = await supabase.from("patient_diet_recipes").delete().eq("id", id)
+    try {
+        const res = await fetch(`/api/data?table=patient_diet_recipes&match_key=id&match_value=${id}`, {
+            method: 'DELETE'
+        })
+        
+        if (!res.ok) {
+            throw new Error("Erro ao deletar")
+        }
 
-    if (error) {
+        alert("Plano de dieta removido com sucesso!")
+        loadDietRecipes()
+    } catch (error) {
       console.error("[v0] Erro ao deletar plano de dieta:", error)
       alert("Erro ao remover plano de dieta")
-      return
     }
-
-    alert("Plano de dieta removido com sucesso!")
-    loadDietRecipes()
   }
 
   const handleEdit = (diet: any) => {

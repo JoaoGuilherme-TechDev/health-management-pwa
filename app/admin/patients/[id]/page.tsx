@@ -1,6 +1,5 @@
 "use client"
 
-import { createClient } from "@/lib/supabase/client"
 import { useParams, useRouter } from "next/navigation"
 import { useEffect, useState } from "react"
 import { Card, CardContent } from "@/components/ui/card"
@@ -28,17 +27,16 @@ export default function PatientDetailsPage() {
 
   const loadPatient = async () => {
     console.log("[v0] Carregando dados do paciente:", patientId)
-    const supabase = createClient()
 
     try {
-      const { data, error } = await supabase.from("profiles").select("*").eq("id", patientId).single()
-
-      if (error) {
-        console.error("[v0] Erro ao carregar paciente:", error)
-        console.error("[v0] Detalhes do erro:", JSON.stringify(error, null, 2))
+      const res = await fetch(`/api/data?table=profiles&match_key=id&match_value=${patientId}`)
+      if (res.ok) {
+        const data = await res.json()
+        const patient = Array.isArray(data) ? data[0] : data
+        console.log("[v0] Paciente carregado com sucesso:", patient)
+        setPatient(patient)
       } else {
-        console.log("[v0] Paciente carregado com sucesso:", data)
-        setPatient(data)
+        console.error("[v0] Erro ao carregar paciente:", await res.text())
       }
     } catch (err) {
       console.error("[v0] Exceção ao carregar paciente:", err)

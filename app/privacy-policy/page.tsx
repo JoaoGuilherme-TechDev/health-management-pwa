@@ -1,8 +1,10 @@
 // app/privacy-policy/page.tsx
-import Link from "next/link"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
-import { ArrowLeft, Heart } from "lucide-react"
+import { ArrowLeft } from "lucide-react"
+import { Logo } from "@/components/logo"
+import { ModeToggle } from "@/components/mode-toggle"
+import Link from "next/link"
 
 export default function PrivacyPolicyPage() {
   return (
@@ -11,15 +13,18 @@ export default function PrivacyPolicyPage() {
       <nav className="sticky top-0 z-50 border-b border-border bg-background/95 backdrop-blur supports-backdrop-filter:bg-background/60">
         <div className="mx-auto max-w-6xl px-4 sm:px-6 lg:px-8 py-4 flex items-center justify-between">
           <div className="flex items-center gap-2">
-            <Heart className="h-6 w-6 text-primary" />
-            <span className="text-xl font-bold text-foreground">HealthCare+</span>
+            <Logo className="h-8 w-8" />
+            <span className="text-xl font-bold text-foreground">Dra. Estefânia Rappelli</span>
           </div>
-          <Button asChild variant="outline" size="sm">
-            <Link href="/" className="flex items-center gap-2">
-              <ArrowLeft className="h-4 w-4" />
-              Voltar para Início
-            </Link>
-          </Button>
+          <div className="flex items-center gap-2">
+            <ModeToggle />
+            <Button asChild variant="outline" size="sm">
+              <Link href="/" className="flex items-center gap-2">
+                <ArrowLeft className="h-4 w-4" />
+                Voltar para Início
+              </Link>
+            </Button>
+          </div>
         </div>
       </nav>
 
@@ -33,12 +38,12 @@ export default function PrivacyPolicyPage() {
             <section>
               <h2 className="text-xl font-semibold mb-2">1. Introdução</h2>
               <p className="text-muted-foreground mb-2">
-                Bem-vindo(a) ao <strong>HealthCare+</strong>. Esta Política de Privacidade explica como coletamos, usamos,
+                Bem-vindo(a) ao <strong>App da Dra. Estefânia Rappelli</strong>. Esta Política de Privacidade explica como coletamos, usamos,
                 armazenamos e protegemos suas informações pessoais quando você utiliza nosso aplicativo e serviços
                 relacionados.
               </p>
               <p className="text-muted-foreground">
-                Ao utilizar o HealthCare+, você declara estar ciente e de acordo com o tratamento dos seus dados pessoais
+                Ao utilizar o App da Dra. Estefânia Rappelli, você declara estar ciente e de acordo com o tratamento dos seus dados pessoais
                 conforme descrito abaixo. Caso não concorde com esta política, recomendamos que não utilize o serviço.
               </p>
             </section>
@@ -74,7 +79,7 @@ export default function PrivacyPolicyPage() {
               <h2 className="text-xl font-semibold mb-2">3. Como Utilizamos Seus Dados</h2>
               <p className="text-muted-foreground mb-2">Utilizamos seus dados pessoais para:</p>
               <ul className="list-disc pl-5 text-muted-foreground space-y-1">
-                <li>criar e gerenciar sua conta no HealthCare+;</li>
+                <li>criar e gerenciar sua conta no App da Dra. Estefânia Rappelli;</li>
                 <li>exibir e organizar suas consultas, medicamentos, prescrições, dietas e evolução;</li>
                 <li>enviar lembretes e notificações sobre consultas, medicamentos e outras informações importantes;</li>
                 <li>personalizar sua experiência no aplicativo;</li>
@@ -177,14 +182,14 @@ export default function PrivacyPolicyPage() {
               </ul>
               <p className="text-muted-foreground mt-2">
                 Para exercer seus direitos, entre em contato conosco pelo e-mail{" "}
-                <span className="font-medium">contato@seu-dominio.com</span>.
+                <span className="font-medium">contato@estefaniarappelli.com.br</span>.
               </p>
             </section>
 
             <section>
               <h2 className="text-xl font-semibold mb-2">10. Privacidade de Crianças e Adolescentes</h2>
               <p className="text-muted-foreground">
-                O HealthCare+ não é destinado diretamente a crianças sem supervisão. O uso por menores de idade deve
+                O App da Dra. Estefânia Rappelli não é destinado diretamente a crianças sem supervisão. O uso por menores de idade deve
                 ocorrer com o acompanhamento e consentimento de pais ou responsáveis legais, quando exigido pela
                 legislação. Caso identifiquemos o tratamento indevido de dados de menores sem o consentimento adequado,
                 adotaremos as medidas necessárias para regularizar ou excluir tais dados.
@@ -205,7 +210,7 @@ export default function PrivacyPolicyPage() {
               <p className="text-muted-foreground">
                 Em caso de dúvidas, solicitações ou reclamações relacionadas a esta Política de Privacidade ou ao
                 tratamento de seus dados pessoais, entre em contato pelo e-mail{" "}
-                <span className="font-medium">contato@seu-dominio.com</span>.
+                <span className="font-medium">contato@estefaniarappelli.com.br</span>.
               </p>
             </section>
           </CardContent>

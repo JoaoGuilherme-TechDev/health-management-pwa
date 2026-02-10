@@ -7,10 +7,10 @@ import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Textarea } from "@/components/ui/textarea"
-import { createClient } from "@/lib/supabase/client"
 import { Plus, FileText, Trash2, ExternalLink, Edit2 } from "lucide-react"
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog"
 import { formatBrasiliaDate } from "@/lib/timezone"
+import { useAuth } from "@/hooks/use-auth"
 
 export function PatientPrescriptionsTab({ patientId }: { patientId: string }) {
   const [prescriptions, setPrescriptions] = useState<any[]>([])
@@ -25,52 +25,34 @@ export function PatientPrescriptionsTab({ patientId }: { patientId: string }) {
     notes: "",
     prescription_file_url: "",
   })
+  
+  const { user } = useAuth()
 
   useEffect(() => {
     loadPrescriptions()
 
-    const supabase = createClient()
-    const channel = supabase
-      .channel(`prescriptions-${patientId}`)
-      .on(
-        "postgres_changes",
-        {
-          event: "*",
-          schema: "public",
-          table: "medical_prescriptions",
-          filter: `patient_id=eq.${patientId}`,
-        },
-        () => {
-          console.log("[v0] Receita atualizada, recarregando...")
-          loadPrescriptions()
-        },
-      )
-      .subscribe()
-
-    return () => {
-      supabase.removeChannel(channel)
-    }
+    const interval = setInterval(() => {
+      if (!document.hidden) loadPrescriptions()
+    }, 15000)
+    return () => clearInterval(interval)
   }, [patientId])
 
   const loadPrescriptions = async () => {
-    const supabase = createClient()
-    const { data } = await supabase
-      .from("medical_prescriptions")
-      .select("*")
-      .eq("patient_id", patientId)
-      .order("created_at", { ascending: false })
-
-    setPrescriptions(data || [])
-    setLoading(false)
+    try {
+      const res = await fetch(`/api/data?table=medical_prescriptions&match_key=patient_id&match_value=${patientId}`)
+      if (res.ok) {
+        const data = await res.json()
+        setPrescriptions(data || [])
+      }
+    } catch (error) {
+      console.error("Error loading prescriptions:", error)
+    } finally {
+      setLoading(false)
+    }
   }
 
   const handleFileUpload = async (file: File) => {
     setUploading(true)
-    const supabase = createClient()
-
-    const {
-      data: { user },
-    } = await supabase.auth.getUser()
 
     if (!user) {
       alert("Usuário não autenticado")
@@ -86,35 +68,33 @@ export function PatientPrescriptionsTab({ patientId }: { patientId: string }) {
     console.log("[v0] Fazendo upload para:", filePath)
 
     try {
-      const { data, error } = await supabase.storage.from("prescriptions").upload(filePath, file, {
-        cacheControl: "3600",
-        upsert: false,
+      const uploadFormData = new FormData()
+      uploadFormData.append("file", file)
+      uploadFormData.append("bucket", "prescriptions")
+      uploadFormData.append("path", filePath)
+
+      const res = await fetch("/api/upload", {
+        method: "POST",
+        body: uploadFormData,
       })
 
-      if (error) {
-        console.error("[v0] Erro detalhado no upload:", error)
+      const data = await res.json()
 
-        if (error.message.includes("row-level security")) {
-          alert("Erro de permissão: Verifique as políticas do bucket 'prescriptions' no Supabase.")
-        } else {
-          alert(`Erro ao fazer upload: ${error.message}`)
-        }
-        return
+      if (!res.ok) {
+        throw new Error(data.error || "Erro no upload")
       }
 
       console.log("[v0] Upload bem-sucedido:", data)
 
-      const { data: urlData } = supabase.storage.from("prescriptions").getPublicUrl(filePath)
-
-      if (urlData?.publicUrl) {
-        console.log("[v0] URL pública gerada:", urlData.publicUrl)
-        setFormData({ ...formData, prescription_file_url: urlData.publicUrl })
+      if (data.publicUrl) {
+        console.log("[v0] URL pública gerada:", data.publicUrl)
+        setFormData((prev) => ({ ...prev, prescription_file_url: data.publicUrl }))
       } else {
         alert("Erro ao gerar URL pública do arquivo")
       }
-    } catch (err) {
+    } catch (err: any) {
       console.error("[v0] Exceção no upload:", err)
-      alert("Erro inesperado ao fazer upload do arquivo")
+      alert(`Erro ao fazer upload: ${err.message}`)
     } finally {
       setUploading(false)
     }
@@ -122,35 +102,16 @@ export function PatientPrescriptionsTab({ patientId }: { patientId: string }) {
 
   const handleAdd = async () => {
     console.log("[v0] Iniciando adição de receita...")
-    const supabase = createClient()
 
     if (!formData.prescription_file_url) {
       alert("Por favor, faça o upload da receita médica antes de adicionar.")
       return
     }
 
-    const {
-      data: { user },
-      error: authError,
-    } = await supabase.auth.getUser()
-
-    if (authError || !user) {
-      console.error("[v0] Erro de autenticação:", authError)
+    if (!user) {
       alert("Erro: Usuário não autenticado")
       return
     }
-
-    const { data: profile } = await supabase
-      .from("profiles")
-      .select("first_name, last_name, doctor_full_name")
-      .eq("id", user.id)
-      .single()
-
-    const doctorName =
-      profile?.doctor_full_name ||
-      `${profile?.first_name || ""} ${profile?.last_name || ""}`.trim() ||
-      user.email ||
-      "Médico"
 
     const baseData = {
       patient_id: patientId,
@@ -165,15 +126,15 @@ export function PatientPrescriptionsTab({ patientId }: { patientId: string }) {
 
     try {
       if (editingPrescription) {
-        const { error } = await supabase
-          .from("medical_prescriptions")
-          .update(baseData)
-          .eq("id", editingPrescription.id)
+        const res = await fetch(`/api/data?table=medical_prescriptions&match_key=id&match_value=${editingPrescription.id}`, {
+            method: 'PUT',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(baseData)
+        })
 
-        if (error) {
-          console.error("[v0] Erro detalhado:", error)
-          alert(`Erro ao atualizar receita: ${error.message}`)
-          return
+        if (!res.ok) {
+          const err = await res.json()
+          throw new Error(err.error || "Erro ao atualizar")
         }
         alert("Receita atualizada com sucesso!")
       } else {
@@ -182,17 +143,15 @@ export function PatientPrescriptionsTab({ patientId }: { patientId: string }) {
           created_at: new Date().toISOString(),
         }
 
-        const { data, error } = await supabase.from("medical_prescriptions").insert(dataToInsert).select()
+        const res = await fetch(`/api/data?table=medical_prescriptions`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(dataToInsert)
+        })
 
-        if (error) {
-          console.error("[v0] Erro detalhado:", error)
-          alert(`Erro ao adicionar receita: ${error.message}`)
-          return
-        }
-
-        if (!data || data.length === 0) {
-          alert("Erro: Nenhum dado retornado após inserção")
-          return
+        if (!res.ok) {
+           const err = await res.json()
+           throw new Error(err.error || "Erro ao adicionar")
         }
 
         alert("Receita adicionada com sucesso!")
@@ -208,9 +167,9 @@ export function PatientPrescriptionsTab({ patientId }: { patientId: string }) {
         prescription_file_url: "",
       })
       loadPrescriptions()
-    } catch (err) {
+    } catch (err: any) {
       console.error("[v0] Exceção:", err)
-      alert("Erro inesperado ao salvar receita")
+      alert(`Erro inesperado ao salvar receita: ${err.message}`)
     }
   }
 
@@ -219,17 +178,21 @@ export function PatientPrescriptionsTab({ patientId }: { patientId: string }) {
       return
     }
 
-    const supabase = createClient()
-    const { error } = await supabase.from("medical_prescriptions").delete().eq("id", id)
+    try {
+        const res = await fetch(`/api/data?table=medical_prescriptions&match_key=id&match_value=${id}`, {
+            method: 'DELETE'
+        })
+        
+        if (!res.ok) {
+            throw new Error("Erro ao deletar")
+        }
 
-    if (error) {
+        alert("Receita removida com sucesso!")
+        loadPrescriptions()
+    } catch (error) {
       console.error("[v0] Erro ao deletar receita:", error)
       alert("Erro ao remover receita")
-      return
     }
-
-    alert("Receita removida com sucesso!")
-    loadPrescriptions()
   }
 
   const handleEdit = (pres: any) => {

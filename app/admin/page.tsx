@@ -1,7 +1,8 @@
 "use client"
 
-import { createClient } from "@/lib/supabase/client"
+
 import { useState, useEffect } from "react"
+
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Users, Activity, RefreshCcw } from "lucide-react"
 import { Button } from "@/components/ui/button"
@@ -14,19 +15,26 @@ export default function AdminDashboard() {
 
   useEffect(() => {
     const loadStats = async () => {
-      const supabase = createClient()
-
       try {
-        const { count: patientCount } = await supabase
-          .from("profiles")
-          .select("*", { count: "exact", head: true })
-          .eq("role", "patient")
+        // Load patients count
+        const patientsRes = await fetch('/api/data?table=profiles&match_key=role&match_value=patient')
+        let patientCount = 0
+        if (patientsRes.ok) {
+          const patients = await patientsRes.json()
+          patientCount = Array.isArray(patients) ? patients.length : 0
+        }
 
-        const { count: medCount } = await supabase.from("medications").select("*", { count: "exact", head: true })
+        // Load medications count
+        const medsRes = await fetch('/api/data?table=medications')
+        let medCount = 0
+        if (medsRes.ok) {
+          const meds = await medsRes.json()
+          medCount = Array.isArray(meds) ? meds.length : 0
+        }
 
         setStats({
-          totalPatients: patientCount || 0,
-          totalMedications: medCount || 0,
+          totalPatients: patientCount,
+          totalMedications: medCount,
         })
       } catch (error) {
         console.error("[v0] Erro ao carregar estatísticas:", error)
@@ -34,7 +42,9 @@ export default function AdminDashboard() {
     }
 
     loadStats() // Carrega imediatamente
-    const interval = setInterval(loadStats, 5000) // Atualiza a cada 5 segundos
+    const interval = setInterval(() => {
+      if (!document.hidden) loadStats()
+    }, 15000) // Atualiza a cada 15 segundos
 
     return () => clearInterval(interval)
   }, [])

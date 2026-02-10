@@ -1,5 +1,5 @@
-import { createClient } from "@supabase/supabase-js"
 import { NextResponse } from "next/server"
+import { pool } from "@/lib/db"
 
 export async function POST(request: Request) {
   try {
@@ -9,17 +9,7 @@ export async function POST(request: Request) {
       return NextResponse.json({ error: "Missing parameters" }, { status: 400 })
     }
 
-    const supabase = createClient(
-      process.env.NEXT_PUBLIC_SUPABASE_URL!,
-      process.env.SUPABASE_SERVICE_ROLE_KEY!
-    )
-
-    const { error } = await supabase
-      .from("notifications")
-      .update({ read: true })
-      .eq("id", id)
-
-    if (error) throw error
+    await pool.query('UPDATE notifications SET is_read = true WHERE id = $1', [id]);
 
     return NextResponse.json({ success: true })
   } catch (error) {

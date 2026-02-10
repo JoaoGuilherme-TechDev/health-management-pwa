@@ -2,12 +2,13 @@
 
 import type React from "react"
 
-import { createClient } from "@/lib/supabase/client"
 import { useRouter } from "next/navigation"
 import { useEffect, useState } from "react"
 import { Button } from "@/components/ui/button"
 import { Heart, LogOut, Home, Users, Settings, Utensils, Pill, Bell, Dumbbell } from "lucide-react"
+import { Logo } from "@/components/logo"
 import Link from "next/link"
+import { ModeToggle } from "@/components/mode-toggle"
 import { useAuth } from "@/hooks/use-auth"
 
 
@@ -20,19 +21,25 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
     const checkAuth = async () => {
       if (authLoading) return
 
-      const supabase = createClient()
-
       if (!user) {
-        router.push("/auth/login")
+        router.push("/login")
         return
       }
 
       // Check if user is admin
-      const { data: profile } = await supabase.from("profiles").select("role").eq("id", user.id).single()
-
-      if (profile?.role !== "admin") {
-        router.push("/patient")
-        return
+      try {
+        const res = await fetch(`/api/data?table=profiles&match_key=id&match_value=${user.id}`)
+        if (res.ok) {
+          const data = await res.json()
+          const profile = Array.isArray(data) ? data[0] : data
+          
+          if (profile?.role !== "admin") {
+            router.push("/patient")
+            return
+          }
+        }
+      } catch (e) {
+        console.error("Role check error", e)
       }
 
       setCheckingRole(false)
@@ -42,10 +49,9 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
   }, [router, user, authLoading])
 
   const handleLogout = async () => {
-    const supabase = createClient()
-    await supabase.auth.signOut()
+    await fetch('/api/auth/signout', { method: 'POST' })
     if (typeof window !== "undefined") {
-      window.localStorage.removeItem("healthcare_session")
+      window.localStorage.removeItem("er_session")
     }
     router.push("/")
   }
@@ -66,21 +72,24 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
   }
 
   return (
-    <div className="min-h-screen bg-background">
+    <div className="h-screen bg-background flex flex-col overflow-hidden">
       {/* Top Navigation - Mobile optimized */}
-      <nav className="sticky top-0 z-50 border-b border-border bg-background/95 backdrop-blur supports-backdrop-filter:bg-background/60">
+      <nav className="border-b border-border bg-background/95 backdrop-blur supports-backdrop-filter:bg-background/60">
         <div className="mx-auto px-3 sm:px-6 lg:px-8 py-3 sm:py-4 flex items-center justify-between">
           <Link href="/admin" className="flex items-center gap-2">
-            <Heart className="h-5 w-5 sm:h-6 sm:w-6 text-primary" />
-            <span className="text-base sm:text-xl font-bold text-foreground">HealthCare+ Admin</span>
+            <Logo className="h-5 w-5 sm:h-6 sm:w-6" />
+            <span className="text-base sm:text-xl font-bold text-foreground font-logo">Dra. Estefânia Rappelli Admin</span>
           </Link>
-          <Button onClick={handleLogout} variant="destructive" className="gap-2">
-            <LogOut className="h-4 w-4" />
-          </Button>
+          <div className="flex items-center gap-2">
+            <ModeToggle />
+            <Button onClick={handleLogout} variant="destructive" className="gap-2">
+              <LogOut className="h-4 w-4" />
+            </Button>
+          </div>
         </div>
       </nav>
 
-      <div className="flex">
+      <div className="flex flex-1">
         {/* Sidebar - Desktop only */}
         <aside className="hidden md:flex w-64 border-r border-border bg-muted/30 flex-col">
           <nav className="flex-1 space-y-2 p-6">
@@ -103,7 +112,7 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
         </div>
 
         {/* Main Content - Mobile optimized padding with safe area */}
-        <main className="flex-1 p-3 sm:p-6 lg:p-8 pb-24 md:pb-6 max-w-full overflow-x-hidden">{children}</main>
+        <main className="flex-1 p-3 sm:p-6 lg:p-8 pb-24 md:pb-6 max-w-full overflow-x-hidden overflow-y-auto">{children}</main>
       </div>
     </div>
   )

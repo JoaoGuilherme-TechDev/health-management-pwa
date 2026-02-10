@@ -5,6 +5,7 @@ import type React from "react"
 import { useEffect, useState } from "react"
 import { Analytics } from "@vercel/analytics/next"
 import { PWAInstallPrompt } from "@/components/pwa-install-prompt"
+import { ThemeProvider } from "@/components/theme-provider"
 
 export default function ClientLayout({
   children,
@@ -36,9 +37,16 @@ export default function ClientLayout({
 
   return (
     <body className="font-sans antialiased">
-      {children}
-      <PWAInstallPrompt />
-      <Analytics />
+      <ThemeProvider
+        attribute="class"
+        defaultTheme="system"
+        enableSystem
+        disableTransitionOnChange
+      >
+        {children}
+        <PWAInstallPrompt />
+        <Analytics />
+      </ThemeProvider>
     </body>
   )
 }

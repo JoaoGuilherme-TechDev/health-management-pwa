@@ -78,7 +78,7 @@ export function PWAInstallPrompt() {
             Seu app de cuidado em saúde
           </DialogTitle>
           <DialogDescription>
-            Instale o HealthCare+ para receber lembretes de remédios, consultas e evolução física direto na tela
+            Instale o App Dra. Estefânia Rappelli para receber lembretes de remédios, consultas e evolução física direto na tela
             inicial.
           </DialogDescription>
         </DialogHeader>
@@ -90,10 +90,10 @@ export function PWAInstallPrompt() {
             </div>
 
             <div className="flex items-center gap-4 p-4 rounded-2xl bg-white/80 dark:bg-slate-950/70 border border-pink-100/60 dark:border-slate-800 shadow-sm">
-              <img src="/apple-icon.png" alt="App Icon" className="w-12 h-12 rounded-2xl shadow-md" />
+              <img src="/icon.svg" alt="App Icon" className="w-12 h-12 rounded-2xl shadow-md" />
               <div className="flex-1 space-y-1">
                 <div className="flex items-center gap-2">
-                  <h3 className="font-semibold">HealthCare+</h3>
+                  <h3 className="font-semibold">Dra. Estefânia Rappelli</h3>
                   <span className="inline-flex items-center gap-1 rounded-full bg-emerald-50 text-emerald-700 text-[10px] px-2 py-0.5 dark:bg-emerald-900/60 dark:text-emerald-100">
                     <Pill className="h-3 w-3" />
                     Saúde

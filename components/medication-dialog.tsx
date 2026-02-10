@@ -1,7 +1,6 @@
 "use client"
 
 import type React from "react"
-import { createClient } from "@/lib/supabase/client"
 import { useEffect, useState } from "react"
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "@/components/ui/dialog"
 import { Button } from "@/components/ui/button"
@@ -49,22 +48,28 @@ export function MedicationDialog({ open, onOpenChange, medication, onSave, patie
   // Load doctor info if creating as admin
   useEffect(() => {
     const loadDoctorInfo = async () => {
-      const supabase = createClient()
-      const { data: { user } } = await supabase.auth.getUser()
-      if (user) {
-        const { data: profile } = await supabase
-          .from("profiles")
-          .select("doctor_crm, doctor_full_name, first_name, last_name")
-          .eq("id", user.id)
-          .single()
-
-        if (profile) {
-          const doctorName = profile.doctor_full_name || `${profile.first_name} ${profile.last_name}`
-          setDoctorInfo({
-            name: doctorName,
-            crm: profile.doctor_crm || "",
-          })
+      try {
+        const authRes = await fetch('/api/auth/me')
+        if (!authRes.ok) return
+        const { user } = await authRes.json()
+        
+        if (user) {
+          const res = await fetch(`/api/data?table=profiles&match_key=id&match_value=${user.id}`)
+          if (res.ok) {
+            const data = await res.json()
+            const profile = Array.isArray(data) ? data[0] : data
+            
+            if (profile) {
+              const doctorName = profile.doctor_full_name || `${profile.first_name} ${profile.last_name}`
+              setDoctorInfo({
+                name: doctorName,
+                crm: profile.doctor_crm || "",
+              })
+            }
+          }
         }
+      } catch (error) {
+        console.error("Error loading doctor info:", error)
       }
     }
     loadDoctorInfo()
@@ -100,16 +105,21 @@ export function MedicationDialog({ open, onOpenChange, medication, onSave, patie
     e.preventDefault()
     setSaving(true)
 
-    const supabase = createClient()
-    const { data: { user } } = await supabase.auth.getUser()
-
-    if (!user) {
-      alert("Usuário não autenticado")
-      setSaving(false)
-      return
-    }
-
     try {
+      const authRes = await fetch('/api/auth/me')
+      if (!authRes.ok) {
+        alert("Usuário não autenticado")
+        setSaving(false)
+        return
+      }
+      const { user } = await authRes.json()
+
+      if (!user) {
+        alert("Usuário não autenticado")
+        setSaving(false)
+        return
+      }
+
       const medicationData = {
         name: formData.name,
         dosage: formData.dosage,
@@ -125,21 +135,33 @@ export function MedicationDialog({ open, onOpenChange, medication, onSave, patie
         prescribing_doctor: formData.prescribing_doctor,
       }
 
+      let res
       if (medication) {
         // Update existing
-        const { error } = await supabase
-          .from("medications")
-          .update(medicationData)
-          .eq("id", medication.id)
-
-        if (error) throw error
+        res = await fetch('/api/data', {
+          method: 'PUT',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            table: 'medications',
+            id: medication.id,
+            data: medicationData
+          })
+        })
       } else {
-        // Create new - Use the same structure as your main form
-        const { error } = await supabase
-          .from("medications")
-          .insert(medicationData)
+        // Create new
+        res = await fetch('/api/data', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            table: 'medications',
+            data: medicationData
+          })
+        })
+      }
 
-        if (error) throw error
+      if (!res.ok) {
+        const errorData = await res.json()
+        throw new Error(errorData.error || "Failed to save medication")
       }
 
       setSaving(false)

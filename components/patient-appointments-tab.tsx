@@ -6,10 +6,10 @@ import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Textarea } from "@/components/ui/textarea"
-import { createClient } from "@/lib/supabase/client"
 import { Plus, Calendar, Trash2, Edit2 } from "lucide-react"
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog"
 import { formatBrasiliaDateAppointment } from "@/lib/timezone"
+import { useAuth } from "@/hooks/use-auth"
 
 export function PatientAppointmentsTab({ patientId }: { patientId: string }) {
   const [appointments, setAppointments] = useState<any[]>([])
@@ -27,58 +27,39 @@ export function PatientAppointmentsTab({ patientId }: { patientId: string }) {
     notes: "",
   })
 
+  const { user } = useAuth()
+
   useEffect(() => {
     loadAppointments()
     loadDoctorInfo()
-
-    const supabase = createClient()
 
     const handleRefresh = async () => {
       await loadAppointments()
     }
 
-    const channel = supabase
-      .channel(`appointments-${patientId}`)
-      .on(
-        "postgres_changes",
-        {
-          event: "*",
-          schema: "public",
-          table: "appointments",
-          filter: `patient_id=eq.${patientId}`,
-        },
-        (payload) => {
-          loadAppointments()
-        },
-      )
-      .subscribe((status) => {
-        if (status === "SUBSCRIBED") {
-          console.log("Realtime channel subscribed:", `appointments-${patientId}`)
-        }
-      })
+    const interval = setInterval(() => {
+      if (!document.hidden) loadAppointments()
+    }, 15000)
 
     window.addEventListener("pull-to-refresh", handleRefresh)
 
     return () => {
-      supabase.removeChannel(channel)
+      clearInterval(interval)
       window.removeEventListener("pull-to-refresh", handleRefresh)
     }
   }, [patientId])
 
   const loadAppointments = async () => {
-    const supabase = createClient()
     try {
-      const { data, error } = await supabase
-        .from("appointments")
-        .select("*")
-        .eq("patient_id", patientId)
-        .order("scheduled_at", { ascending: false })
-      if (error) {
-        setError(error.message)
-        setAppointments([])
-      } else {
+      const res = await fetch(`/api/data?table=appointments&match_key=patient_id&match_value=${patientId}`)
+      
+      if (res.ok) {
+        const data = await res.json()
         setAppointments(data || [])
         setError(null)
+      } else {
+        const err = await res.json()
+        setError(err.error || "Falha ao carregar consultas")
       }
     } catch (err: any) {
       setError(err.message || "Falha ao carregar consultas")
@@ -89,32 +70,31 @@ export function PatientAppointmentsTab({ patientId }: { patientId: string }) {
   }
 
   const loadDoctorInfo = async () => {
-    const supabase = createClient()
-    const {
-      data: { user },
-    } = await supabase.auth.getUser()
     if (user) {
-      const { data: profile } = await supabase
-        .from("profiles")
-        .select("doctor_crm, doctor_full_name, first_name, last_name")
-        .eq("id", user.id)
-        .single()
-
-      if (profile) {
-        const doctorName = profile.doctor_full_name || `${profile.first_name} ${profile.last_name}`
-        setDoctorInfo({
-          name: doctorName,
-          crm: profile.doctor_crm || "",
-        })
+      try {
+        const res = await fetch(`/api/data?table=profiles&match_key=id&match_value=${user.id}`)
+        if (res.ok) {
+            const data = await res.json()
+            const profile = data[0]
+            if (profile) {
+                const doctorName = profile.doctor_full_name || `${profile.first_name} ${profile.last_name}`
+                setDoctorInfo({
+                  name: doctorName,
+                  crm: profile.doctor_crm || "",
+                })
+            }
+        }
+      } catch (e) {
+        console.error("Error loading doctor info", e)
       }
     }
   }
 
   const handleAdd = async () => {
-    const supabase = createClient()
-    const {
-      data: { user },
-    } = await supabase.auth.getUser()
+    if (!user) {
+        alert("Erro: Usuário não autenticado")
+        return
+    }
 
     if (!formData.title || !formData.appointment_type || !formData.scheduled_at) {
       alert("Por favor, preencha todos os campos obrigatórios")
@@ -123,82 +103,92 @@ export function PatientAppointmentsTab({ patientId }: { patientId: string }) {
 
     const scheduledAtIso = new Date(formData.scheduled_at).toISOString()
 
-    if (editingAppointment) {
-      const { error } = await supabase
-        .from("appointments")
-        .update({
-          title: formData.title,
-          appointment_type: formData.appointment_type,
-          description: formData.description,
-          scheduled_at: scheduledAtIso,
-          location: formData.location,
-          notes: formData.notes,
-          doctor_name: doctorInfo.name,
-          doctor_crm: doctorInfo.crm,
+    try {
+        if (editingAppointment) {
+          const res = await fetch(`/api/data?table=appointments&match_key=id&match_value=${editingAppointment.id}`, {
+            method: 'PUT',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              title: formData.title,
+              appointment_type: formData.appointment_type,
+              description: formData.description,
+              scheduled_at: scheduledAtIso,
+              location: formData.location,
+              notes: formData.notes,
+              doctor_name: doctorInfo.name,
+              doctor_crm: doctorInfo.crm,
+            })
+          })
+
+          if (!res.ok) {
+            const error = await res.json()
+            alert(`Erro ao atualizar consulta: ${error.error}`)
+            return
+          }
+
+          alert("Consulta atualizada com sucesso!")
+        } else {
+          const dataToInsert = {
+            patient_id: patientId,
+            status: "scheduled",
+            doctor_name: doctorInfo.name,
+            doctor_crm: doctorInfo.crm,
+            title: formData.title,
+            appointment_type: formData.appointment_type,
+            description: formData.description,
+            scheduled_at: scheduledAtIso,
+            location: formData.location,
+            notes: formData.notes,
+          }
+
+          const res = await fetch(`/api/data?table=appointments`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(dataToInsert)
+          })
+
+          if (!res.ok) {
+            const error = await res.json()
+            alert(`Erro ao agendar consulta: ${error.error}`)
+            return
+          }
+
+          alert("Consulta agendada com sucesso!")
+        }
+
+        setShowDialog(false)
+        setEditingAppointment(null)
+        setFormData({
+          title: "",
+          appointment_type: "",
+          description: "",
+          scheduled_at: "",
+          location: "",
+          notes: "",
         })
-        .eq("id", editingAppointment.id)
-
-      if (error) {
-        alert(`Erro ao atualizar consulta: ${error.message}`)
-        console.error("[v0] Erro completo:", error)
-        return
-      }
-
-      alert("Consulta atualizada com sucesso!")
-    } else {
-      const dataToInsert = {
-        patient_id: patientId,
-        user_id: patientId,
-        status: "scheduled",
-        doctor_name: doctorInfo.name,
-        doctor_crm: doctorInfo.crm,
-        title: formData.title,
-        appointment_type: formData.appointment_type,
-        description: formData.description,
-        scheduled_at: scheduledAtIso,
-        location: formData.location,
-        notes: formData.notes,
-      }
-
-      const { data, error } = await supabase.from("appointments").insert(dataToInsert).select()
-
-      if (error) {
-        alert(`Erro ao agendar consulta: ${error.message}`)
-        console.error("[v0] Erro completo:", error)
-        return
-      }
-
-      if (!data || data.length === 0) {
-        alert("Erro: Nenhuma consulta foi agendada. Verifique as permissões.")
-        return
-      }
-
-      alert("Consulta agendada com sucesso!")
+        loadAppointments()
+    } catch (e: any) {
+        console.error("Error saving appointment", e)
+        alert("Erro ao salvar consulta")
     }
-
-    setShowDialog(false)
-    setEditingAppointment(null)
-    setFormData({
-      title: "",
-      appointment_type: "",
-      description: "",
-      scheduled_at: "",
-      location: "",
-      notes: "",
-    })
-    loadAppointments()
   }
 
   const handleStatusChange = async (id: string, newStatus: string) => {
-    const supabase = createClient()
-    const { error } = await supabase.from("appointments").update({ status: newStatus }).eq("id", id)
+    try {
+        const res = await fetch(`/api/data?table=appointments&match_key=id&match_value=${id}`, {
+            method: 'PUT',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ status: newStatus })
+        })
 
-    if (error) {
+        if (!res.ok) {
+            throw new Error("Erro ao atualizar status")
+        }
+
+        await loadAppointments()
+    } catch (error) {
       alert("Erro ao atualizar status da consulta")
-      return
     }
-
-    await loadAppointments()
   }
 
   const isToday = (dateString: string) => {
@@ -226,17 +216,22 @@ export function PatientAppointmentsTab({ patientId }: { patientId: string }) {
       return
     }
 
-    const supabase = createClient()
-    const { error } = await supabase.from("appointments").delete().eq("id", id)
+    try {
+      const res = await fetch(`/api/data?table=appointments&match_key=id&match_value=${id}`, {
+          method: 'DELETE'
+      })
 
-    if (error) {
+      if (!res.ok) {
+        throw new Error("Erro ao remover consulta")
+      }
+
+      alert("Consulta removida com sucesso!")
+      // Trigger reload after delete
+      await loadAppointments()
+    } catch (error) {
+      console.error("Erro ao remover consulta:", error)
       alert("Erro ao remover consulta")
-      return
     }
-
-    alert("Consulta removida com sucesso!")
-    // Trigger reload after delete
-    await loadAppointments()
   }
 
   if (loading) return <div>Carregando consultas...</div>

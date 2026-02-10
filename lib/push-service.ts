@@ -1,7 +1,5 @@
 "use client"
 
-import { createBrowserClient } from "@supabase/ssr"
-
 class PushService {
   async subscribeToPushNotifications(userId?: string) {
     if (!("serviceWorker" in navigator) || !("PushManager" in window)) {
@@ -13,11 +11,12 @@ class PushService {
       const registration = await navigator.serviceWorker.ready
       
       // Use the public key from env
+      const vapidKey = process.env.NEXT_PUBLIC_VAPID_PUBLIC_KEY;
+      if (!vapidKey) return;
+
       const options = {
         userVisibleOnly: true,
-        applicationServerKey: process.env.NEXT_PUBLIC_VAPID_PUBLIC_KEY 
-          ? this.urlBase64ToUint8Array(process.env.NEXT_PUBLIC_VAPID_PUBLIC_KEY)
-          : undefined
+        applicationServerKey: this.urlBase64ToUint8Array(vapidKey)
       }
 
       const subscription = await registration.pushManager.subscribe(options)
@@ -33,19 +32,13 @@ class PushService {
   }
 
   private async saveSubscription(userId: string, subscription: PushSubscription) {
-    const supabase = createBrowserClient(
-      process.env.NEXT_PUBLIC_SUPABASE_URL!,
-      process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
-    )
-
-    const { error } = await supabase
-      .from("push_subscriptions")
-      .upsert({
-        user_id: userId,
-        subscription: subscription.toJSON(),
-      }, { onConflict: 'user_id, subscription' }) // Assuming there's a unique constraint or we just want to avoid duplicates
-
-    if (error) {
+    try {
+      await fetch('/api/notifications/subscribe', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(subscription.toJSON())
+      });
+    } catch (error) {
       console.error("[v0] Failed to save push subscription:", error)
     }
   }

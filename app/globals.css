@@ -1,84 +1,136 @@
 @import "tailwindcss";
 @import "tw-animate-css";
 
-@custom-variant dark (&:is(.dark *));
-
-/* Paleta de cores de saúde com azul e verde pastel */
-/* Cores mais vibrantes e detalhadas para saúde */
-:root {
-  --background: #f5faf9;
-  --foreground: #0f2e2b;
-  --card: #ffffff;
-  --card-foreground: #0f2e2b;
-  --popover: #ffffff;
-  --popover-foreground: #0f2e2b;
-  --primary: #2d9c96;
-  --primary-foreground: #ffffff;
-  --secondary: #8fd3cd;
-  --secondary-foreground: #0f2e2b;
-  --muted: #d9f2ef;
-  --muted-foreground: #4a7c77;
-  --accent: #7ec97f;
-  --accent-foreground: #0f2e2b;
-  --destructive: #ef4444;
-  --destructive-foreground: #ffffff;
-  --border: #b8e6e1;
-  --input: #b8e6e1;
-  --ring: #2d9c96;
-  --chart-1: #2d9c96;
-  --chart-2: #7ec97f;
-  --chart-3: #5ab5b4;
-  --chart-4: #9cd6a8;
-  --chart-5: #6bbfbe;
-  --radius: 0.75rem;
-  --sidebar: #e8f8f6;
-  --sidebar-foreground: #0f2e2b;
-  --sidebar-primary: #2d9c96;
-  --sidebar-primary-foreground: #ffffff;
-  --sidebar-accent: #d9f2ef;
-  --sidebar-accent-foreground: #0f2e2b;
-  --sidebar-border: #b8e6e1;
-  --sidebar-ring: #2d9c96;
+@theme {
+  --font-sans: var(--font-montserrat), var(--font-lato), ui-sans-serif, system-ui, sans-serif;
+  --font-heading: var(--font-raleway), ui-sans-serif, system-ui, sans-serif;
+  --font-logo: "Gwen Morgan", var(--font-playfair), serif;
 }
 
-.dark {
-  --background: #0a1816;
-  --foreground: #e8f8f6;
-  --card: #1a2e2b;
-  --card-foreground: #e8f8f6;
-  --popover: #1a2e2b;
-  --popover-foreground: #e8f8f6;
-  --primary: #3dbfb6;
-  --primary-foreground: #ffffff;
-  --secondary: #1f4a45;
-  --secondary-foreground: #e8f8f6;
-  --muted: #1a3530;
-  --muted-foreground: #8ab3ad;
-  --accent: #2d7a5f;
-  --accent-foreground: #e8f8f6;
+/* Fallback/Placeholder for Gwen Morgan if not available locally */
+@font-face {
+  font-family: "Gwen Morgan";
+  src: url("/fonts/GwenMorgan.woff2") format("woff2"),
+       url("/fonts/GwenMorgan.ttf") format("truetype");
+  font-weight: normal;
+  font-style: normal;
+  font-display: swap;
+}
+
+@custom-variant dark (&:is(.dark *));
+
+@layer base {
+  * {
+    @apply border-border;
+  }
+  body {
+    @apply bg-background text-foreground;
+  }
+}
+
+/* Brand Palette:
+   Navy: #0F1C2E
+   Gold: #B89B5E
+   Rosé: #E7CFC4
+   Off-white: #F6F3EF
+*/
+
+:root {
+  --background: #F6F3EF; /* Off-white */
+  --foreground: #0F1C2E; /* Navy Blue */
+  
+  --card: #FFFFFF;
+  --card-foreground: #0F1C2E;
+  
+  --popover: #FFFFFF;
+  --popover-foreground: #0F1C2E;
+  
+  --primary: #0F1C2E; /* Navy Blue */
+  --primary-foreground: #F6F3EF; /* Off-white text on Navy */
+  
+  --secondary: #E7CFC4; /* Rosé Nude */
+  --secondary-foreground: #0F1C2E; /* Navy text on Rosé */
+  
+  --muted: #E7CFC4; /* Rosé Nude as muted */
+  --muted-foreground: #536275; /* Lighter Navy */
+  
+  --accent: #B89B5E; /* Gold */
+  --accent-foreground: #0F1C2E; /* Navy text on Gold */
+  
+  --destructive: #EF4444;
+  --destructive-foreground: #FFFFFF;
+  
+  --border: #D4C4BC; /* Darker Rosé/Taupe for borders */
+  --input: #D4C4BC;
+  --ring: #B89B5E; /* Gold Ring */
+  
+  --chart-1: #0F1C2E; /* Navy */
+  --chart-2: #B89B5E; /* Gold */
+  --chart-3: #E7CFC4; /* Rosé */
+  --chart-4: #536275; /* Light Navy */
+  --chart-5: #D4C4BC; /* Taupe */
+  
+  --radius: 0.75rem;
+  
+  --sidebar: #0F1C2E; /* Navy Sidebar */
+  --sidebar-foreground: #F6F3EF; /* Off-white text */
+  --sidebar-primary: #B89B5E; /* Gold active state */
+  --sidebar-primary-foreground: #0F1C2E; /* Navy text on Gold */
+  --sidebar-accent: #1A2C42; /* Slightly lighter Navy */
+  --sidebar-accent-foreground: #F6F3EF;
+  --sidebar-border: #2A3B55;
+  --sidebar-ring: #B89B5E;
+}
+
+:root.dark {
+  --background: #0F1C2E; /* Navy Blue */
+  --foreground: #E7CFC4; /* Rosé */
+  
+  --card: #162438; /* Slightly lighter Navy */
+  --card-foreground: #E7CFC4;
+  
+  --popover: #162438;
+  --popover-foreground: #E7CFC4;
+  
+  --primary: #B89B5E; /* Gold (Pops in dark mode) */
+  --primary-foreground: #0F1C2E; /* Navy text */
+  
+  --secondary: #2A3B55; /* Lighter Navy */
+  --secondary-foreground: #E7CFC4;
+  
+  --muted: #1e3a5f;
+  --muted-foreground: #D4C4BC; /* Taupe/Darker Rosé */
+  
+  --accent: #B89B5E; /* Gold */
+  --accent-foreground: #0F1C2E;
+  
   --destructive: #ef4444;
-  --destructive-foreground: #ffffff;
-  --border: #1f4a45;
-  --input: #1f4a45;
-  --ring: #3dbfb6;
-  --chart-1: #3dbfb6;
-  --chart-2: #5ec97f;
-  --chart-3: #5ab5b4;
-  --chart-4: #7ec97f;
-  --chart-5: #6bbfbe;
-  --sidebar: #142623;
-  --sidebar-foreground: #e8f8f6;
-  --sidebar-primary: #3dbfb6;
-  --sidebar-primary-foreground: #ffffff;
-  --sidebar-accent: #1f4a45;
-  --sidebar-accent-foreground: #e8f8f6;
-  --sidebar-border: #1f4a45;
-  --sidebar-ring: #3dbfb6;
+  --destructive-foreground: #E7CFC4;
+  
+  --border: #2A3B55;
+  --input: #2A3B55;
+  --ring: #B89B5E;
+  
+  --chart-1: #B89B5E;
+  --chart-2: #E7CFC4;
+  --chart-3: #536275;
+  --chart-4: #2A3B55;
+  --chart-5: #F6F3EF;
+  
+  --sidebar: #0a131f; /* Darker Navy */
+  --sidebar-foreground: #F6F3EF;
+  --sidebar-primary: #B89B5E;
+  --sidebar-primary-foreground: #0F1C2E;
+  --sidebar-accent: #162438;
+  --sidebar-accent-foreground: #F6F3EF;
+  --sidebar-border: #1e3a5f;
+  --sidebar-ring: #B89B5E;
 }
 
 @theme inline {
-  --font-sans: "Geist", "Geist Fallback";
-  --font-mono: "Geist Mono", "Geist Mono Fallback";
+  --font-sans: var(--font-montserrat), var(--font-raleway), sans-serif;
+  --font-heading: var(--font-raleway), sans-serif;
+  
   --color-background: var(--background);
   --color-foreground: var(--foreground);
   --color-card: var(--card);
@@ -115,74 +167,43 @@
   --color-sidebar-accent-foreground: var(--sidebar-accent-foreground);
   --color-sidebar-border: var(--sidebar-border);
   --color-sidebar-ring: var(--sidebar-ring);
+  --animate-accordion-down: accordion-down 0.2s ease-out;
+  --animate-accordion-up: accordion-up 0.2s ease-out;
+
+  @keyframes accordion-down {
+    from {
+      height: 0;
+    }
+    to {
+      height: var(--radix-accordion-content-height);
+    }
+  }
+
+  @keyframes accordion-up {
+    from {
+      height: var(--radix-accordion-content-height);
+    }
+    to {
+      height: 0;
+    }
+  }
 }
 
-@layer base {
-  * {
-    @apply border-border outline-ring/50;
-  }
-  body {
-    @apply bg-background text-foreground;
-  }
+/* Custom Scrollbar to match brand */
+::-webkit-scrollbar {
+  width: 8px;
+  height: 8px;
+}
 
-  /* Enhanced mobile-first scrollable carousel utilities */
-  .no-scrollbar::-webkit-scrollbar {
-    display: none;
-  }
-  .no-scrollbar {
-    -ms-overflow-style: none;
-    scrollbar-width: none;
-  }
+::-webkit-scrollbar-track {
+  background: var(--background);
+}
 
-  /* Mobile-optimized touch scrolling */
-  .mobile-scroll {
-    -webkit-overflow-scrolling: touch;
-    scroll-behavior: smooth;
-    scroll-snap-type: x proximity;
-  }
+::-webkit-scrollbar-thumb {
+  background: var(--muted);
+  border-radius: 4px;
+}
 
-  /* Prevent horizontal scroll on body */
-  html,
-  body {
-    overflow-x: hidden;
-    width: 100%;
-    position: relative;
-  }
-
-  /* Mobile touch targets - minimum 44px for accessibility */
-  @media (max-width: 640px) {
-    button,
-    a,
-    input,
-    select,
-    textarea {
-      min-height: 44px;
-    }
-
-    /* Better spacing for mobile forms */
-    input,
-    select,
-    textarea {
-      font-size: 16px; /* Prevents zoom on iOS */
-    }
-
-    /* Improved tap highlighting */
-    button,
-    a {
-      -webkit-tap-highlight-color: rgba(45, 156, 150, 0.2);
-    }
-  }
-
-  /* Smooth scrolling for all scrollable containers */
-  * {
-    scroll-behavior: smooth;
-  }
-
-  /* Better mobile viewport handling */
-  @supports (-webkit-touch-callout: none) {
-    /* iOS specific fixes */
-    body {
-      min-height: -webkit-fill-available;
-    }
-  }
+::-webkit-scrollbar-thumb:hover {
+  background: var(--accent);
 }

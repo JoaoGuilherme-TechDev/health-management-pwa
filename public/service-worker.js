@@ -1,4 +1,4 @@
-const CACHE_NAME = 'healthcare-plus-v1';
+const CACHE_NAME = 'estefania-rappelli-v1';
 const OFFLINE_URL = '/';
 
 self.addEventListener('install', (event) => {
@@ -7,8 +7,7 @@ self.addEventListener('install', (event) => {
       return cache.addAll([
         OFFLINE_URL,
         '/manifest.json',
-        '/icon.svg',
-        '/apple-icon.png'
+        '/icon.svg'
       ]);
     })
   );
@@ -67,7 +66,7 @@ self.addEventListener("push", (event) => {
     return
   }
   const data = event.data?.json() ?? {}
-  const title = data.title || "HealthCare+"
+  const title = data.title || "Dra. Estefânia Rappelli"
   const message = data.message || "Nova notificação"
   
   const options = { 

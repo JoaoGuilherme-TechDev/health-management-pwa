@@ -6,7 +6,6 @@ import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Textarea } from "@/components/ui/textarea"
-import { createClient } from "@/lib/supabase/client"
 import { Plus, TrendingUp, Trash2, Edit2 } from "lucide-react"
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog"
 import { formatBrasiliaDate } from "@/lib/timezone"
@@ -33,44 +32,34 @@ export function PatientEvolutionTab({ patientId }: { patientId: string }) {
   useEffect(() => {
     loadEvolution()
 
-    const supabase = createClient()
-    const channel = supabase
-      .channel(`evolution-${patientId}`)
-      .on(
-        "postgres_changes",
-        {
-          event: "*",
-          schema: "public",
-          table: "physical_evolution",
-          filter: `user_id=eq.${patientId}`,
-        },
-        () => {
-          console.log("[v0] Evolução física atualizada, recarregando...")
-          loadEvolution()
-        },
-      )
-      .subscribe()
+    const interval = setInterval(() => {
+      if (!document.hidden) loadEvolution(true)
+    }, 15000)
 
-    return () => {
-      supabase.removeChannel(channel)
-    }
+    return () => clearInterval(interval)
   }, [patientId])
 
-  const loadEvolution = async () => {
-    const supabase = createClient()
-    const { data } = await supabase
-      .from("physical_evolution")
-      .select("*")
-      .eq("user_id", patientId)
-      .order("measured_at", { ascending: false })
-
-    setEvolution(data || [])
-    setLoading(false)
+  const loadEvolution = async (silent = false) => {
+    if (!silent) setLoading(true)
+    try {
+      const res = await fetch(`/api/data?table=physical_evolution&match_key=user_id&match_value=${patientId}`)
+      if (!res.ok) throw new Error("Erro ao carregar evolução")
+      const data = await res.json()
+      
+      // Sort client-side by measured_at descending
+      const sortedData = (data || []).sort((a: any, b: any) => 
+        new Date(b.measured_at).getTime() - new Date(a.measured_at).getTime()
+      )
+      
+      setEvolution(sortedData)
+    } catch (error) {
+      console.error("Erro ao carregar evolução:", error)
+    } finally {
+      if (!silent) setLoading(false)
+    }
   }
 
   const handleAdd = async () => {
-    const supabase = createClient()
-
     const payload = {
       user_id: patientId,
       weight: formData.weight ? Number.parseFloat(formData.weight) : null,
@@ -83,45 +72,50 @@ export function PatientEvolutionTab({ patientId }: { patientId: string }) {
       body_water_percentage: formData.body_water_percentage ? Number.parseFloat(formData.body_water_percentage) : null,
       bone_mass: formData.bone_mass ? Number.parseFloat(formData.bone_mass) : null,
       notes: formData.notes,
+      measured_at: new Date().toISOString() // Ensure we set measured_at
     }
 
-    if (editingRecord) {
-      const { error } = await supabase.from("physical_evolution").update(payload).eq("id", editingRecord.id)
+    try {
+      if (editingRecord) {
+        const res = await fetch(`/api/data?table=physical_evolution&match_key=id&match_value=${editingRecord.id}`, {
+          method: 'PUT',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(payload)
+        })
 
-      if (error) {
-        console.error("[v0] Erro ao atualizar medição:", error)
-        alert("Erro ao atualizar medição")
-        return
+        if (!res.ok) throw new Error("Erro ao atualizar medição")
+        alert("Medição atualizada com sucesso!")
+      } else {
+        const res = await fetch(`/api/data?table=physical_evolution`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(payload)
+        })
+
+        if (!res.ok) throw new Error("Erro ao adicionar medição")
+        alert("Medição registrada com sucesso!")
       }
 
-      alert("Medição atualizada com sucesso!")
-    } else {
-      const { error } = await supabase.from("physical_evolution").insert(payload)
+      setShowDialog(false)
+      setEditingRecord(null)
+      setFormData({
+        weight: "",
+        height: "",
+        muscle_mass: "",
+        body_fat_percentage: "",
+        visceral_fat: "",
+        metabolic_age: "",
+        bmr: "",
+        body_water_percentage: "",
+        bone_mass: "",
+        notes: "",
+      })
+      loadEvolution()
 
-      if (error) {
-        console.error("[v0] Erro ao adicionar medição:", error)
-        alert("Erro ao adicionar medição")
-        return
-      }
-
-      alert("Medição registrada com sucesso!")
+    } catch (error) {
+      console.error("Erro ao salvar medição:", error)
+      alert("Erro ao salvar medição")
     }
-
-    setShowDialog(false)
-    setEditingRecord(null)
-    setFormData({
-      weight: "",
-      height: "",
-      muscle_mass: "",
-      body_fat_percentage: "",
-      visceral_fat: "",
-      metabolic_age: "",
-      bmr: "",
-      body_water_percentage: "",
-      bone_mass: "",
-      notes: "",
-    })
-    loadEvolution()
   }
 
   const handleDelete = async (id: string) => {
@@ -129,17 +123,19 @@ export function PatientEvolutionTab({ patientId }: { patientId: string }) {
       return
     }
 
-    const supabase = createClient()
-    const { error } = await supabase.from("physical_evolution").delete().eq("id", id)
+    try {
+      const res = await fetch(`/api/data?table=physical_evolution&match_key=id&match_value=${id}`, {
+        method: 'DELETE'
+      })
 
-    if (error) {
-      console.error("[v0] Erro ao deletar medição:", error)
+      if (!res.ok) throw new Error("Erro ao deletar medição")
+
+      alert("Medição removida com sucesso!")
+      loadEvolution()
+    } catch (error) {
+      console.error("Erro ao deletar medição:", error)
       alert("Erro ao remover medição")
-      return
     }
-
-    alert("Medição removida com sucesso!")
-    loadEvolution()
   }
 
   const handleEdit = (record: any) => {

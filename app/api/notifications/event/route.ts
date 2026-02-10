@@ -1,10 +1,5 @@
 import { NextResponse } from "next/server"
-import { createClient } from "@supabase/supabase-js"
-
-const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL!
-const supabaseServiceKey = process.env.SUPABASE_SERVICE_ROLE_KEY!
-
-const supabase = createClient(supabaseUrl, supabaseServiceKey)
+import { pool } from "@/lib/db"
 
 export async function POST(request: Request) {
   try {
@@ -27,14 +22,12 @@ export async function POST(request: Request) {
       return NextResponse.json({ success: true })
     }
 
-    const { data: notifications, error: notificationsError } = await supabase
-      .from("notifications")
-      .select("id, user_id")
-      .in("id", ids)
-
-    if (notificationsError) {
-      return NextResponse.json({ error: notificationsError.message }, { status: 500 })
-    }
+    // Get user_ids for these notifications to verify ownership/linking
+    const res = await pool.query(
+        `SELECT id, user_id FROM notifications WHERE id = ANY($1::uuid[])`,
+        [ids]
+    );
+    const notifications = res.rows;
 
     const map = new Map<string, string>()
     for (const row of notifications || []) {
@@ -59,25 +52,31 @@ export async function POST(request: Request) {
           },
         }
       })
-      .filter((row: null) => row !== null) as {
-      user_id: string
-      event_type: string
-      payload: Record<string, unknown>
-    }[]
+      .filter((row: null) => row !== null)
 
     if (!rows.length) {
       return NextResponse.json({ success: true })
     }
 
-    const { error } = await supabase.from("notification_event_logs").insert(rows)
+    // Bulk Insert
+    // Construct values string ($1, $2, $3), ($4, $5, $6), ...
+    const values: any[] = [];
+    const placeholders: string[] = [];
+    let p = 1;
 
-    if (error) {
-      return NextResponse.json({ error: error.message }, { status: 500 })
+    for (const row of rows) {
+        placeholders.push(`($${p++}, $${p++}, $${p++})`);
+        values.push(row.user_id, row.event_type, JSON.stringify(row.payload));
     }
+
+    await pool.query(
+        `INSERT INTO notification_event_logs (user_id, event_type, payload) VALUES ${placeholders.join(', ')}`,
+        values
+    );
 
     return NextResponse.json({ success: true })
   } catch (error) {
+    console.error("Event log error:", error);
     return NextResponse.json({ error: "Internal Server Error" }, { status: 500 })
   }
 }
-

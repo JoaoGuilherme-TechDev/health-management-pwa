@@ -1,6 +1,6 @@
 "use client"
 
-import { createClient } from "@/lib/supabase/client"
+import { useRouter } from "next/navigation"
 import { useEffect, useState } from "react"
 import { Card, CardContent } from "@/components/ui/card"
 import { UtensilsCrossed, Flame, Droplets, Beef, Wheat, ExternalLink } from "lucide-react"
@@ -26,12 +26,11 @@ interface DietRecipe {
 }
 
 export default function PatientDietPage() {
+  const router = useRouter()
   const [dietRecipes, setDietRecipes] = useState<DietRecipe[]>([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
   const [userId, setUserId] = useState<string | null>(null)
-  const [isMounted, setIsMounted] = useState(true)
-
 
   const getMealTypeLabel = (mealType: string) => {
     if (!mealType) return "Não especificado"
@@ -49,28 +48,28 @@ export default function PatientDietPage() {
     }
   }
   
-  useEffect(() => {
-    setIsMounted(true)
-    return () => setIsMounted(false)
-  }, [])
-
   const loadDiet = async (id: string) => {
     try {
       setError(null)
-      const supabase = createClient()
+      const res = await fetch(
+        `/api/data?table=patient_diet_recipes&match_key=patient_id&match_value=${id}`
+      )
 
-      const { data: recipes, error: recipesError } = await supabase
-        .from("patient_diet_recipes")
-        .select("*")
-        .eq("patient_id", id)
-        .order("created_at", { ascending: false })
-
-      if (recipesError) {
-        console.error("[v0] Error loading recipes:", recipesError)
-        setError(`Erro ao carregar receitas: ${recipesError.message}`)
-      } else {
-        setDietRecipes(recipes || [])
+      if (!res.ok) {
+        const errorText = await res.text()
+        console.error("[v0] Error loading recipes:", errorText)
+        setError("Erro ao carregar receitas")
+        setDietRecipes([])
+        return
       }
+
+      let recipes = await res.json()
+      if (!Array.isArray(recipes)) recipes = [recipes]
+      recipes.sort(
+        (a: any, b: any) =>
+          new Date(b.created_at).getTime() - new Date(a.created_at).getTime()
+      )
+      setDietRecipes(recipes)
     } catch (err) {
       console.error("[v0] Error loading diet data:", err)
       setError("Erro inesperado ao carregar dados")
@@ -78,66 +77,70 @@ export default function PatientDietPage() {
   }
 
   useEffect(() => {
+    let isMounted = true
+    let interval: ReturnType<typeof setInterval> | undefined
+
     const initialize = async () => {
-      const supabase = createClient()
-      const { data } = await supabase.auth.getUser()
+      try {
+        const authRes = await fetch("/api/auth/me")
+        if (!authRes.ok) {
+          setError("Usuário não autenticado")
+          setLoading(false)
+          router.push("/login")
+          return
+        }
 
-      if (!data.user) {
-        setError("Usuário não autenticado")
+        const { user } = await authRes.json()
+
+        if (!user) {
+          setError("Usuário não autenticado")
+          setLoading(false)
+          router.push("/login")
+          return
+        }
+
+        if (!isMounted) return
+
+        setUserId(user.id)
+        await loadDiet(user.id)
         setLoading(false)
-        return
-      }
 
-      setUserId(data.user.id)
-      await loadDiet(data.user.id)
-
-      const recipesChannel = supabase
-        .channel(`diet-recipes-${data.user.id}`)
-        .on(
-          "postgres_changes",
-          {
-            event: "*",
-            schema: "public",
-            table: "patient_diet_recipes",
-            filter: `patient_id=eq.${data.user.id}`,
-          },
-          () => {
-            console.log("[v0] Diet recipes updated")
-            if (isMounted) loadDiet(data.user.id)
-          },
-        )
-        .subscribe((status) => {
-          console.log("[v0] Diet recipes subscription status:", status)
-        })
-
-      setLoading(false)
-
-      return () => {
-        supabase.removeChannel(recipesChannel)
+        interval = setInterval(() => {
+          if (isMounted && user.id && !document.hidden) {
+            loadDiet(user.id)
+          }
+        }, 15000)
+      } catch (err) {
+        console.error("[v0] Error initializing diet page:", err)
+        if (isMounted) {
+          setError("Erro ao inicializar a página")
+          setLoading(false)
+        }
       }
     }
 
-    let cleanup: Promise<(() => void) | undefined> | undefined
-    if (isMounted) {
-      cleanup = initialize()
-    }
+    initialize()
 
     return () => {
-      cleanup?.then((fn) => fn?.())
+      isMounted = false
+      if (interval) clearInterval(interval)
     }
-  }, [isMounted])
+  }, [router])
 
   if (loading) {
     return (
-      <div className="flex flex-col items-center justify-center py-12">
-        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary mb-4" />
-        <p className="text-muted-foreground">Carregando sua dieta...</p>
+      <div className="container mx-auto p-4 md:p-6">
+        <div className="flex flex-col items-center justify-center py-12">
+          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary mb-4" />
+          <p className="text-muted-foreground">Carregando sua dieta...</p>
+        </div>
       </div>
     )
   }
 
   return (
-    <div className="space-y-6">
+    <div className="container mx-auto p-4 md:p-6">
+      <div className="space-y-6">
       <div>
         <h1 className="text-3xl font-bold text-foreground">Minha Dieta</h1>
         <p className="text-muted-foreground mt-2">Plano alimentar prescrito pelo seu médico</p>
@@ -250,5 +253,6 @@ export default function PatientDietPage() {
         </div>
       )}
     </div>
+  </div>
   )
 }

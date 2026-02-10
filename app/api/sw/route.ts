@@ -40,8 +40,8 @@ self.addEventListener('push', (event) => {
   const data = event.data ? event.data.json() : {};
   const options = {
     body: data.body || 'Nova notificação',
-    icon: data.icon || '/icon-192x192.png',
-    badge: '/badge-72x72.png',
+    icon: data.icon || '/icon.svg',
+    badge: '/icon.svg',
     tag: data.tag || 'notification',
     requireInteraction: data.requireInteraction || false,
     actions: data.actions || [],
@@ -49,7 +49,7 @@ self.addEventListener('push', (event) => {
   };
 
   event.waitUntil(
-    self.registration.showNotification(data.title || 'Healthcare App', options)
+    self.registration.showNotification(data.title || 'Dra. Estefânia Rappelli', options)
   );
 });
 

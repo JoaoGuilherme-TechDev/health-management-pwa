@@ -6,7 +6,6 @@ import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Textarea } from "@/components/ui/textarea"
-import { createClient } from "@/lib/supabase/client"
 import { Edit2, Save, X } from "lucide-react"
 
 export function PatientInfoTab({ patient, onUpdate }: { patient: any; onUpdate: () => void }) {
@@ -22,8 +21,6 @@ export function PatientInfoTab({ patient, onUpdate }: { patient: any; onUpdate: 
 
     setSaving(true)
     setError(null)
-
-    const supabase = createClient()
 
     const updateData = {
       first_name: formData.first_name,
@@ -45,29 +42,28 @@ export function PatientInfoTab({ patient, onUpdate }: { patient: any; onUpdate: 
 
     console.log("[v0] Dados a serem atualizados:", updateData)
 
-    const { data, error } = await supabase.from("profiles").update(updateData).eq("id", patient.id).select()
+    try {
+      const res = await fetch(`/api/data?table=profiles&match_key=id&match_value=${patient.id}`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(updateData)
+      })
 
-    console.log("[v0] Resposta do Supabase - data:", data)
-    console.log("[v0] Resposta do Supabase - error:", error)
-
-    if (error) {
-      console.error("[v0] Erro ao salvar:", error)
-      setError(`Erro ao salvar: ${error.message}`)
+      if (res.ok) {
+        console.log("[v0] Dados salvos com sucesso!")
+        setIsEditing(false)
+        onUpdate()
+      } else {
+        const errorData = await res.json()
+        console.error("[v0] Erro ao salvar:", errorData)
+        setError(`Erro ao salvar: ${errorData.error || 'Unknown error'}`)
+      }
+    } catch (err: any) {
+      console.error("[v0] Erro ao salvar:", err)
+      setError(`Erro ao salvar: ${err.message}`)
+    } finally {
       setSaving(false)
-      return
     }
-
-    if (!data || data.length === 0) {
-      console.error("[v0] Nenhum dado foi atualizado")
-      setError("Nenhum dado foi atualizado. Verifique as permissões.")
-      setSaving(false)
-      return
-    }
-
-    console.log("[v0] Dados salvos com sucesso!")
-    setIsEditing(false)
-    onUpdate()
-    setSaving(false)
   }
 
   return (

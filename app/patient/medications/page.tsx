@@ -1,8 +1,8 @@
 "use client"
 
-import { createClient } from "@/lib/supabase/client"
 import { useEffect, useState } from "react"
 import { Card, CardContent } from "@/components/ui/card"
+import { Button } from "@/components/ui/button"
 import { Pill, Clock, AlertCircle } from "lucide-react"
 import { formatBrasiliaDate } from "@/lib/timezone"
 import { Alert, AlertDescription } from "@/components/ui/alert"
@@ -36,8 +36,13 @@ export default function MedicationsPage() {
       setLoading(true)
       setError(null)
       
-      const supabase = createClient()
-      const { data: { user } } = await supabase.auth.getUser()
+      const authRes = await fetch('/api/auth/me')
+      if (!authRes.ok) {
+        setError("Usuário não autenticado. Faça login novamente.")
+        setLoading(false)
+        return
+      }
+      const { user } = await authRes.json()
 
       if (!user) {
         setError("Usuário não autenticado. Faça login novamente.")
@@ -47,19 +52,15 @@ export default function MedicationsPage() {
 
       console.log("Loading medications for user:", user.id)
 
-      // First, try a simple query without the join to isolate issues
-      const { data: medicationsData, error: medicationsError } = await supabase
-        .from("medications")
-        .select("*")
-        .eq("user_id", user.id)
-        .order("created_at", { ascending: false })
-
-      if (medicationsError) {
-        console.error("Error loading medications:", medicationsError)
-        setError(`Erro ao carregar medicamentos: ${medicationsError.message}`)
-        setLoading(false)
-        return
-      }
+      // Fetch medications
+      const medRes = await fetch(`/api/data?table=medications&match_key=user_id&match_value=${user.id}`)
+      if (!medRes.ok) throw new Error("Failed to fetch medications")
+      let medicationsData = await medRes.json()
+      
+      if (!Array.isArray(medicationsData)) medicationsData = [medicationsData]
+      
+      // Sort manually since API might not support order param yet
+      medicationsData.sort((a: any, b: any) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime())
 
       console.log("Found medications:", medicationsData)
 
@@ -70,21 +71,29 @@ export default function MedicationsPage() {
         return
       }
 
-      // Try to load schedules separately to avoid join issues
-      const medicationIds = medicationsData.map(med => med.id)
-      const { data: schedulesData, error: schedulesError } = await supabase
-        .from("medication_schedules")
-        .select("id, medication_id, scheduled_time")
-        .in("medication_id", medicationIds)
-
-      if (schedulesError) {
-        console.warn("Could not load schedules, continuing without them:", schedulesError)
+      // Fetch schedules
+      // Since we can't do "in" query easily with simple api/data, we might fetch all schedules for user
+      // Assuming schedules have user_id or we have to fetch per medication (which is bad N+1)
+      // Wait, medication_schedules table usually has medication_id. 
+      // If we can't filter by multiple IDs, we might have to fetch all schedules for the user if they have a user_id column?
+      // Let's check if medication_schedules has user_id. The previous code filtered by user_id in realtime subscription!
+      // `filter: user_id=eq.${user.id}` in realtime subscription suggests it DOES have user_id.
+      
+      let schedulesData: any[] = []
+      try {
+        const schedRes = await fetch(`/api/data?table=medication_schedules&match_key=user_id&match_value=${user.id}`)
+        if (schedRes.ok) {
+           const data = await schedRes.json()
+           schedulesData = Array.isArray(data) ? data : [data]
+        }
+      } catch (e) {
+        console.warn("Could not load schedules", e)
       }
 
       // Combine medications with their schedules
-      const medicationsWithSchedules = medicationsData.map(med => ({
+      const medicationsWithSchedules = medicationsData.map((med: any) => ({
         ...med,
-        medication_schedules: schedulesData?.filter(s => s.medication_id === med.id) || []
+        medication_schedules: schedulesData.filter((s: any) => s.medication_id === med.id) || []
       }))
 
       setMedications(medicationsWithSchedules)
@@ -100,102 +109,48 @@ export default function MedicationsPage() {
   useEffect(() => {
     loadMedications()
 
-    // Set up real-time subscription
-    const setupRealtime = async () => {
-      const supabase = createClient()
-      const { data: { user } } = await supabase.auth.getUser()
-      
-      if (!user) return
-
-      console.log("Setting up real-time for user:", user.id)
-
-      // Subscribe to medications changes
-      const medicationsChannel = supabase
-        .channel(`patient-medications-${user.id}`) // Fixed channel name
-        .on(
-          "postgres_changes",
-          {
-            event: "*",
-            schema: "public",
-            table: "medications",
-            filter: `user_id=eq.${user.id}`,
-          },
-          () => {
-            console.log("Medications updated, reloading...")
-            loadMedications()
-          }
-        )
-        .subscribe((status) => {
-          console.log("Medications channel status:", status)
-        })
-
-      // Subscribe to medication_schedules changes
-      const schedulesChannel = supabase
-        .channel(`patient-medication-schedules-${user.id}`) // Fixed channel name
-        .on(
-          "postgres_changes",
-          {
-            event: "*",
-            schema: "public",
-            table: "medication_schedules",
-            filter: `user_id=eq.${user.id}`,
-          },
-          () => {
-            console.log("Medication schedules updated, reloading...")
-            loadMedications()
-          }
-        )
-        .subscribe((status) => {
-          console.log("Schedules channel status:", status)
-        })
-
-      return () => {
-        console.log("Cleaning up channels")
-        supabase.removeChannel(medicationsChannel)
-        supabase.removeChannel(schedulesChannel)
-      }
-    }
-
-    const cleanup = setupRealtime()
+    // Set up polling
+    const intervalId = setInterval(() => {
+        if (!document.hidden) loadMedications()
+    }, 15000)
     
-    return () => {
-      if (cleanup) {
-        cleanup.then(cleanupFn => {
-          if (cleanupFn) cleanupFn()
-        })
-      }
-    }
+    return () => clearInterval(intervalId)
   }, [])
 
   if (loading) {
     return (
-      <div className="flex flex-col items-center justify-center py-12">
-        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary mb-4"></div>
-        <p className="text-muted-foreground">Carregando medicamentos...</p>
+      <div className="container mx-auto p-4 md:p-6">
+        <div className="flex flex-col items-center justify-center py-12">
+          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary mb-4"></div>
+          <p className="text-muted-foreground">Carregando medicamentos...</p>
+        </div>
       </div>
     )
   }
 
   if (error) {
     return (
-      <div className="space-y-6">
-        <div>
-          <h1 className="text-3xl font-bold text-foreground">Medicamentos</h1>
-          <p className="text-muted-foreground mt-1">Visualize seus medicamentos e dosagens prescritas pelo seu médico</p>
+      <div className="container mx-auto p-4 md:p-6">
+        <div className="space-y-6">
+          <div>
+            <h1 className="text-3xl font-bold text-foreground">Medicamentos</h1>
+            <p className="text-muted-foreground mt-1">Visualize seus medicamentos e dosagens prescritas pelo seu médico</p>
+          </div>
+          <Alert variant="destructive">
+            <AlertCircle className="h-4 w-4" />
+            <AlertDescription>{error}</AlertDescription>
+          </Alert>
+          <Button onClick={loadMedications} className="mt-4">
+            Tentar novamente
+          </Button>
         </div>
-        <Alert variant="destructive">
-          <AlertCircle className="h-4 w-4" />
-          <AlertDescription>{error}</AlertDescription>
-        </Alert>
-        <Button onClick={loadMedications} className="mt-4">
-          Tentar novamente
-        </Button>
       </div>
     )
   }
 
   return (
-    <div className="space-y-6">
+    <div className="container mx-auto p-4 md:p-6">
+      <div className="space-y-6">
       <div>
         <h1 className="text-3xl font-bold text-foreground">Medicamentos</h1>
         <p className="text-muted-foreground mt-1">Visualize seus medicamentos e dosagens prescritas pelo seu médico</p>
@@ -269,8 +224,6 @@ export default function MedicationsPage() {
         </div>
       )}
     </div>
+  </div>
   )
 }
-
-// Add the missing Button component import
-import { Button } from "@/components/ui/button"

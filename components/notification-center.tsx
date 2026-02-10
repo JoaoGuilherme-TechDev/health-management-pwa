@@ -118,62 +118,90 @@ export function NotificationCenter() {
     loadNotifications()
   }, [user?.id])
 
+  const showBrowserNotification = useCallback((notification: Notification) => {
+    if ("Notification" in window && Notification.permission === "granted") {
+      pushService.sendNotification(notification.title, {
+        body: notification.message,
+        tag: notification.id,
+      })
+      pushService.playNotificationSound()
+      pushService.vibrateDevice()
+    } else if ("Notification" in window && Notification.permission !== "denied") {
+      Notification.requestPermission().then((permission) => {
+        if (permission === "granted") {
+          pushService.sendNotification(notification.title, {
+            body: notification.message,
+            tag: notification.type,
+          })
+          pushService.playNotificationSound()
+          pushService.vibrateDevice()
+        }
+      })
+    }
+  }, [])
+
   useEffect(() => {
     if (!user?.id) return
 
-    const interval = setInterval(async () => {
+    const refreshNotifications = async () => {
       try {
         const data = await notificationService.getNotifications(user.id)
         setNotifications((prev) => {
-          const map = new Map<string, Notification>()
-          for (const n of prev) {
-            map.set(n.id, n)
-          }
-          for (const n of data) {
-            map.set(n.id, n)
-          }
-          return Array.from(map.values()).sort(
+          // Detect new notifications for browser alert
+          // We only alert for notifications created in the last minute to avoid spamming on refresh
+          const oneMinuteAgo = Date.now() - 60000
+          const prevIds = new Set(prev.map(n => n.id))
+          
+          const newNotifications = data.filter(n => 
+            !prevIds.has(n.id) && 
+            new Date(n.created_at).getTime() > oneMinuteAgo
+          )
+          
+          newNotifications.forEach(n => {
+             console.log("[v0] New notification detected via polling:", n)
+             showBrowserNotification(n)
+          })
+
+          // OPTIMIZATION: Check if data actually changed to avoid re-renders
+          const hasChanged = data.length !== prev.length || 
+             data.some((n, i) => n.id !== prev[i].id || n.read !== prev[i].read)
+          
+          if (!hasChanged) return prev;
+
+          // Replace state with server data to ensure synchronization (handling deletions/updates)
+          return data.sort(
             (a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime(),
           )
         })
       } catch (error) {
         console.error("[v0] Failed to refresh notifications:", error)
       }
-    }, 60000)
-
-    return () => clearInterval(interval)
-  }, [user?.id])
-
-  useEffect(() => {
-    if (!user?.id) {
-      setLoading(false)
-      return
     }
 
-    console.log("[v0] Setting up real-time notification listener for user:", user.id)
+    const interval = setInterval(() => {
+      if (!document.hidden) {
+        refreshNotifications()
+      }
+    }, 5000)
 
-    const handleNewNotification = (notification: Notification) => {
-      console.log("[v0] New notification in UI:", notification)
-      setNotifications((prev) => {
-        if (prev.some((n) => n.id === notification.id)) {
-          return prev
-        }
-        return [notification, ...prev]
-      })
-      showBrowserNotification(notification)
+    const handleVisibilityChange = () => {
+      if (!document.hidden) {
+        refreshNotifications()
+      }
     }
 
-    notificationService.subscribeToNotifications(user.id, handleNewNotification)
+    document.addEventListener("visibilitychange", handleVisibilityChange)
 
     return () => {
-      notificationService.unsubscribe()
+      clearInterval(interval)
+      document.removeEventListener("visibilitychange", handleVisibilityChange)
     }
-  }, [user?.id]) // Removed showBrowserNotification from deps to avoid loop, though it is stable via useCallback if deps are correct.
+  }, [user?.id, showBrowserNotification])
 
   useEffect(() => {
     if (!user?.id) return
-
-    pushService.subscribeToPushNotifications(user.id).catch((error) => {
+ 
+    Promise.resolve(pushService.subscribeToPushNotifications(user.id)).catch((error) => {
       console.warn("[v0] Push notifications not available:", error)
     })
   }, [user?.id])
@@ -243,28 +271,6 @@ export function NotificationCenter() {
     return "bg-slate-500/10 text-slate-700 dark:text-slate-200"
   }
 
-  const showBrowserNotification = useCallback((notification: Notification) => {
-    if ("Notification" in window && Notification.permission === "granted") {
-      pushService.sendNotification(notification.title, {
-        body: notification.message,
-        tag: notification.id,
-      })
-      pushService.playNotificationSound()
-      pushService.vibrateDevice()
-    } else if ("Notification" in window && Notification.permission !== "denied") {
-      Notification.requestPermission().then((permission) => {
-        if (permission === "granted") {
-          pushService.sendNotification(notification.title, {
-            body: notification.message,
-            tag: notification.type,
-          })
-          pushService.playNotificationSound()
-          pushService.vibrateDevice()
-        }
-      })
-    }
-  }, [])
-
   const handleMarkAsRead = async (id: string) => {
     try {
       await notificationService.markAsRead(id)
@@ -332,10 +338,23 @@ export function NotificationCenter() {
 
   return (
     <div className="relative">
-      <Button variant="ghost" size="icon" onClick={() => setIsOpen(!isOpen)} className="relative rounded-full hover:bg-muted/50 transition-colors">
-        <Bell className={cn("h-5 w-5", unreadCount > 0 && "text-primary animate-tada")} />
+      <Button
+        variant="outline"
+        size="icon"
+        onClick={() => setIsOpen(!isOpen)}
+        className={cn(
+          "relative rounded-full transition-all duration-300 h-10 w-10",
+          unreadCount > 0
+            ? "border-primary bg-primary text-primary-foreground shadow-lg shadow-primary/25 hover:bg-primary/90 hover:scale-105"
+            : "text-muted-foreground hover:bg-primary/10 hover:text-primary hover:border-primary/50"
+        )}
+      >
+        <Bell className={cn("h-5 w-5 transition-transform", unreadCount > 0 && "animate-tada")} />
         {unreadCount > 0 && (
-          <span className="absolute top-1 right-1 h-3 w-3 bg-red-500 rounded-full border-2 border-background animate-pulse" />
+          <span className="absolute -top-1 -right-1 flex h-4 w-4 items-center justify-center">
+            <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-red-400 opacity-75"></span>
+            <span className="relative inline-flex rounded-full h-3 w-3 bg-red-500 border-2 border-background"></span>
+          </span>
         )}
       </Button>
 
@@ -399,20 +418,23 @@ export function NotificationCenter() {
                     key={notification.id}
                     onClick={() => handleNotificationClick(notification)}
                     className={cn(
-                      "p-2 sm:p-2.5 transition-all flex flex-col gap-1 cursor-pointer group relative overflow-hidden rounded-lg border shadow-sm bg-background/95 dark:bg-slate-950/80 backdrop-blur text-left",
+                      "p-3 mx-2 my-1.5 transition-all flex flex-col gap-1 cursor-pointer group relative overflow-hidden rounded-xl border shadow-sm backdrop-blur text-left",
                       !notification.read
-                        ? "border-primary/40 hover:border-primary/60 hover:shadow-md"
-                        : "border-border/70 hover:bg-muted/60",
+                        ? "bg-gradient-to-r from-accent/10 to-transparent border-accent/40 shadow-[0_2px_8px_-2px_rgba(var(--accent),0.25)] hover:border-accent/60 hover:from-accent/20"
+                        : "bg-card hover:bg-muted/50 border-border/60"
                     )}
                   >
                     {!notification.read && (
-                      <div className="absolute left-0 top-0 bottom-0 w-0.5 bg-primary/80" />
+                      <div className="absolute left-0 top-0 bottom-0 w-1 bg-accent shadow-[0_0_8px_rgba(var(--accent),0.6)]" />
                     )}
 
                     <div className="flex-1 w-full pl-2 min-w-0">
                       <div className="flex justify-between items-start gap-2">
-                        <div className="flex items-start gap-2 min-w-0">
-                          <div className="shrink-0 flex h-6 w-6 items-center justify-center rounded-full bg-primary/10 text-sm">
+                        <div className="flex items-start gap-3 min-w-0">
+                          <div className={cn(
+                            "shrink-0 flex h-8 w-8 items-center justify-center rounded-full text-base shadow-sm border",
+                             getNotificationTypePillClass(notification)
+                          )}>
                             <span aria-hidden="true">{getNotificationEmoji(notification)}</span>
                           </div>
                           <div className="min-w-0 space-y-0.5">

@@ -1,4 +1,4 @@
-import { describe, it, expect, vi, beforeEach } from "vitest"
+import { describe, it, expect, vi, beforeEach, afterEach } from "vitest"
 import { render, screen, waitFor } from "@testing-library/react"
 import PatientDashboard from "../app/patient/page"
 
@@ -6,46 +6,53 @@ import PatientDashboard from "../app/patient/page"
 vi.mock("@/hooks/use-auth", () => ({
   useAuth: () => ({
     user: { id: "test-user-id" },
+    loading: false,
   }),
 }))
 
-// Mock Supabase client
-const mockSupabase = {
-  auth: {
-    getUser: vi.fn().mockResolvedValue({ data: { user: { id: "test-user-id" } } }),
-  },
-  from: vi.fn(),
-  channel: vi.fn(() => ({
-    on: vi.fn().mockReturnThis(),
-    subscribe: vi.fn(),
-  })),
-  removeChannel: vi.fn(),
-}
-
-vi.mock("@/lib/supabase/client", () => ({
-  createClient: () => mockSupabase,
-}))
+// Mock fetch
+const mockFetch = vi.fn()
+global.fetch = mockFetch
 
 describe("PatientDashboard", () => {
   beforeEach(() => {
     vi.clearAllMocks()
-    // Reset specific mocks
-    mockSupabase.from.mockImplementation((table: string) => {
-      const builder: any = {
-        select: vi.fn().mockReturnThis(),
-        eq: vi.fn().mockReturnThis(),
-        gte: vi.fn().mockReturnThis(),
-        single: vi.fn(),
+    
+    // Default mock implementation
+    mockFetch.mockImplementation((url: string) => {
+      // Auth check
+      if (url === '/api/auth/me') {
+        return Promise.resolve({
+          ok: true,
+          json: () => Promise.resolve({ user: { id: "test-user-id" } }),
+        })
       }
-      
-      if (table === "profiles") {
-        builder.single.mockResolvedValue({ data: { first_name: "John" } })
-      } else {
-        // Return count for stats - using Promise-like then for await
-        builder.then = (callback: any) => callback({ count: 10, data: [] })
+
+      // Profile
+      if (url.includes('table=profiles')) {
+        return Promise.resolve({
+          ok: true,
+          json: () => Promise.resolve([{ first_name: "John" }]),
+        })
       }
-      return builder
+
+      // Count queries (stats)
+      if (url.includes('/api/data')) {
+        return Promise.resolve({
+          ok: true,
+          json: () => Promise.resolve(Array(10).fill({})), // Return 10 items to match count check
+        })
+      }
+
+      return Promise.resolve({
+        ok: true,
+        json: () => Promise.resolve([]),
+      })
     })
+  })
+
+  afterEach(() => {
+    vi.resetAllMocks()
   })
 
   it("renders dashboard with stats", async () => {
@@ -56,23 +63,30 @@ describe("PatientDashboard", () => {
     })
 
     // Check for stats
-    // The component renders "Medicamentos" and the count "10"
     expect(screen.getByText("Medicamentos")).toBeInTheDocument()
-    // We expect 10 because our mock returns count: 10 for all list queries
-    // There are multiple "10"s on the screen probably (one for each card), so getAllByText might be needed or just getByText if it collapses.
+    
+    // We expect 10 because our mock returns 10 items for list queries
     const counts = screen.getAllByText("10")
     expect(counts.length).toBeGreaterThan(0)
   })
 
-  it("subscribes to real-time channels with correct names", async () => {
+  it("polls for updates", async () => {
+    vi.useFakeTimers()
     render(<PatientDashboard />)
 
+    // Initial load
     await waitFor(() => {
-      expect(mockSupabase.channel).toHaveBeenCalledWith("dashboard-medications-test-user-id")
-      // Check for the FIXED channel name
-      expect(mockSupabase.channel).toHaveBeenCalledWith("dashboard-prescriptions-test-user-id")
-      // Check for unique channels
-      expect(mockSupabase.channel).toHaveBeenCalledWith("dashboard-appointments-test-user-id")
+      expect(mockFetch).toHaveBeenCalled()
     })
+
+    // Advance time by 15 seconds (polling interval)
+    vi.advanceTimersByTime(15000)
+
+    // Check if fetch was called again
+    // We expect multiple calls (profile + 5 stats queries) per cycle
+    // Initial: 6 calls. +1 cycle: +6 calls. Total > 6.
+    expect(mockFetch.mock.calls.length).toBeGreaterThan(6)
+
+    vi.useRealTimers()
   })
 })

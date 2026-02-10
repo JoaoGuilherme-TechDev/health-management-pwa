@@ -6,7 +6,6 @@ import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Textarea } from "@/components/ui/textarea"
-import { createClient } from "@/lib/supabase/client"
 import { Plus, Pill, Trash2, Clock, X, AlertCircle, Edit2 } from "lucide-react"
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog"
 import { Badge } from "@/components/ui/badge"
@@ -41,65 +40,43 @@ export function PatientMedicationsTab({ patientId }: { patientId: string }) {
     loadMedications()
     loadDoctorInfo()
 
-    const supabase = createClient()
-    const channel = supabase
-      .channel(`medications-${patientId}`)
-      .on(
-        "postgres_changes",
-        {
-          event: "*",
-          schema: "public",
-          table: "medications",
-          filter: `user_id=eq.${patientId}`,
-        },
-        () => {
-          console.log("[v0] Medicamento atualizado, recarregando...")
-          loadMedications()
-        },
-      )
-      .subscribe()
+    const interval = setInterval(() => {
+      if (!document.hidden) loadMedications(true)
+    }, 15000)
 
-    return () => {
-      supabase.removeChannel(channel)
-    }
+    return () => clearInterval(interval)
   }, [patientId])
 
-  const loadMedications = async () => {
+  const loadMedications = async (silent = false) => {
     try {
-      setLoading(true)
-      setError(null)
-      
-      const supabase = createClient()
-      
-      // First, try without the join to see if basic medications load
-      const { data: basicData, error: basicError } = await supabase
-        .from("medications")
-        .select("*")
-        .eq("user_id", patientId)
-        .order("created_at", { ascending: false })
-
-      if (basicError) {
-        console.error("Erro ao carregar medicamentos básicos:", basicError)
-        throw basicError
+      if (!silent) {
+        setLoading(true)
+        setError(null)
       }
+      
+      // Load basic medications
+      const res = await fetch(`/api/data?table=medications&match_key=user_id&match_value=${patientId}`)
+      if (!res.ok) throw new Error("Erro ao carregar medicamentos")
+      const basicData = await res.json()
 
-      console.log("Medicamentos básicos carregados:", basicData)
-
-      // Now try to load schedules if basic data works
+      // Load schedules if basic data exists
       if (basicData && basicData.length > 0) {
-        const { data: schedulesData, error: schedulesError } = await supabase
-          .from("medication_schedules")
-          .select("*")
-          .in("medication_id", basicData.map(m => m.id))
-
-        if (schedulesError) {
-          console.error("Erro ao carregar horários:", schedulesError)
+        // We need to fetch all schedules for this user/patient as we don't have "IN" query in simple API
+        // Optimized: fetch all schedules for this user (since we filter by patientId usually)
+        // Or we can just fetch all schedules for this user_id (patientId)
+        
+        // Note: The original code selected schedules where medication_id IN (basicData ids)
+        // Here we can fetch all schedules for this user (patientId) because schedules also have user_id
+        const resSchedules = await fetch(`/api/data?table=medication_schedules&match_key=user_id&match_value=${patientId}`)
+        let schedulesData: any[] = []
+        if (resSchedules.ok) {
+            schedulesData = await resSchedules.json()
         }
 
         // Combine data
-        const combinedData = basicData.map(med => ({
+        const combinedData = basicData.map((med: any) => ({
           ...med,
-          medication_schedules: schedulesData?.filter(s => s.medication_id === med.id) || []
+          medication_schedules: schedulesData?.filter((s: any) => s.medication_id === med.id) || []
         }))
 
         setMedications(combinedData)
@@ -109,29 +86,23 @@ export function PatientMedicationsTab({ patientId }: { patientId: string }) {
       
     } catch (error: any) {
       console.error("Erro ao carregar medicamentos:", error)
-      setError(`Erro ao carregar medicamentos: ${error.message}`)
-      setMedications([])
+      if (!silent) setError(`Erro ao carregar medicamentos: ${error.message}`)
     } finally {
-      setLoading(false)
+      if (!silent) setLoading(false)
     }
   }
 
   const loadDoctorInfo = async () => {
     try {
-      const supabase = createClient()
-      const { data: { user } } = await supabase.auth.getUser()
+      const res = await fetch("/api/auth/me")
+      if (!res.ok) return
+      const { user } = await res.json()
       
       if (user) {
-        const { data: profile, error: profileError } = await supabase
-          .from("profiles")
-          .select("doctor_crm, doctor_full_name, first_name, last_name")
-          .eq("id", user.id)
-          .single()
-
-        if (profileError) {
-          console.error("Erro ao carregar informações do médico:", profileError)
-          return
-        }
+        const resProfile = await fetch(`/api/data?table=profiles&match_key=id&match_value=${user.id}`)
+        if (!resProfile.ok) return
+        const profiles = await resProfile.json()
+        const profile = profiles[0]
 
         if (profile) {
           const doctorName = profile.doctor_full_name || `${profile.first_name} ${profile.last_name}`
@@ -164,8 +135,6 @@ export function PatientMedicationsTab({ patientId }: { patientId: string }) {
     }
 
     try {
-      const supabase = createClient()
-
       const baseData = {
         user_id: patientId,
         doctor_crm: doctorInfo.crm,
@@ -180,69 +149,70 @@ export function PatientMedicationsTab({ patientId }: { patientId: string }) {
       }
 
       if (editingMedication) {
-        const { error: updateError } = await supabase
-          .from("medications")
-          .update(baseData)
-          .eq("id", editingMedication.id)
+        // UPDATE
+        const resUpdate = await fetch(`/api/data?table=medications&match_key=id&match_value=${editingMedication.id}`, {
+          method: "PUT",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify(baseData),
+        })
 
-        if (updateError) {
-          console.error("Erro ao atualizar medicamento:", updateError)
-          alert(`Erro ao atualizar medicamento: ${updateError.message}`)
-          return
+        if (!resUpdate.ok) {
+          const err = await resUpdate.json()
+          throw new Error(err.error || "Erro ao atualizar medicamento")
         }
 
-        const { error: deleteSchedulesError } = await supabase
-          .from("medication_schedules")
-          .delete()
-          .eq("medication_id", editingMedication.id)
+        // Delete existing schedules
+        await fetch(`/api/data?table=medication_schedules&match_key=medication_id&match_value=${editingMedication.id}`, {
+            method: "DELETE"
+        })
 
-        if (deleteSchedulesError) {
-          console.error("Erro ao atualizar horários (delete):", deleteSchedulesError)
-          alert("Medicamento atualizado, mas houve erro ao atualizar os horários")
-        } else {
-          const schedulesToInsert = schedules.map((time) => ({
+        // Insert new schedules
+        const schedulesToInsert = schedules.map((time) => ({
             medication_id: editingMedication.id,
             user_id: patientId,
             scheduled_time: time,
             days_of_week: [0, 1, 2, 3, 4, 5, 6],
-          }))
-
-          const { error: scheduleError } = await supabase.from("medication_schedules").insert(schedulesToInsert)
-
-          if (scheduleError) {
-            console.error("Erro ao atualizar horários:", scheduleError)
-            alert("Medicamento atualizado, mas houve erro ao salvar os horários")
-          }
+        }))
+        
+        for (const schedule of schedulesToInsert) {
+             await fetch(`/api/data?table=medication_schedules`, {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify(schedule),
+            })
         }
 
         alert("Medicamento atualizado com sucesso!")
       } else {
-        const { data: medication, error: medicationError } = await supabase
-          .from("medications")
-          .insert(baseData)
-          .select()
-          .single()
+        // INSERT
+        const resInsert = await fetch(`/api/data?table=medications`, {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify(baseData),
+        })
 
-        if (medicationError) {
-          console.error("Erro ao adicionar medicamento:", medicationError)
-          alert(`Erro ao adicionar medicamento: ${medicationError.message}`)
-          return
+        if (!resInsert.ok) {
+            const err = await resInsert.json()
+            throw new Error(err.error || "Erro ao adicionar medicamento")
         }
+        
+        const newMedication = (await resInsert.json())[0]
 
-        if (medication) {
-          const schedulesToInsert = schedules.map((time) => ({
-            medication_id: medication.id,
-            user_id: patientId,
-            scheduled_time: time,
-            days_of_week: [0, 1, 2, 3, 4, 5, 6],
-          }))
+        if (newMedication) {
+            const schedulesToInsert = schedules.map((time) => ({
+                medication_id: newMedication.id,
+                user_id: patientId,
+                scheduled_time: time,
+                days_of_week: [0, 1, 2, 3, 4, 5, 6],
+            }))
 
-          const { error: scheduleError } = await supabase.from("medication_schedules").insert(schedulesToInsert)
-
-          if (scheduleError) {
-            console.error("Erro ao adicionar horários:", scheduleError)
-            alert("Medicamento adicionado, mas houve erro ao configurar os horários")
-          }
+            for (const schedule of schedulesToInsert) {
+                await fetch(`/api/data?table=medication_schedules`, {
+                    method: "POST",
+                    headers: { "Content-Type": "application/json" },
+                    body: JSON.stringify(schedule),
+                })
+            }
         }
 
         alert("Medicamento e horários adicionados com sucesso!")
@@ -272,13 +242,12 @@ export function PatientMedicationsTab({ patientId }: { patientId: string }) {
     }
 
     try {
-      const supabase = createClient()
-      const { error } = await supabase.from("medications").delete().eq("id", id)
+      const res = await fetch(`/api/data?table=medications&match_key=id&match_value=${id}`, {
+          method: "DELETE"
+      })
 
-      if (error) {
-        console.error("Erro ao deletar medicamento:", error)
-        alert("Erro ao remover medicamento")
-        return
+      if (!res.ok) {
+        throw new Error("Erro ao remover medicamento")
       }
 
       alert("Medicamento removido com sucesso!")

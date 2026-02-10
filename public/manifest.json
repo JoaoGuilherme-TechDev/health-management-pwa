@@ -1,27 +1,15 @@
 {
-  "name": "HealthCare+ - Gerenciamento de Saúde",
-  "short_name": "HealthCare+",
+  "name": "Dra. Estefânia Rappelli - Nutrologia e Performance",
+  "short_name": "Dra. Estefânia Rappelli",
   "gcm_sender_id": "103953800507",
-  "description": "Sistema completo de gerenciamento de saúde para pacientes e profissionais médicos.",
+  "description": "Acompanhamento médico especializado em nutrologia e performance.",
   "start_url": "/",
   "scope": "/",
   "display": "standalone",
-  "background_color": "#ffffff",
-  "theme_color": "#1a7f7f",
+  "background_color": "#F6F3EF",
+  "theme_color": "#0F1C2E",
   "orientation": "portrait-primary",
   "icons": [
-    {
-      "src": "/icon-light-32x32.png",
-      "sizes": "32x32",
-      "type": "image/png",
-      "purpose": "any"
-    },
-    {
-      "src": "/icon-dark-32x32.png",
-      "sizes": "32x32",
-      "type": "image/png",
-      "purpose": "any"
-    },
     {
       "src": "/icon.svg",
       "sizes": "any",
@@ -29,21 +17,21 @@
       "purpose": "any"
     },
     {
-      "src": "/apple-icon.png",
+      "src": "/icon.svg",
       "sizes": "180x180",
-      "type": "image/png",
+      "type": "image/svg+xml",
       "purpose": "any"
     },
     {
-      "src": "/apple-icon.png",
+      "src": "/icon.svg",
       "sizes": "192x192",
-      "type": "image/png",
+      "type": "image/svg+xml",
       "purpose": "maskable any"
     },
     {
-      "src": "/apple-icon.png",
+      "src": "/icon.svg",
       "sizes": "512x512",
-      "type": "image/png",
+      "type": "image/svg+xml",
       "purpose": "maskable any"
     }
   ],

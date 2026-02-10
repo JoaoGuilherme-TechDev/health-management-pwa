@@ -1,27 +1,16 @@
 "use server"
 
-import { createServerClient } from "@supabase/ssr"
-import { cookies } from "next/headers"
+import { pool } from "@/lib/db"
+
+interface MedicationRow {
+  id: string
+  name: string
+  user_id: string
+  start_date: string
+  end_date: string | null
+}
 
 export async function createMedicationReminders() {
-  const cookieStore = await cookies()
-  const supabase = createServerClient(
-    process.env.NEXT_PUBLIC_SUPABASE_URL || "",
-    process.env.SUPABASE_SERVICE_ROLE_KEY || "",
-    {
-      cookies: {
-        getAll() {
-          return cookieStore.getAll()
-        },
-        setAll(cookiesToSet) {
-          try {
-            cookiesToSet.forEach(({ name, value, options }) => cookieStore.set(name, value, options))
-          } catch {}
-        },
-      },
-    },
-  )
-
   try {
     const now = new Date()
     const pauloTime = new Date(now.toLocaleString("en-US", { timeZone: "America/Sao_Paulo" }))
@@ -39,32 +28,21 @@ export async function createMedicationReminders() {
       dayOfWeek,
     )
 
-    // Get all active medication schedules
-    const { data: schedules, error: schedulesError } = await supabase
-      .from("medication_schedules")
-      .select("id,user_id,medication_id,scheduled_time,days_of_week")
-
-    if (schedulesError) {
-      console.error("[v0] Error fetching schedules:", schedulesError)
-      return { success: false, error: schedulesError.message }
-    }
+    const schedulesRes = await pool.query(
+      "SELECT id, user_id, medication_id, scheduled_time, days_of_week FROM medication_schedules"
+    )
+    const schedules = schedulesRes.rows
 
     if (!schedules || schedules.length === 0) {
       return { success: true, created: 0, message: "No active schedules found" }
     }
 
-    // Get all active medications
-    const { data: medications, error: medicationsError } = await supabase
-      .from("medications")
-      .select("id,name,user_id,start_date,end_date")
+    const medicationsRes = await pool.query(
+      "SELECT id, name, user_id, start_date, end_date FROM medications"
+    )
+    const medications = medicationsRes.rows as MedicationRow[]
 
-    if (medicationsError) {
-      console.error("[v0] Error fetching medications:", medicationsError)
-      return { success: false, error: medicationsError.message }
-    }
-
-    // Create a map for quick lookup
-    const medicationMap = new Map(medications?.map((m) => [m.id, m]) ?? [])
+    const medicationMap = new Map<string, MedicationRow>((medications ?? []).map((m) => [m.id, m]))
 
     let notificationsCreated = 0
 
@@ -103,34 +81,38 @@ export async function createMedicationReminders() {
         continue
       }
 
-      // Check if notification already exists for today
-      const { data: existingNotification } = await supabase
-        .from("notifications")
-        .select("id")
-        .eq("user_id", schedule.user_id)
-        .eq("related_id", schedule.medication_id)
-        .gte("created_at", `${currentDate}T00:00:00`)
-        .lte("created_at", `${currentDate}T23:59:59`)
-        .single()
+      // Check if notification already created today
+      const existingNotificationRes = await pool.query(
+        `SELECT id FROM notifications 
+         WHERE user_id = $1 
+         AND related_id = $2 
+         AND created_at >= $3 
+         AND created_at <= $4`,
+        [schedule.user_id, schedule.medication_id, `${currentDate}T00:00:00`, `${currentDate}T23:59:59`]
+      )
 
-      if (existingNotification) {
+      if (existingNotificationRes.rows.length > 0) {
         continue // Skip if notification already created today
       }
 
-      const { error: insertError } = await supabase.from("notifications").insert({
-        user_id: schedule.user_id,
-        title: `💊 Hora do medicamento: ${med.name}`,
-        message: `Tomar ${med.name} às ${scheduledTimeStr}`,
-        type: "medication_reminder",
-        related_id: schedule.medication_id,
-        action_url: "/patient/medications",
-        read: false,
-      })
+      try {
+        await pool.query(
+          `INSERT INTO notifications (user_id, title, message, type, related_id, action_url, read)
+           VALUES ($1, $2, $3, $4, $5, $6, $7)`,
+          [
+            schedule.user_id,
+            `💊 Hora do medicamento: ${med.name}`,
+            `Tomar ${med.name} às ${scheduledTimeStr}`,
+            "medication_reminder",
+            schedule.medication_id,
+            "/patient/medications",
+            false,
+          ]
+        )
 
-      if (!insertError) {
         notificationsCreated++
         console.log(`[v0] Created medication reminder for ${med.name} at ${currentTime}`)
-      } else {
+      } catch (insertError) {
         console.error(`[v0] Error creating notification for ${med.name}:`, insertError)
       }
     }

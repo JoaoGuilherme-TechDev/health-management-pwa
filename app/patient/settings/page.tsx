@@ -1,6 +1,4 @@
 "use client"
-
-import { createClient } from "@/lib/supabase/client"
 import { useEffect, useState } from "react"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
@@ -8,7 +6,6 @@ import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { LogOut, Bell, BellOff, BellRing, TestTube, AlertCircle } from "lucide-react"
 import { useRouter } from "next/navigation"
-
 interface Profile {
   id: string
   first_name: string
@@ -40,22 +37,26 @@ export default function SettingsPage() {
 
   useEffect(() => {
     const loadProfile = async () => {
-      const supabase = createClient()
-      const {
-        data: { user },
-      } = await supabase.auth.getUser()
+      try {
+        const authRes = await fetch('/api/auth/me')
+        if (!authRes.ok) {
+          router.push("/login")
+          return
+        }
+        const { user } = await authRes.json()
 
-      if (!user) {
-        router.push("/auth/login")
-        return
+        const res = await fetch(`/api/data?table=profiles&match_key=id&match_value=${user.id}`)
+        if (res.ok) {
+          const data = await res.json()
+          if (data && data.length > 0) {
+            setProfile(data[0])
+          }
+        }
+      } catch (error) {
+        console.error("Error loading profile:", error)
+      } finally {
+        setLoading(false)
       }
-
-      const { data } = await supabase.from("profiles").select("*").eq("id", user.id).single()
-      if (data) {
-        setProfile(data)
-      }
-
-      setLoading(false)
     }
 
     loadProfile()
@@ -91,13 +92,24 @@ export default function SettingsPage() {
     if (!profile) return
 
     setSaving(true)
-    const supabase = createClient()
 
     try {
       // Salvar perfil
-      await supabase.from("profiles").update(profile).eq("id", profile.id)
+      const res = await fetch('/api/data', {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          table: 'profiles',
+          id: profile.id,
+          data: profile
+        })
+      })
 
-      alert("Configurações salvas com sucesso!")
+      if (res.ok) {
+        alert("Configurações salvas com sucesso!")
+      } else {
+        throw new Error("Failed to update profile")
+      }
     } catch (error) {
       console.error("Erro ao salvar:", error)
       alert("Erro ao salvar configurações")
@@ -108,12 +120,11 @@ export default function SettingsPage() {
 
   const handleLogout = async () => {
     setLoggingOut(true)
-    const supabase = createClient()
-    await supabase.auth.signOut()
+    await fetch('/api/auth/signout', { method: 'POST' })
     if (typeof window !== "undefined") {
       window.localStorage.removeItem("healthcare_session")
     }
-    router.push("/auth/login")
+    router.push("/login")
   }
 
   // Função corrigida para retornar Uint8Array
@@ -133,15 +144,24 @@ export default function SettingsPage() {
 
 
   if (loading) {
-    return <div className="text-center py-12">Carregando configurações...</div>
+    return (
+      <div className="container mx-auto p-4 md:p-6">
+        <div className="text-center py-12">Carregando configurações...</div>
+      </div>
+    )
   }
 
   if (!profile) {
-    return <div className="text-center py-12">Perfil não encontrado</div>
+    return (
+      <div className="container mx-auto p-4 md:p-6">
+        <div className="text-center py-12">Perfil não encontrado</div>
+      </div>
+    )
   }
 
   return (
-    <div className="space-y-6">
+    <div className="container mx-auto p-4 md:p-6">
+      <div className="space-y-6">
       <div>
         <h1 className="text-3xl font-bold text-foreground">Configurações do Perfil</h1>
         <p className="text-muted-foreground mt-1">Gerencie suas informações pessoais, saúde e preferências</p>
@@ -286,5 +306,6 @@ export default function SettingsPage() {
         </Button>
       </div>
     </div>
+  </div>
   )
 }

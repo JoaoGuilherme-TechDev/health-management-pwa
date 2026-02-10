@@ -2,7 +2,6 @@
 
 import type React from "react"
 
-import { createClient } from "@/lib/supabase/client"
 import { useState } from "react"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
@@ -24,19 +23,29 @@ export default function SupplementForm({ supplement, onSuccess, onCancel }: Supp
   })
   const [loading, setLoading] = useState(false)
   const [imagePreview, setImagePreview] = useState<string>(supplement?.image_url || "")
-  const supabase = createClient()
 
   const handleImageUpload = async (file: File) => {
     try {
       const timestamp = Date.now()
       const path = `supplements/${timestamp}-${file.name}`
-      const { data, error } = await supabase.storage.from("supplements").upload(path, file)
-      if (!error && data) {
-        const { data: urlData } = supabase.storage.from("supplements").getPublicUrl(path)
-        setFormData({ ...formData, image_url: urlData.publicUrl })
-        setImagePreview(urlData.publicUrl)
+      
+      const form = new FormData()
+      form.append("file", file)
+      form.append("bucket", "supplements")
+      form.append("path", path)
+
+      const res = await fetch("/api/upload", {
+        method: "POST",
+        body: form
+      })
+      
+      const data = await res.json()
+
+      if (res.ok && data.publicUrl) {
+        setFormData({ ...formData, image_url: data.publicUrl })
+        setImagePreview(data.publicUrl)
       } else {
-        alert("Erro ao fazer upload da imagem: " + error?.message)
+        alert("Erro ao fazer upload da imagem: " + (data.error || "Erro desconhecido"))
       }
     } catch (err: any) {
       alert("Erro ao fazer upload: " + err.message)
@@ -56,26 +65,27 @@ export default function SupplementForm({ supplement, onSuccess, onCancel }: Supp
 
     console.log("Submitting to supplement_catalog:", payload)
 
-    let result
-    if (supplement?.id) {
-      result = await supabase
-        .from("supplement_catalog") // CORRECT TABLE NAME
-        .update(payload)
-        .eq("id", supplement.id)
-        .select()
-    } else {
-      result = await supabase
-        .from("supplement_catalog") // CORRECT TABLE NAME
-        .insert([payload])
-        .select()
-    }
+    try {
+      let res
+      if (supplement?.id) {
+        res = await fetch(`/api/data?table=supplement_catalog&match_key=id&match_value=${supplement.id}`, {
+            method: 'PUT',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(payload)
+        })
+      } else {
+        res = await fetch(`/api/data?table=supplement_catalog`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(payload)
+        })
+      }
 
-    console.log("Supabase response:", result)
+      if (!res.ok) {
+        const err = await res.json()
+        throw new Error(err.error || "Erro ao salvar")
+      }
 
-    if (result.error) {
-      console.error("Error:", result.error)
-      alert(`Erro ao salvar suplemento: ${result.error.message}`)
-    } else {
       alert(supplement ? "Suplemento atualizado!" : "Suplemento adicionado!")
       setFormData({
         name: "",
@@ -85,6 +95,10 @@ export default function SupplementForm({ supplement, onSuccess, onCancel }: Supp
       })
       setImagePreview("")
       onSuccess()
+
+    } catch (error: any) {
+      console.error("Error:", error)
+      alert(`Erro ao salvar suplemento: ${error.message}`)
     }
 
     setLoading(false)

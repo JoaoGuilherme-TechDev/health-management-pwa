@@ -1,8 +1,5 @@
 "use client"
 
-import { createBrowserClient } from "@supabase/ssr"
-import type { RealtimeChannel } from "@supabase/supabase-js"
-
 export interface Notification {
   id: string
   user_id: string
@@ -32,58 +29,11 @@ export interface Notification {
 }
 
 class NotificationService {
-  private subscription: RealtimeChannel | null = null
-  private supabase = createBrowserClient(
-    process.env.NEXT_PUBLIC_SUPABASE_URL!,
-    process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
-  )
-
-  private getNotificationEmoji(notificationType: string): string {
-    if (notificationType?.includes("medication")) return "💊"
-    if (notificationType?.includes("appointment")) return "📅"
-    if (notificationType?.includes("prescription")) return "📋"
-    if (notificationType?.includes("diet")) return "🥗"
-    if (notificationType?.includes("supplement")) return "💪"
-    if (notificationType?.includes("evolution")) return "📊"
-    if (notificationType?.includes("health")) return "❤️"
-    return "🔔"
-  }
-
+  
   async subscribeToNotifications(patientId: string, callback: (notification: Notification) => void) {
-    try {
-      this.subscription = this.supabase
-        .channel(`notifications:${patientId}`, {
-          config: {
-            broadcast: { self: true },
-          },
-        })
-        .on(
-          "postgres_changes",
-          {
-            event: "INSERT",
-            schema: "public",
-            table: "notifications",
-            filter: `user_id=eq.${patientId}`,
-          },
-          async (payload) => {
-            console.log("[v0] Real-time notification received:", payload)
-            const raw: any = payload.new
-            const mapped: Notification = {
-              ...raw,
-              type: this.mapNotificationType(raw.type || raw.notification_type),
-            }
-            callback(mapped)
-          },
-        )
-        .on("system", {}, (payload) => {
-          console.log("[v0] Realtime system event:", payload)
-        })
-        .subscribe((status) => {
-          console.log("[v0] Subscription status:", status)
-        })
-    } catch (error) {
-      console.error("[v0] Failed to subscribe to notifications:", error)
-    }
+    // Polling is now handled by components (e.g. NotificationCenter)
+    // This method is kept for API compatibility but does nothing active.
+    console.log("[v0] subscribeToNotifications called - polling should be handled by component")
   }
 
   private mapNotificationType(notificationType: string): Notification["type"] {
@@ -97,52 +47,95 @@ class NotificationService {
   }
 
   unsubscribe() {
-    if (this.subscription) {
-      this.supabase.removeChannel(this.subscription)
-      this.subscription = null
-    }
+    // No-op
   }
 
   async getNotifications(patientId: string) {
-    const { data, error } = await this.supabase
-      .from("notifications")
-      .select("*")
-      .eq("user_id", patientId)
-      .order("created_at", { ascending: false })
-      .limit(50)
-
-    if (error) throw error
-    return (data || []).map((raw: any) => ({
-      ...raw,
-      type: this.mapNotificationType(raw.type || raw.notification_type),
-    }))
+    try {
+      const res = await fetch(`/api/data?table=notifications&match_key=user_id&match_value=${patientId}&limit=50`)
+      if (!res.ok) throw new Error("Failed to fetch notifications")
+      
+      const data = await res.json()
+      // Sort manually (in case API fallback didn't sort)
+      const sortedData = Array.isArray(data) 
+        ? data.sort((a: any, b: any) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime())
+        : []
+        
+      return sortedData.map((raw: any) => ({
+        ...raw,
+        read: raw.is_read, // Map database column is_read to frontend property read
+        type: this.mapNotificationType(raw.type || raw.notification_type),
+      }))
+    } catch (error) {
+      console.error("Error getting notifications:", error)
+      return []
+    }
   }
 
   async markAsRead(notificationId: string) {
-    const { error } = await this.supabase.from("notifications").update({ read: true }).eq("id", notificationId)
-    if (error) throw error
+    try {
+      const res = await fetch('/api/notifications/dismiss', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ id: notificationId })
+      })
+      if (!res.ok) throw new Error("Failed to mark as read")
+    } catch (error) {
+       console.error("Error marking as read:", error)
+       throw error
+    }
   }
 
   async markAllAsRead(patientId: string) {
-    const { error } = await this.supabase.from("notifications").update({ read: true }).eq("user_id", patientId)
-    if (error) throw error
+    try {
+      const res = await fetch('/api/notifications/mark-all-read', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ user_id: patientId })
+      })
+      if (!res.ok) throw new Error("Failed to mark all as read")
+    } catch (error) {
+       console.error("Error marking all as read:", error)
+       throw error
+    }
   }
 
   async deleteNotification(notificationId: string) {
-    const { error } = await this.supabase.from("notifications").delete().eq("id", notificationId)
-    if (error) throw error
+    try {
+      const res = await fetch(`/api/data?table=notifications&match_key=id&match_value=${notificationId}`, {
+        method: 'DELETE'
+      })
+      if (!res.ok) throw new Error("Failed to delete notification")
+    } catch (error) {
+      console.error("Error deleting notification:", error)
+      throw error
+    }
   }
 
   async deleteAllNotifications(patientId: string) {
-    const { error } = await this.supabase.from("notifications").delete().eq("user_id", patientId)
-    if (error) throw error
+    try {
+      const res = await fetch('/api/notifications/delete-all', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ user_id: patientId })
+      })
+      if (!res.ok) throw new Error("Failed to delete all notifications")
+    } catch (error) {
+       console.error("Error deleting all notifications:", error)
+       throw error
+    }
   }
 
   async getNotificationSettings(patientId: string) {
-    const { data, error } = await this.supabase.from("notification_settings").select("*").eq("user_id", patientId)
-
-    if (error) throw error
-    return data || []
+    try {
+        const res = await fetch(`/api/data?table=notification_settings&match_key=user_id&match_value=${patientId}`)
+        if (!res.ok) throw new Error("Failed to fetch settings")
+        const data = await res.json()
+        return Array.isArray(data) ? data : []
+    } catch (error) {
+        console.error("Error getting settings:", error)
+        throw error
+    }
   }
 
   async updateNotificationSetting(
@@ -153,45 +146,90 @@ class NotificationService {
     vibrationEnabled?: boolean,
     ledEnabled?: boolean,
   ) {
-    const { error } = await this.supabase.from("notification_settings").upsert({
-      user_id: patientId,
-      notification_type: notificationType,
-      enabled,
-      sound_enabled: soundEnabled ?? true,
-      vibration_enabled: vibrationEnabled ?? true,
-      led_enabled: ledEnabled ?? true,
-    })
+    // Check if exists
+    try {
+        const res = await fetch(`/api/data?table=notification_settings&match_key=user_id&match_value=${patientId}`)
+        let settings = []
+        if (res.ok) {
+            settings = await res.json()
+        }
+        
+        const existing = settings.find((s: any) => s.notification_type === notificationType)
+        
+        const payload = {
+          user_id: patientId,
+          notification_type: notificationType,
+          enabled,
+          sound_enabled: soundEnabled ?? true,
+          vibration_enabled: vibrationEnabled ?? true,
+          led_enabled: ledEnabled ?? true,
+        }
 
-    if (error) throw error
+        if (existing) {
+            // Update
+             await fetch(`/api/data?table=notification_settings&match_key=id&match_value=${existing.id}`, {
+                method: 'PUT',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(payload)
+             })
+        } else {
+            // Insert
+             await fetch(`/api/data?table=notification_settings`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(payload)
+             })
+        }
+    } catch (error) {
+        console.error("Error updating setting:", error)
+        throw error
+    }
   }
 
   async confirmMedicationTaken(userId: string, medicationId: string) {
-    const { error } = await this.supabase.from("medication_adherence").insert([
-      {
-        user_id: userId,
-        medication_id: medicationId,
-        taken_at: new Date().toISOString(),
-        status: "completed",
-      },
-    ])
-    if (error) throw error
+    try {
+        await fetch(`/api/data?table=medication_adherence`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+                user_id: userId,
+                medication_id: medicationId,
+                taken_at: new Date().toISOString(),
+                status: "completed",
+            })
+        })
+    } catch (error) {
+        console.error("Error confirming medication:", error)
+        throw error
+    }
   }
 
   async fetchUserNotifications(userId: string) {
-    const { data, error } = await this.supabase
-      .from("notifications")
-      .select("*")
-      .eq("user_id", userId)
-      .eq("read", false)
-      .order("created_at", { ascending: false })
-
-    return { data, error }
+    // This seems similar to getNotifications but only unread?
+    // The original code filtered read=false
+    try {
+      const res = await fetch(`/api/data?table=notifications&match_key=user_id&match_value=${userId}`)
+      if (!res.ok) return { data: [], error: "Failed" }
+      
+      const data = await res.json()
+      const unread = Array.isArray(data) 
+        ? data.filter((n: any) => !n.read).sort((a: any, b: any) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime())
+        : []
+        
+      return { data: unread, error: null }
+    } catch (error) {
+        return { data: [], error }
+    }
   }
 
   async markNotificationAsRead(notificationId: string) {
-    const { error } = await this.supabase.from("notifications").update({ read: true }).eq("id", notificationId)
-
-    return { error }
+    // Alias for markAsRead but returns { error }
+    try {
+        await this.markAsRead(notificationId)
+        return { error: null }
+    } catch (error) {
+        return { error }
+    }
   }
 }
 

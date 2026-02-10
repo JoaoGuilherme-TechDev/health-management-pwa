@@ -1,6 +1,5 @@
 "use client"
 
-import { createClient } from "@/lib/supabase/client"
 import { useEffect, useState } from "react"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent } from "@/components/ui/card"
@@ -12,24 +11,36 @@ export default function RecipesPage() {
   const [loading, setLoading] = useState(true)
   const [showForm, setShowForm] = useState(false)
   const [editingRecipe, setEditingRecipe] = useState<any>(null)
-  const supabase = createClient()
 
   useEffect(() => {
     loadRecipes()
   }, [])
 
   const loadRecipes = async () => {
-    const { data, error } = await supabase.from("recipes").select("*").order("created_at", { ascending: false })
-    if (!error) {
-      setRecipes(data || [])
+    try {
+      const res = await fetch("/api/data?table=recipes")
+      if (res.ok) {
+        const data = await res.json()
+        setRecipes(data || [])
+      }
+    } catch (error) {
+      console.error("Error loading recipes:", error)
+    } finally {
+      setLoading(false)
     }
-    setLoading(false)
   }
 
   const handleDelete = async (id: string) => {
     if (confirm("Tem certeza de que deseja excluir esta receita?")) {
-      await supabase.from("recipes").delete().eq("id", id)
-      loadRecipes()
+      try {
+        await fetch(`/api/data?table=recipes&match_key=id&match_value=${id}`, {
+          method: 'DELETE'
+        })
+        loadRecipes()
+      } catch (error) {
+        console.error("Error deleting recipe:", error)
+        alert("Erro ao excluir receita")
+      }
     }
   }
 

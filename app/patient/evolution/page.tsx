@@ -1,55 +1,64 @@
 "use client"
 
-import { createClient } from "@/lib/supabase/client"
+import { useRouter } from "next/navigation"
 import { useEffect, useState } from "react"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Scale } from "lucide-react"
 import { formatBrasiliaDate } from "@/lib/timezone"
 
 export default function PatientEvolutionPage() {
+  const router = useRouter()
   const [evolution, setEvolution] = useState<any[]>([])
   const [loading, setLoading] = useState(true)
 
   const loadEvolution = async () => {
-    const supabase = createClient()
-    const {
-      data: { user },
-    } = await supabase.auth.getUser()
+    try {
+      const authRes = await fetch('/api/auth/me')
+      if (!authRes.ok) {
+        router.push("/login")
+        return
+      }
+      const { user } = await authRes.json()
 
-    if (user) {
-      const { data } = await supabase
-        .from("physical_evolution")
-        .select("*")
-        .eq("user_id", user.id)
-        .order("measured_at", { ascending: false })
-
-      setEvolution(data || [])
+      if (user) {
+        const res = await fetch(`/api/data?table=physical_evolution&match_key=user_id&match_value=${user.id}`)
+        if (res.ok) {
+          let data = await res.json()
+          if (!Array.isArray(data)) data = [data]
+          // Sort manually since API might not support order param yet
+          data.sort((a: any, b: any) => new Date(b.measured_at).getTime() - new Date(a.measured_at).getTime())
+          setEvolution(data)
+        }
+      }
+    } catch (error) {
+      console.error("Error loading evolution:", error)
+    } finally {
+      setLoading(false)
     }
-    setLoading(false)
   }
 
   useEffect(() => {
     loadEvolution()
 
-    const supabase = createClient()
-    const channel = supabase
-      .channel("evolution-changes")
-      .on("postgres_changes", { event: "*", schema: "public", table: "physical_evolution" }, () => {
-        loadEvolution()
-      })
-      .subscribe()
+    // Polling every 15 seconds
+    const interval = setInterval(() => {
+      if (!document.hidden) loadEvolution()
+    }, 15000)
 
-    return () => {
-      supabase.removeChannel(channel)
-    }
+    return () => clearInterval(interval)
   }, [])
 
   if (loading) {
-    return <div className="text-center py-12">Carregando sua evolução...</div>
+    return (
+      <div className="container mx-auto p-4 md:p-6">
+        <div className="text-center py-12">Carregando sua evolução...</div>
+      </div>
+    )
   }
 
   return (
-    <div className="space-y-6">
+    <div className="container mx-auto p-4 md:p-6">
+      <div className="space-y-6">
       <div>
         <h1 className="text-3xl font-bold text-foreground">Minha Evolução Física</h1>
         <p className="text-muted-foreground mt-2">Acompanhe suas medições de bioimpedância</p>
@@ -142,5 +151,6 @@ export default function PatientEvolutionPage() {
         </div>
       )}
     </div>
+  </div>
   )
 }

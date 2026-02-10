@@ -2,7 +2,6 @@
 
 import type React from "react"
 
-import { createClient } from "@/lib/supabase/client"
 import { useState } from "react"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
@@ -26,19 +25,29 @@ export default function RecipeForm({ recipe, onSuccess, onCancel }: RecipeFormPr
   })
   const [loading, setLoading] = useState(false)
   const [imagePreview, setImagePreview] = useState<string>(recipe?.image_url || "")
-  const supabase = createClient()
 
   const handleImageUpload = async (file: File) => {
     try {
       const timestamp = Date.now()
       const path = `recipes/${timestamp}-${file.name}`
-      const { data, error } = await supabase.storage.from("recipes").upload(path, file)
-      if (!error && data) {
-        const { data: urlData } = supabase.storage.from("recipes").getPublicUrl(path)
-        setFormData({ ...formData, image_url: urlData.publicUrl })
-        setImagePreview(urlData.publicUrl)
+      
+      const formData = new FormData()
+      formData.append("file", file)
+      formData.append("bucket", "recipes")
+      formData.append("path", path)
+
+      const res = await fetch("/api/upload", {
+        method: "POST",
+        body: formData,
+      })
+
+      const data = await res.json()
+
+      if (res.ok && data.publicUrl) {
+        setFormData((prev) => ({ ...prev, image_url: data.publicUrl }))
+        setImagePreview(data.publicUrl)
       } else {
-        alert("Erro ao fazer upload da imagem: " + error?.message)
+        alert("Erro ao fazer upload da imagem: " + (data.error || "Unknown error"))
       }
     } catch (err: any) {
       alert("Erro ao fazer upload: " + err.message)
@@ -66,14 +75,28 @@ export default function RecipeForm({ recipe, onSuccess, onCancel }: RecipeFormPr
       image_url: formData.image_url,
     }
 
-    if (recipe?.id) {
-      await supabase.from("recipes").update(payload).eq("id", recipe.id)
-    } else {
-      await supabase.from("recipes").insert([payload])
-    }
+    try {
+      if (recipe?.id) {
+        await fetch(`/api/data?table=recipes&match_value=${recipe.id}`, {
+          method: "PUT",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify(payload),
+        })
+      } else {
+        await fetch(`/api/data?table=recipes`, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify(payload),
+        })
+      }
 
-    setLoading(false)
-    onSuccess()
+      setLoading(false)
+      onSuccess()
+    } catch (error) {
+      console.error("Error saving recipe:", error)
+      alert("Erro ao salvar receita")
+      setLoading(false)
+    }
   }
 
   return (
