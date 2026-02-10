@@ -1,5 +1,5 @@
 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512">
   <rect width="512" height="512" fill="#0F1C2E"/>
-  <rect x="40" y="40" width="432" height="432" fill="none" stroke="#B89B5E" stroke-width="12"/>
-  <text x="50%" y="58%" dominant-baseline="middle" text-anchor="middle" font-family="Times New Roman, serif" font-size="300" fill="#B89B5E">ER</text>
+  <rect x="40" y="40" width="432" height="432" fill="none" stroke="#B89B5E" stroke-width="8"/>
+  <text x="50%" y="55%" dominant-baseline="middle" text-anchor="middle" font-family="'Gwen Morgan', 'Playfair Display', serif" font-size="280" fill="#B89B5E">ER</text>
 </svg>

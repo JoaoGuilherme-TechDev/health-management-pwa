@@ -8,16 +8,15 @@ export function Logo({ className = "h-6 w-6" }: { className?: string }) {
       className={className}
     >
       <rect width="512" height="512" fill="#0F1C2E" />
-      <rect x="40" y="40" width="432" height="432" fill="none" stroke="#B89B5E" strokeWidth="8" />
+      <rect x="40" y="40" width="432" height="432" fill="none" stroke="#B89B5E" strokeWidth="12" />
       <text 
         x="50%" 
-        y="55%" 
+        y="58%" 
         dominantBaseline="middle" 
         textAnchor="middle" 
         className="font-logo"
-        fontSize="280" 
+        fontSize="300" 
         fill="#B89B5E"
-        style={{ fontFamily: '"Gwen Morgan", "Playfair Display", serif' }}
       >
         ER
       </text>

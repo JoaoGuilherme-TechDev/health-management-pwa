@@ -1,5 +1,5 @@
 import type { Metadata, Viewport } from "next"
-import { Montserrat, Raleway, Lato, Playfair_Display } from "next/font/google"
+import { Montserrat, Raleway } from "next/font/google"
 import "./globals.css"
 import ClientLayout from "./clientLayout"
 import { ThemeProvider } from "@/components/theme-provider"
@@ -8,28 +8,12 @@ const montserrat = Montserrat({
   subsets: ["latin"],
   display: 'swap',
   variable: '--font-montserrat',
-  weight: ["100", "200", "300", "400", "500", "600", "700", "800", "900"],
 })
 
 const raleway = Raleway({ 
   subsets: ["latin"],
   display: 'swap',
   variable: '--font-raleway',
-  weight: ["100", "200", "300", "400", "500", "600", "700", "800", "900"],
-})
-
-const lato = Lato({ 
-  subsets: ["latin"],
-  display: 'swap',
-  variable: '--font-lato',
-  weight: ["100", "300", "400", "700", "900"],
-})
-
-const playfair = Playfair_Display({
-  subsets: ["latin"],
-  display: 'swap',
-  variable: '--font-playfair',
-  weight: ["400", "500", "600", "700", "800", "900"],
 })
 
 export const metadata: Metadata = {
@@ -63,7 +47,7 @@ export default function RootLayout({
   children: React.ReactNode
 }>) {
   return (
-    <html lang="pt-BR" className={`${montserrat.variable} ${raleway.variable} ${lato.variable} ${playfair.variable}`} suppressHydrationWarning>
+    <html lang="pt-BR" className={`${montserrat.variable} ${raleway.variable}`} suppressHydrationWarning>
       <head>
         <meta charSet="utf-8" />
         <link rel="manifest" href="/manifest.json" />

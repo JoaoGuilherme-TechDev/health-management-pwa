@@ -343,10 +343,10 @@ export function NotificationCenter() {
         size="icon"
         onClick={() => setIsOpen(!isOpen)}
         className={cn(
-          "relative rounded-full transition-all duration-300 h-10 w-10",
+          "relative rounded-full transition-all duration-300 h-10 w-10 border-[#B89B5E] dark:border-[#E7CFC4]",
           unreadCount > 0
-            ? "border-primary bg-primary text-primary-foreground shadow-lg shadow-primary/25 hover:bg-primary/90 hover:scale-105"
-            : "text-muted-foreground hover:bg-primary/10 hover:text-primary hover:border-primary/50"
+            ? "bg-transparent text-primary shadow-none hover:bg-[#B89B5E]/10 hover:scale-105 dark:bg-transparent dark:text-[#E7CFC4] dark:shadow-none dark:hover:bg-[#E7CFC4]/10"
+            : "text-muted-foreground dark:text-[#E7CFC4] hover:bg-primary/10 hover:text-primary hover:border-primary/50"
         )}
       >
         <Bell className={cn("h-5 w-5 transition-transform", unreadCount > 0 && "animate-tada")} />
@@ -366,7 +366,7 @@ export function NotificationCenter() {
             maxHeight: panelMaxHeight,
           }}
         >
-          <div className="border-b border-border p-4 bg-gradient-to-r from-emerald-50 to-teal-50 dark:from-emerald-950/30 dark:to-teal-950/30">
+          <div className="border-b border-border p-4 bg-gradient-to-r from-[#B89B5E]/10 to-transparent dark:from-[#E7CFC4]/10 dark:to-transparent">
             <div className="flex items-center justify-between mb-3">
               <h3 className="font-bold text-lg text-foreground flex items-center gap-2">
                 <Bell className="h-5 w-5 text-primary" />
