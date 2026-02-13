@@ -22,6 +22,7 @@ export async function processRemindersAndPush() {
       await client.query('BEGIN')
       await client.query('SELECT process_due_medication_reminders()')
       await client.query('SELECT process_due_appointment_reminders()')
+      await client.query('SELECT cleanup_old_notifications()')
       await client.query('COMMIT')
       results.reminders_generated = true
     } catch (e: any) {
