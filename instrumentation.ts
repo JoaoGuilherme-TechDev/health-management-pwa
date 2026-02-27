@@ -28,8 +28,7 @@ export async function register() {
           }
         } catch (err) {
           console.error('[Scheduler] Unexpected error:', err)
-        } finally {
-          global.__health_scheduler_processing__ = false
+        } finally {global.__health_scheduler_processing__ = false
         }
       }, 10_000) // Run every 10 seconds
     }
