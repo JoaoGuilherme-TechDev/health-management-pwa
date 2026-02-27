@@ -4,7 +4,7 @@ import { Pool, PoolConfig, PoolClient } from 'pg';
 // Configuration should come from environment variables
 const poolConfig: PoolConfig = {
   connectionString: process.env.DATABASE_URL || 'postgresql://postgres:postgres@localhost:5432/health_pwa',
-  ssl: process.env.NODE_ENV === 'production' ? { rejectUnauthorized: false } : false,
+  ssl: process.env.DATABASE_SSL_ENABLED === 'true' ? { rejectUnauthorized: false } : false,
   max: 20, // Max number of clients in the pool
   idleTimeoutMillis: 30000,
   connectionTimeoutMillis: 2000,
