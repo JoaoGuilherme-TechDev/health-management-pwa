@@ -1,15 +1,15 @@
 // @ts-ignore
 import { Pool, PoolConfig, PoolClient } from 'pg';
 
+const sslEnabled = process.env.DATABASE_SSL_ENABLED === 'true';
+
 // Configuration should come from environment variables
 const poolConfig: PoolConfig = {
   connectionString: process.env.DATABASE_URL || 'postgresql://postgres:postgres@localhost:5432/health_pwa',
-  ssl: process.env.DATABASE_SSL_ENABLED === 'true' 
-    ? { rejectUnauthorized: false } // Allows self-signed certificates common in local setups
-    : false,
+  ssl: sslEnabled ? { rejectUnauthorized: false } : false,
   max: 20, // Max number of clients in the pool
   idleTimeoutMillis: 30000,
-  connectionTimeoutMillis: 5000, // Slightly longer timeout for SSL handshakes
+  connectionTimeoutMillis: 5000,
 };
 
 // Create a singleton pool instance
