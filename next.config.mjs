@@ -6,6 +6,7 @@ const nextConfig = {
   images: {
     unoptimized: true,
   },
+  output: 'standalone',
   // Allow cross-origin requests from the user's specific IP and any other necessary origins
   // This fixes the "Cross origin request detected" warning
   allowedDevOrigins: ["localhost:3000", "100.71.87.35"],

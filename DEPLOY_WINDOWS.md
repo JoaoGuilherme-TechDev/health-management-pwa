@@ -80,13 +80,33 @@ You need to deploy the database schema. The project includes a PowerShell script
 
 ## 5. Build the Application
 
-Build the Next.js application for production.
+Build the Next.js application for production. This project is configured for `standalone` output to save space.
 
 ```powershell
 npm run build
 ```
 
-## 6. Process Management (PM2)
+After building, the production-ready files are in `.next/standalone`. You can run the app directly from there using:
+```powershell
+node .next/standalone/server.js
+```
+*Note: You'll need to copy the `.next/static` folder to `.next/standalone/.next/static` and the `public` folder to `.next/standalone/public` for the standalone server to work correctly.*
+
+## 6. Maintenance & Space Saving
+
+To keep your server from filling up, you can use the following commands:
+
+- **Clean Build Cache**: Removes temporary build files that are no longer needed.
+  ```powershell
+  npm run clean
+  ```
+- **Prune Dependencies**: Removes development-only packages from `node_modules`.
+  ```powershell
+  npm prune --production
+  ```
+- **Standalone Mode**: The app is configured with `output: 'standalone'` in `next.config.mjs`, which bundles only the code needed for production, significantly reducing the size of the final package.
+
+## 7. Process Management (PM2)
 
 We will use PM2 to keep the application running in the background.
 

@@ -8,6 +8,7 @@
     "lint": "eslint .",
     "test": "vitest",
     "db:setup": "powershell ./scripts/setup_local_db.ps1",
+    "clean": "rm -rf .next/cache",
     "start": "next start"
   },
   "dependencies": {
