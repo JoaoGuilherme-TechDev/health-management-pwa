@@ -158,8 +158,12 @@ export function NotificationCenter() {
           )
           
           newNotifications.forEach(n => {
-             console.log("[v0] New notification detected via polling:", n)
-             showBrowserNotification(n)
+             if(document.hidden) { 
+               showBrowserNotification(n)
+             }else {
+              pushService.playNotificationSound()
+              pushService.vibrateDevice()
+             }
           })
 
           // OPTIMIZATION: Check if data actually changed to avoid re-renders
