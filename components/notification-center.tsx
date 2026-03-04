@@ -156,15 +156,6 @@ export function NotificationCenter() {
             !prevIds.has(n.id) && 
             new Date(n.created_at).getTime() > oneMinuteAgo
           )
-          
-          newNotifications.forEach(n => {
-             if(document.hidden) { 
-               showBrowserNotification(n)
-             }else {
-              pushService.playNotificationSound()
-              pushService.vibrateDevice()
-             }
-          })
 
           // OPTIMIZATION: Check if data actually changed to avoid re-renders
           const hasChanged = data.length !== prev.length || 
