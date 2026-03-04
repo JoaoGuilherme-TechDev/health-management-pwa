@@ -44,7 +44,7 @@ export default function AppointmentsPage() {
 
         console.log("Loading appointments for user:", user.id)
 
-        const res = await fetch(`/api/data?table=appointments&match_key=user_id&match_value=${user.id}`)
+        const res = await fetch(`/api/data?table=appointments&match_key=patient_id&match_value=${user.id}`)
         
         if (isMounted) {
           if (res.ok) {
