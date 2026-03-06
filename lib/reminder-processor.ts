@@ -56,7 +56,7 @@ export async function processRemindersAndPush() {
 
         if (subsRes.rows.length === 0) {
           await pool.query(
-            "UPDATE push_queue SET status = 'failed', message = 'No subscription found' WHERE id = $1",
+            "UPDATE push_queue SET status = 'failed' WHERE id = $1",
             [item.id],
           )
           continue
@@ -69,7 +69,7 @@ export async function processRemindersAndPush() {
               subscription,
               JSON.stringify({
                 title: item.title,
-                message: item.message,
+                body: item.message,
                 icon: '/icon.png',
                 badge: '/badge.png',
                 data: { url: '/', id: item.id },

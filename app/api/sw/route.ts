@@ -39,9 +39,9 @@ self.addEventListener('activate', (event) => {
 self.addEventListener('push', (event) => {
   const data = event.data ? event.data.json() : {};
   const options = {
-    body: data.body || 'Nova notificação',
+    body: data.body || data.message || 'Nova notificação',
     icon: data.icon || '/icon.svg',
-    badge: '/icon.svg',
+    badge: data.badge || '/icon.svg',
     tag: data.tag || 'notification',
     requireInteraction: data.requireInteraction || false,
     actions: data.actions || [],

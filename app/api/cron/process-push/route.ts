@@ -40,7 +40,7 @@ export async function GET() {
 
       const payload = JSON.stringify({
         title: item.title,
-        message: item.message,
+        body: item.message,
         url: '/',
         tag: item.notification_id,
         data: {

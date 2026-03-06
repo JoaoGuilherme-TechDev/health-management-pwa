@@ -54,7 +54,7 @@ export async function POST(req: NextRequest) {
 
     const notificationPayload = JSON.stringify({
       title: record.title,
-      message: record.message,
+      body: record.message,
       tag: record.id || notificationType,
       url: '/',
       vibrate: isMedication ? [200, 100, 200, 100, 200] : [200, 100, 200],
